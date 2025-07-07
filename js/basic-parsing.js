@@ -49,7 +49,16 @@ function parseSalesforceObjectNotation(text) {
     
     // Pattern 6: Raw object content {key=value, key=value}
     if (trimmedText.startsWith('{') && trimmedText.endsWith('}')) {
-      return parseKeyValuePairs(trimmedText.slice(1, -1));
+      const content = trimmedText.slice(1, -1);
+      
+      // Check if this looks like a map with Salesforce objects as values
+      if (content.includes('=') && content.includes(':{')) {
+        // This is likely a map with Salesforce objects, use map parsing
+        return parseMapContent(content);
+      } else {
+        // Regular key=value pairs
+        return parseKeyValuePairs(content);
+      }
     }
     
     // If no pattern matches, return as string
@@ -315,4 +324,93 @@ function parseValue(value) {
   
   // Return as string
   return value;
+}
+
+// Function to parse map content like "key1=value1, key2=value2, ..."
+function parseMapContent(content) {
+  const result = {};
+  
+  // Use similar parsing logic as parseMultipleObjects but for key=value pairs
+  let currentPair = '';
+  let braceCount = 0;
+  let parenCount = 0;
+  let bracketCount = 0;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    // Handle string escaping
+    if (escapeNext) {
+      escapeNext = false;
+      currentPair += char;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      currentPair += char;
+      continue;
+    }
+    
+    if (char === '"' || char === "'") {
+      inString = !inString;
+      currentPair += char;
+      continue;
+    }
+    
+    // Only count brackets when not in a string
+    if (!inString) {
+      if (char === '{') braceCount++;
+      if (char === '}') braceCount--;
+      if (char === '(') parenCount++;
+      if (char === ')') parenCount--;
+      if (char === '[') bracketCount++;
+      if (char === ']') bracketCount--;
+      
+      // Split on comma only when all brackets are balanced and not in string
+      if (char === ',' && braceCount === 0 && parenCount === 0 && bracketCount === 0) {
+        if (currentPair.trim()) {
+          const parsedPair = parseMapKeyValuePair(currentPair.trim());
+          Object.assign(result, parsedPair);
+        }
+        currentPair = '';
+        continue;
+      }
+    }
+    
+    currentPair += char;
+  }
+  
+  // Handle the last pair
+  if (currentPair.trim()) {
+    const parsedPair = parseMapKeyValuePair(currentPair.trim());
+    Object.assign(result, parsedPair);
+  }
+  
+  return result;
+}
+
+// Function to parse individual map key=value pairs
+function parseMapKeyValuePair(pair) {
+  const equalIndex = pair.indexOf('=');
+  if (equalIndex === -1) {
+    return { [pair]: null };
+  }
+  
+  const key = pair.substring(0, equalIndex).trim();
+  const value = pair.substring(equalIndex + 1).trim();
+  
+  // Parse the value - it might be a complex object like Account:{Id=..., Name=...}
+  let parsedValue;
+  if (value.includes(':{')) {
+    // This is a Salesforce object notation
+    parsedValue = parseSingleObject(value);
+  } else {
+    // Use the regular value parsing
+    parsedValue = parseValue(value);
+  }
+  
+  return { [key]: parsedValue };
 } 

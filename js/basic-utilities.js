@@ -137,6 +137,8 @@ function containsSalesforceObjects(text) {
   
   // Check for common Salesforce object patterns anywhere in the text
   return (
+    // Raw map content with Salesforce objects: {key1=Object:{...}, key2=Object:{...}}
+    /\{[^}]*=\w+:\{[^}]*=/.test(decodedText) ||
     // Salesforce object notation: Account:{Id=001..., Name=...}
     /\w+:\{[^}]*=/.test(decodedText) ||
     // Salesforce object notation with square brackets: SFrequest:[key=value, ...]

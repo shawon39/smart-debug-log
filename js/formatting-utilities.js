@@ -114,34 +114,55 @@ function extractAndParseSalesforceObjects(text) {
   let objectPart = decodedText;
   let prefix = '';
   
-  // Look for common patterns where object data starts
-  const patterns = [
-    // Pattern: "Full Account → Account:{Id=001..., Name=...}"
-    /^([^→]*→\s*)(\w+:\{.*\})$/s,
-    // Pattern: "Some text:(Account:{...}, Contact:{...})"
-    /^([^(]*?)(\([^)]*\w+:\{.*\))$/s,
-    // Pattern: "Some text Account:{...}"
-    /^([^{]*?)(\w+:\{.*\})$/s,
-    // Pattern: "Some text Account:[...]"
-    /^([^{[\]]*?)(\w+:\[.*\])$/s,
-    // Pattern: "Some text {"key":"value",...}"
-    /^([^{[\]]*?)([\{\[].*[\}\]])$/s,
-    // Pattern: Multi-line JSON from JSON.serializePretty
-    /^([^{[\]]*?)([\{\[][\s\S]*[\}\]])$/,
-    // Pattern: Quoted content "[key=value, ...]"
-    /^([^"]*)("?\[.*\]"?)$/s,
-    // Pattern: Direct object/array (no prefix)
-    /^()([\{\[].*[\}\]])$/s,
-    // Pattern: Direct Salesforce object (no prefix)
-    /^()(\w+:\{.*\})$/s
-  ];
+  // First, try to find the rightmost parentheses group containing Salesforce objects
+  const parenMatches = [];
+  let parenRegex = /\([^)]*\w+:\{[^}]*=[^}]*\}[^)]*\)/g;
+  let match;
   
-  for (const pattern of patterns) {
-    const match = decodedText.match(pattern);
-    if (match) {
-      prefix = match[1];
-      objectPart = match[2];
-      break;
+  while ((match = parenRegex.exec(decodedText)) !== null) {
+    parenMatches.push({
+      content: match[0],
+      start: match.index,
+      end: match.index + match[0].length
+    });
+  }
+  
+  // If we found parentheses groups with Salesforce objects, use the rightmost one
+  if (parenMatches.length > 0) {
+    const lastParenMatch = parenMatches[parenMatches.length - 1];
+    prefix = decodedText.substring(0, lastParenMatch.start).trim();
+    objectPart = lastParenMatch.content;
+  } else {
+    // Fallback to original pattern matching
+    // Look for common patterns where object data starts
+    const patterns = [
+      // Pattern: "Full Account → Account:{Id=001..., Name=...}"
+      /^([^→]*→\s*)(\w+:\{.*\})$/s,
+      // Pattern: "Some text:(Account:{...}, Contact:{...})"
+      /^([^(]*?)(\([^)]*\w+:\{.*\))$/s,
+      // Pattern: "Some text Account:{...}"
+      /^([^{]*?)(\w+:\{.*\})$/s,
+      // Pattern: "Some text Account:[...]"
+      /^([^{[\]]*?)(\w+:\[.*\])$/s,
+      // Pattern: "Some text {"key":"value",...}"
+      /^([^{[\]]*?)([\{\[].*[\}\]])$/s,
+      // Pattern: Multi-line JSON from JSON.serializePretty
+      /^([^{[\]]*?)([\{\[][\s\S]*[\}\]])$/,
+      // Pattern: Quoted content "[key=value, ...]"
+      /^([^"]*)("?\[.*\]"?)$/s,
+      // Pattern: Direct object/array (no prefix)
+      /^()([\{\[].*[\}\]])$/s,
+      // Pattern: Direct Salesforce object (no prefix)
+      /^()(\w+:\{.*\})$/s
+    ];
+    
+    for (const pattern of patterns) {
+      const match = decodedText.match(pattern);
+      if (match) {
+        prefix = match[1];
+        objectPart = match[2];
+        break;
+      }
     }
   }
   

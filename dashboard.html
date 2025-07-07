@@ -791,9 +791,15 @@
         </div>
         <div class="limits-content hidden" id="limitsContent"></div>
       </div>
-    </div>
-  </div>
+      </div>
+</div>
 
-  <script src="dashboard.js"></script>
+<!-- Load JavaScript files in order: basic utilities, parsing, formatting, debug manager, then dashboard core -->
+<script src="js/basic-utilities.js"></script>
+<script src="js/basic-parsing.js"></script>
+<script src="js/complex-parsing.js"></script>
+<script src="js/formatting-utilities.js"></script>
+<script src="js/debug-log-manager.js"></script>
+<script src="js/dashboard-core.js"></script>
 </body>
 </html> 

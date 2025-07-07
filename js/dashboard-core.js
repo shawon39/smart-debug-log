@@ -9,6 +9,7 @@ let sfHost = null;
 let debugLogs = [];
 let selectedLogId = null;
 let readLogs = new Set();
+let currentRawResponse = null;
 
 // Cache DOM elements
 const elements = {
@@ -38,7 +39,8 @@ const elements = {
   debugContentPanel: document.getElementById('debugContentPanel'),
   selectedLogIdElement: document.getElementById('selectedLogId'),
   debugContent: document.getElementById('debugContent'),
-  limitsContent: document.getElementById('limitsContent')
+  limitsContent: document.getElementById('limitsContent'),
+  copyRawResponseBtn: document.getElementById('copyRawResponseBtn')
 };
 
 // Initialize dashboard
@@ -50,6 +52,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (headerHost && targetHost) {
     headerHost.textContent = `(${targetHost})`;
   }
+  
+  // Clear raw response and hide button initially
+  clearRawResponse();
   
   await checkConnectionStatus(targetHost);
   await loadDebugLogs();
@@ -78,7 +83,7 @@ window.addEventListener('focus', () => {
 // Setup event listeners
 function setupEventListeners() {
   const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, copySessionBtn, 
-          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit } = elements;
+          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, copyRawResponseBtn } = elements;
   
   startMonitoringBtn?.addEventListener('click', startMonitoring);
   stopMonitoringBtn?.addEventListener('click', stopMonitoring);
@@ -90,6 +95,7 @@ function setupEventListeners() {
   openIncognitoBtn?.addEventListener('click', openInIncognito);
   openDevConsoleBtn?.addEventListener('click', openDeveloperConsole);
   dismissWarningBtn?.addEventListener('click', dismissDevConsoleWarning);
+  copyRawResponseBtn?.addEventListener('click', copyRawResponse);
   
   pollInterval?.addEventListener('change', () => {
     updatePollIntervalStat();
@@ -454,6 +460,36 @@ function dismissDevConsoleWarning() {
     sessionStorage.setItem(`devConsole_dismissed_${sfHost}`, 'true');
   }
   hideDevConsoleWarning();
+}
+
+// Clear raw response function
+function clearRawResponse() {
+  currentRawResponse = null;
+  const { copyRawResponseBtn } = elements;
+  copyRawResponseBtn?.classList.add('hidden');
+}
+
+// Copy raw response function
+async function copyRawResponse() {
+  if (!currentRawResponse) return;
+  
+  try {
+    await navigator.clipboard.writeText(currentRawResponse);
+    
+    const { copyRawResponseBtn } = elements;
+    const originalText = copyRawResponseBtn.innerHTML;
+    copyRawResponseBtn.innerHTML = '✅ Copied';
+    copyRawResponseBtn.disabled = true;
+    
+    setTimeout(() => {
+      copyRawResponseBtn.innerHTML = originalText;
+      copyRawResponseBtn.disabled = false;
+    }, 2000);
+    
+  } catch (error) {
+    // Fallback: show alert with the content
+    alert('Raw Response:\n\n' + currentRawResponse);
+  }
 }
 
 // Cleanup on window unload

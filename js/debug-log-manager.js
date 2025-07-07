@@ -274,7 +274,7 @@ async function showLogDetails(logId) {
   const log = debugLogs.find(l => l.Id === logId);
   if (!log) return;
 
-  const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel, debugContent, limitsContent } = elements;
+  const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel, debugContent, limitsContent, copyRawResponseBtn } = elements;
   
   if (selectedLogIdElement) {
     selectedLogIdElement.textContent = `Log ID: ${logId}`;
@@ -283,6 +283,9 @@ async function showLogDetails(logId) {
   welcomeState.classList.add('hidden');
   limitsWelcomeState.classList.add('hidden');
   debugContentPanel.classList.remove('hidden');
+  
+  // Clear raw response while loading
+  clearRawResponse();
   
   debugContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #6c757d;">Loading debug messages...</div>';
   limitsContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #6c757d;">Loading governor limits...</div>';
@@ -298,7 +301,11 @@ async function showLogDetails(logId) {
     });
 
     if (response.success && response.data) {
-      const parsedContent = parseDebugLogContent(response.data.content || response.data);
+      // Store raw response data
+      currentRawResponse = response.data.content || response.data;
+      copyRawResponseBtn?.classList.remove('hidden');
+      
+      const parsedContent = parseDebugLogContent(currentRawResponse);
       
       // Display debug messages
       if (parsedContent.debugMessages && parsedContent.debugMessages.length > 0) {
@@ -356,11 +363,17 @@ async function showLogDetails(logId) {
       debugContent.innerHTML = errorMessage;
       limitsContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Unable to load governor limits.</div>';
       limitsContent.classList.remove('hidden');
+      
+      // Clear raw response and hide button on error
+      clearRawResponse();
     }
   } catch (error) {
     debugContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Error loading debug messages.</div>';
     limitsContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Error loading governor limits.</div>';
     limitsContent.classList.remove('hidden');
+    
+    // Clear raw response and hide button on error
+    clearRawResponse();
   }
 }
 

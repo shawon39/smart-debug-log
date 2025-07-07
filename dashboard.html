@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Salesforce Debug Log Beautifier</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f4f6f9;
+      color: #333;
+      line-height: 1.4;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Compact Header */
+    .header {
+      background: linear-gradient(135deg, #0176d3, #005fb2);
+      color: white;
+      padding: 8px 20px;
+      box-shadow: 0 1px 8px rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 16px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-btn {
+      background: rgba(255,255,255,0.2);
+      border: none;
+      color: white;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s;
+    }
+
+    .header-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    /* Compact Controls Bar */
+    .controls-bar {
+      background: white;
+      padding: 8px 20px;
+      border-bottom: 1px solid #e5e5e5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .status-section {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #6c757d;
+    }
+
+    .status-dot.connected {
+      background: #28a745;
+    }
+
+    .status-dot.monitoring {
+      background: #0176d3;
+    }
+
+    .status-dot.error {
+      background: #dc3545;
+    }
+
+    .org-info {
+      font-size: 11px;
+      color: #6c757d;
+    }
+
+    .controls-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .control-group label {
+      font-size: 11px;
+      color: #495057;
+      white-space: nowrap;
+    }
+
+    .control-group select {
+      padding: 4px 6px;
+      border: 1px solid #ced4da;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+
+    .button {
+      background: #0176d3;
+      color: white;
+      border: none;
+      padding: 4px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .button:hover {
+      background: #005fb2;
+    }
+
+    .button.danger {
+      background: #dc3545;
+    }
+
+    .button.secondary {
+      background: #6c757d;
+    }
+
+    .stats {
+      display: flex;
+      gap: 10px;
+      font-size: 11px;
+    }
+
+    .stat {
+      color: #495057;
+      font-weight: 500;
+    }
+
+    /* Main Content - 3 Column Layout */
+    .main-content {
+      display: grid;
+      grid-template-columns: 25% 45% 30%;
+      gap: 10px;
+      padding: 10px;
+      height: calc(100vh - 100px);
+      min-height: 0;
+    }
+
+    /* Panel Styles */
+    .panel {
+      background: white;
+      border-radius: 6px;
+      border: 1px solid #e5e5e5;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      background: #f8f9fa;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e5e5e5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .panel-icon {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: white;
+      font-weight: bold;
+    }
+
+    .logs-icon {
+      background: #6f42c1;
+    }
+
+    .debug-icon {
+      background: #28a745;
+    }
+
+    .limits-icon {
+      background: #dc3545;
+    }
+
+    .panel-content {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    /* Recent Logs Panel */
+    .logs-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 8px;
+    }
+
+    .log-item {
+      background: #f8f9fa;
+      border-radius: 4px;
+      padding: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-left: 2px solid #dee2e6;
+      font-size: 11px;
+    }
+
+    .log-item:hover {
+      background: #e9ecef;
+      border-left-color: #0176d3;
+    }
+
+    .log-item.selected {
+      background: #e3f2fd;
+      border-left-color: #0176d3;
+    }
+
+    .log-item.log-item-expired {
+      background: #fff3cd;
+      border-left-color: #f0ad4e;
+      opacity: 0.8;
+    }
+
+    .log-item.log-item-expired:hover {
+      background: #ffeaa7;
+      border-left-color: #e08e0b;
+    }
+
+    .expired-indicator {
+      display: inline-block;
+      margin-right: 4px;
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    .log-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      position: relative;
+    }
+
+    .log-id {
+      font-family: monospace;
+      background: #e9ecef;
+      padding: 1px 4px;
+      border-radius: 2px;
+      font-size: 9px;
+      position: relative;
+    }
+    
+    .unread-indicator {
+      position: absolute;
+      top: 3px;
+      right: -10px;
+      width: 8px;
+      height: 8px;
+      background: #0176d3;
+      border: 1px solid white;
+      border-radius: 50%;
+      font-size: 0;
+      z-index: 1;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    .log-time {
+      font-size: 9px;
+      color: #495057;
+      font-weight: 500;
+    }
+
+    .log-details {
+      font-size: 10px;
+      color: #495057;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .log-details span {
+      padding: 1px 4px;
+      background: #f8f9fa;
+      border-radius: 2px;
+      font-size: 9px;
+    }
+
+    .log-operation {
+      color: #495057;
+      font-weight: 500;
+    }
+
+    .log-duration {
+      color: #495057;
+      font-weight: 500;
+    }
+
+    .log-size {
+      color: #495057;
+      font-weight: 500;
+    }
+
+    /* Debug Content Panel */
+    .debug-content {
+      padding: 8px;
+    }
+
+    .debug-message-block {
+      background: #ffffff;
+      border: 1px solid #e1e5e9;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-left: 4px solid #0176d3;
+      font-size: 10px;
+      line-height: 1.5;
+      font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      position: relative;
+      color: #24292f;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      transition: all 0.2s ease;
+    }
+    
+    .debug-message-block:hover {
+      background: #f6f8fa;
+      border-left-color: #005fb2;
+      box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+      transform: translateY(-1px);
+    }
+    
+    /* Enhanced JSON formatting styles */
+    .debug-message-block pre {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      border: none;
+      font-family: inherit;
+      font-size: inherit;
+      line-height: inherit;
+      color: inherit;
+    }
+    
+    /* Better spacing for nested structures */
+    .debug-message-block {
+      tab-size: 2;
+      -moz-tab-size: 2;
+      -o-tab-size: 2;
+    }
+
+    .debug-message-block:last-child {
+      margin-bottom: 0;
+    }
+
+    /* Governor Limits Panel */
+    .limits-content {
+      padding: 10px;
+      font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: #f8f9fa;
+      border-radius: 4px;
+      border: 1px solid #e9ecef;
+    }
+    
+    /* Governor Limits Syntax Highlighting */
+    .limits-content .limit-header {
+      color: #0066cc;
+      font-weight: bold;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #e9ecef;
+    }
+    
+    .limits-content .limit-category {
+      color: #d73a49;
+      font-weight: 600;
+    }
+    
+    .limits-content .limit-value {
+      color: #005cc5;
+      font-weight: 500;
+    }
+    
+    .limits-content .limit-used {
+      color: #e36209;
+    }
+    
+    .limits-content .limit-separator {
+      color: #6f42c1;
+    }
+    
+    .limits-content .limit-percentage {
+      color: #28a745;
+      font-weight: 500;
+    }
+
+    /* Welcome State */
+    .welcome-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #6c757d;
+      text-align: center;
+      font-size: 12px;
+    }
+
+    .welcome-icon {
+      font-size: 32px;
+      margin-bottom: 10px;
+      opacity: 0.5;
+    }
+
+    /* Loading States */
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: #6c757d;
+      font-size: 11px;
+    }
+
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e0e5e9;
+      border-top: 2px solid #0176d3;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 8px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: #6c757d;
+      font-size: 11px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Developer Console Warning Banner */
+    .dev-console-warning {
+      background: linear-gradient(135deg, #fff7e6, #fef3e2);
+      border: 1px solid #fed7aa;
+      border-left: 4px solid #f59e0b;
+      color: #92400e;
+      padding: 8px 16px;
+      border-radius: 6px;
+      margin: 8px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 1px 3px rgba(245, 158, 11, 0.1);
+      font-size: 13px;
+      transition: all 0.3s ease;
+    }
+
+    .dev-console-warning:hover {
+      box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
+      transform: translateY(-1px);
+    }
+
+    .dev-console-warning.hidden {
+      display: none;
+    }
+
+    .warning-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+    }
+
+    .warning-icon {
+      font-size: 16px;
+      color: #f59e0b;
+      opacity: 0.8;
+    }
+
+    .warning-text {
+      flex: 1;
+      line-height: 1.4;
+    }
+
+    .warning-title {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 1px;
+      color: #78350f;
+    }
+
+    .warning-subtitle {
+      font-size: 11px;
+      color: #a16207;
+      opacity: 0.9;
+    }
+
+    .warning-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .dev-console-btn {
+      background: #f59e0b;
+      border: none;
+      color: white;
+      padding: 5px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+    }
+
+    .dev-console-btn:hover {
+      background: #d97706;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(245, 158, 11, 0.3);
+    }
+
+    .dev-console-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(245, 158, 11, 0.2);
+    }
+
+    .dismiss-btn {
+      background: transparent;
+      border: 1px solid #fed7aa;
+      color: #a16207;
+      padding: 4px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 10px;
+      transition: all 0.2s ease;
+    }
+
+    .dismiss-btn:hover {
+      background: #fef3e2;
+      border-color: #f59e0b;
+      color: #78350f;
+    }
+
+    /* Responsive */
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 30% 40% 30%;
+      }
+    }
+
+    @media (max-width: 900px) {
+      .main-content {
+        grid-template-columns: 1fr;
+        grid-template-rows: 200px 1fr 200px;
+      }
+      
+      .controls-bar {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px;
+      }
+
+      .dev-console-warning {
+        flex-direction: column;
+        text-align: center;
+        gap: 8px;
+        padding: 10px 16px;
+      }
+
+      .warning-content {
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .warning-actions {
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .dev-console-btn, .dismiss-btn {
+        font-size: 11px;
+        padding: 6px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Compact Header -->
+  <div class="header">
+    <h1>
+      Salesforce Debug Log Beautifier
+    </h1>
+    <button class="header-btn" id="closeDashboardBtn">Close</button>
+  </div>
+
+  <!-- Compact Controls Bar -->
+  <div class="controls-bar">
+    <div class="status-section">
+      <div class="status-item">
+        <span id="connectionStatusText">Checking...</span>
+      </div>
+      <div class="org-actions hidden" id="orgActions" style="display: flex; gap: 8px; align-items: center;">
+        <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;" title="Copy session URL">Copy Session URL</button>
+        <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>
+      </div>
+    </div>
+
+    <div class="controls-section">
+      <div class="status-item">
+        <div class="status-dot" id="monitoringStatusDot"></div>
+        <span id="monitoringStatusText">Stopped</span>
+      </div>
+      <div class="control-group">
+        <label>Interval:</label>
+        <select id="pollInterval">
+          <option value="5">5s</option>
+          <option value="10" selected>10s</option>
+          <option value="15">15s</option>
+          <option value="30">30s</option>
+          <option value="60">1m</option>
+          <option value="120">2m</option>
+        </select>
+      </div>
+      <div class="control-group">
+        <label>Limit:</label>
+        <select id="logLimit">
+          <option value="10" selected>10</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <button class="button" id="startMonitoringBtn">Start</button>
+      <button class="button danger hidden" id="stopMonitoringBtn">Stop</button>
+    </div>
+
+    <div class="stats hidden" id="monitoringStats">
+      <span class="stat"><span id="totalLogsCount">0</span> logs</span>
+      <span class="stat">Last: <span id="lastPollTime">Never</span></span>
+    </div>
+  </div>
+
+  <!-- Developer Console Warning Banner -->
+  <div class="dev-console-warning hidden" id="devConsoleWarning">
+    <div class="warning-content">
+      <div class="warning-icon">💡</div>
+      <div class="warning-text">
+        <div class="warning-title">Developer Console Needed</div>
+        <div class="warning-subtitle">Keep Developer Console open to see debug logs properly</div>
+      </div>
+    </div>
+    <div class="warning-actions">
+      <button class="dev-console-btn" id="openDevConsoleBtn">
+        ⚡ Open Console
+      </button>
+      <button class="dismiss-btn" id="dismissWarningBtn">×</button>
+    </div>
+  </div>
+
+  <!-- Main Content - 3 Column Layout -->
+  <div class="main-content">
+    <!-- Recent Debug Logs -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          Recent Debug Logs
+        </div>
+        <button class="button secondary" id="refreshLogsBtn" style="font-size: 10px; padding: 3px 8px;">Refresh</button>
+      </div>
+      <div class="panel-content">
+        <div class="loading" id="logsLoading">
+          <div class="spinner"></div>
+          <span>Loading logs...</span>
+        </div>
+        <div class="empty-state hidden" id="emptyState">
+          <h4>No Debug Logs</h4>
+          <p>Start monitoring to see logs</p>
+        </div>
+        <div class="logs-grid" id="logsList"></div>
+      </div>
+    </div>
+
+    <!-- Debug Messages -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          Debug Messages
+        </div>
+        <div id="selectedLogId" style="font-family: monospace; font-size: 10px; color: #6c757d;"></div>
+      </div>
+      <div class="panel-content">
+        <div class="welcome-state" id="welcomeState">
+          <div class="welcome-icon">📋</div>
+          <h4>Select a Debug Log</h4>
+          <p>Click any log to view debug messages</p>
+        </div>
+        <div class="debug-content hidden" id="debugContentPanel">
+          <div id="debugContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Governor Limits -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          Governor Limits
+        </div>
+      </div>
+      <div class="panel-content">
+        <div class="welcome-state" id="limitsWelcomeState">
+          <div class="welcome-icon">⚡</div>
+          <h4>Select a Debug Log</h4>
+          <p>Governor limits will appear here</p>
+        </div>
+        <div class="limits-content hidden" id="limitsContent"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html> 

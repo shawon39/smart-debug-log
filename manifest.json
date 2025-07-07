@@ -1,0 +1,81 @@
+{
+  "manifest_version": 3,
+  "name": "Salesforce Debug Log Beautifier",
+  "version": "1.0.0",
+  "description": "Beautify Salesforce debug logs with syntax highlighting, clear JSON formatting, and smart real-time polling.",
+  
+  "permissions": [
+    "cookies",
+    "storage",
+    "activeTab",
+    "alarms",
+    "notifications",
+    "windows",
+    "scripting"
+  ],
+  
+  "host_permissions": [
+    "https://*.salesforce.com/*",
+    "https://*.force.com/*",
+    "https://*.cloudforce.com/*",
+    "https://*.salesforce.mil/*",
+    "https://*.cloudforce.mil/*",
+    "https://*.sfcrmproducts.cn/*",
+    "https://*.visual.force.com/*",
+    "https://*.lightning.force.com/*",
+    "https://*.my.salesforce.com/*",
+    "https://*.sandbox.my.salesforce.com/*",
+    "https://*.develop.my.salesforce.com/*",
+    "https://*.scratch.my.salesforce.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.salesforce.com/*",
+        "https://*.force.com/*",
+        "https://*.cloudforce.com/*",
+        "https://*.salesforce.mil/*",
+        "https://*.cloudforce.mil/*",
+        "https://*.sfcrmproducts.cn/*",
+        "https://*.visual.force.com/*",
+        "https://*.lightning.force.com/*",
+        "https://*.my.salesforce.com/*",
+        "https://*.sandbox.my.salesforce.com/*",
+        "https://*.develop.my.salesforce.com/*",
+        "https://*.scratch.my.salesforce.com/*"
+      ],
+      "js": ["content/salesforce-api.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Salesforce Debug Log Beautifier",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  
+  "options_page": "dashboard.html",
+  
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+} 

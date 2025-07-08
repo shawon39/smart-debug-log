@@ -27,6 +27,7 @@ const elements = {
   startMonitoringBtn: document.getElementById('startMonitoringBtn'),
   stopMonitoringBtn: document.getElementById('stopMonitoringBtn'),
   refreshLogsBtn: document.getElementById('refreshLogsBtn'),
+  markAllReadBtn: document.getElementById('markAllReadBtn'),
   monitoringStats: document.getElementById('monitoringStats'),
   totalLogsCount: document.getElementById('totalLogsCount'),
   lastPollTime: document.getElementById('lastPollTime'),
@@ -82,12 +83,13 @@ window.addEventListener('focus', () => {
 
 // Setup event listeners
 function setupEventListeners() {
-  const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, copySessionBtn, 
+  const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, markAllReadBtn, copySessionBtn, 
           openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, copyRawResponseBtn } = elements;
   
   startMonitoringBtn?.addEventListener('click', startMonitoring);
   stopMonitoringBtn?.addEventListener('click', stopMonitoring);
   refreshLogsBtn?.addEventListener('click', refreshDashboard);
+  markAllReadBtn?.addEventListener('click', markAllLogsAsRead);
   
   document.getElementById('closeDashboardBtn')?.addEventListener('click', () => window.close());
   
@@ -332,7 +334,7 @@ async function copySessionUrl() {
     
     const { copySessionBtn } = elements;
     const originalText = copySessionBtn.innerHTML;
-    copySessionBtn.innerHTML = '✅ Copied';
+    copySessionBtn.innerHTML = 'Copied';
     copySessionBtn.disabled = true;
     
     setTimeout(() => {
@@ -478,7 +480,7 @@ async function copyRawResponse() {
     
     const { copyRawResponseBtn } = elements;
     const originalText = copyRawResponseBtn.innerHTML;
-    copyRawResponseBtn.innerHTML = '✅ Copied';
+    copyRawResponseBtn.innerHTML = 'Copied';
     copyRawResponseBtn.disabled = true;
     
     setTimeout(() => {
@@ -489,6 +491,36 @@ async function copyRawResponse() {
   } catch (error) {
     // Fallback: show alert with the content
     alert('Raw Response:\n\n' + currentRawResponse);
+  }
+}
+
+// Mark all logs as read
+function markAllLogsAsRead() {
+  if (!debugLogs || debugLogs.length === 0) {
+    return;
+  }
+  
+  // Mark all logs as read
+  debugLogs.forEach(log => {
+    markLogAsRead(log.Id);
+  });
+  
+  // Remove all unread indicators from the UI
+  document.querySelectorAll('.unread-indicator').forEach(indicator => {
+    indicator.remove();
+  });
+  
+  // Show a brief confirmation message
+  const { markAllReadBtn } = elements;
+  if (markAllReadBtn) {
+    const originalText = markAllReadBtn.textContent;
+    markAllReadBtn.textContent = 'Marked as Read ✓';
+    markAllReadBtn.style.color = '#ffffff';
+    
+    setTimeout(() => {
+      markAllReadBtn.textContent = originalText;
+      markAllReadBtn.style.color = '';
+    }, 2000);
   }
 }
 

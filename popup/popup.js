@@ -75,10 +75,20 @@ class SmartDebugLogPopup {
         try {
           const debugLogUrl = `https://${sfHost}/_ui/common/apex/debug/ApexCSIPage`;
           
-          await chrome.tabs.create({
-            url: debugLogUrl,
-            active: false
-          });
+          // Check if developer console is already open
+          const tabs = await chrome.tabs.query({});
+          const existingDebugTab = tabs.find(tab => 
+            tab.url && tab.url.includes('/_ui/common/apex/debug/ApexCSIPage')
+          );
+          
+          if (!existingDebugTab) {
+            // Create new developer console tab only if it doesn't exist
+            await chrome.tabs.create({
+              url: debugLogUrl,
+              active: false
+            });
+          }
+          // If developer console already exists, do nothing - just proceed to open dashboard
         } catch (debugError) {
           // Continue
         }

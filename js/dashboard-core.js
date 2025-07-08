@@ -57,6 +57,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Clear raw response and hide button initially
   clearRawResponse();
   
+  // Load saved preferences
+  await loadPreferences();
+  
+  // Initialize stats display
+  initializeStats();
+  
   await checkConnectionStatus(targetHost);
   await loadDebugLogs();
   setupEventListeners();
@@ -99,12 +105,17 @@ function setupEventListeners() {
   dismissWarningBtn?.addEventListener('click', dismissDevConsoleWarning);
   copyRawResponseBtn?.addEventListener('click', copyRawResponse);
   
-  pollInterval?.addEventListener('change', () => {
+  pollInterval?.addEventListener('change', async () => {
     updatePollIntervalStat();
-    if (isMonitoring) restartMonitoring();
+    savePreferences();
+    if (isMonitoring) await restartMonitoring();
   });
   
-  logLimit?.addEventListener('change', loadDebugLogs);
+  logLimit?.addEventListener('change', async () => {
+    savePreferences();
+    if (isMonitoring) await restartMonitoring();
+    loadDebugLogs();
+  });
 }
 
 function updatePollIntervalStat() {
@@ -112,6 +123,41 @@ function updatePollIntervalStat() {
   if (!pollInterval || !pollIntervalStat) return;
   const interval = parseInt(pollInterval.value);
   pollIntervalStat.textContent = interval >= 60 ? `${interval/60}m` : `${interval}s`;
+}
+
+// Preference management
+async function loadPreferences() {
+  try {
+    const result = await chrome.storage.local.get(['pollInterval', 'logLimit']);
+    
+    if (result.pollInterval && elements.pollInterval) {
+      elements.pollInterval.value = result.pollInterval;
+    }
+    
+    if (result.logLimit && elements.logLimit) {
+      elements.logLimit.value = result.logLimit;
+    }
+  } catch (error) {
+    console.error('Failed to load preferences:', error);
+  }
+}
+
+async function savePreferences() {
+  try {
+    const preferences = {};
+    
+    if (elements.pollInterval) {
+      preferences.pollInterval = elements.pollInterval.value;
+    }
+    
+    if (elements.logLimit) {
+      preferences.logLimit = elements.logLimit.value;
+    }
+    
+    await chrome.storage.local.set(preferences);
+  } catch (error) {
+    console.error('Failed to save preferences:', error);
+  }
 }
 
 // Connection status management
@@ -298,24 +344,64 @@ async function startMonitoring() {
   updateMonitoringStatus(true, 'Starting...');
   await loadDebugLogs();
   
-  const interval = parseInt(elements.pollInterval.value) * 1000;
-  monitoringInterval = setInterval(loadDebugLogs, interval);
-  
-  updateMonitoringStatus(true, 'Active');
+  // Use background service worker for monitoring
+  try {
+    const orgId = currentSession.orgId || sfHost;
+    const options = {
+      pollInterval: parseInt(elements.pollInterval.value),
+      logLimit: parseInt(elements.logLimit.value),
+      notifyOnNew: true,
+      autoDownload: false
+    };
+    
+    const result = await chrome.runtime.sendMessage({
+      type: 'START_DEBUG_MONITORING',
+      orgId: orgId,
+      session: currentSession,
+      options: options
+    });
+    
+    if (result.success) {
+      updateMonitoringStatus(true, 'Active');
+      
+      // Set up interval for UI updates
+      const uiUpdateInterval = Math.max(parseInt(elements.pollInterval.value) * 1000, 5000);
+      monitoringInterval = setInterval(loadDebugLogs, uiUpdateInterval);
+    } else {
+      updateMonitoringStatus(false, 'Failed to start');
+      console.error('Failed to start monitoring:', result.error);
+    }
+  } catch (error) {
+    console.error('Error starting monitoring:', error);
+    updateMonitoringStatus(false, 'Error');
+  }
 }
 
-function stopMonitoring() {
+async function stopMonitoring() {
   if (monitoringInterval) {
     clearInterval(monitoringInterval);
     monitoringInterval = null;
   }
   
+  // Stop background monitoring
+  try {
+    const orgId = currentSession?.orgId || sfHost;
+    if (orgId) {
+      await chrome.runtime.sendMessage({
+        type: 'STOP_DEBUG_MONITORING',
+        orgId: orgId
+      });
+    }
+  } catch (error) {
+    console.error('Error stopping monitoring:', error);
+  }
+  
   updateMonitoringStatus(false, 'Stopped');
 }
 
-function restartMonitoring() {
+async function restartMonitoring() {
   if (isMonitoring) {
-    stopMonitoring();
+    await stopMonitoring();
     setTimeout(startMonitoring, 100);
   }
 }

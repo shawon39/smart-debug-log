@@ -445,4 +445,14 @@ function updateStats() {
   if (lastPollTime) {
     lastPollTime.textContent = new Date().toLocaleTimeString();
   }
+}
+
+function initializeStats() {
+  const { totalLogsCount, lastPollTime } = elements;
+  if (totalLogsCount) {
+    totalLogsCount.textContent = '0';
+  }
+  if (lastPollTime) {
+    lastPollTime.textContent = 'Never';
+  }
 } 

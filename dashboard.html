@@ -27,7 +27,11 @@
       </div>
     </div>
 
-    <div class="controls-section">
+    <div class="polling-section">
+      <div class="stats hidden" id="monitoringStats">
+        <span class="stat"><span id="totalLogsCount">0</span> logs</span>
+        <span class="stat">Last: <span id="lastPollTime">Never</span></span>
+      </div>
       <div class="status-item">
         <div class="status-dot" id="monitoringStatusDot"></div>
         <span id="monitoringStatusText">Stopped</span>
@@ -47,6 +51,7 @@
         <label>Limit:</label>
         <select id="logLimit">
           <option value="10" selected>10</option>
+          <option value="15">15</option>
           <option value="20">20</option>
           <option value="50">50</option>
           <option value="100">100</option>
@@ -54,11 +59,6 @@
       </div>
       <button class="button" id="startMonitoringBtn">Start</button>
       <button class="button danger hidden" id="stopMonitoringBtn">Stop</button>
-    </div>
-
-    <div class="stats hidden" id="monitoringStats">
-      <span class="stat"><span id="totalLogsCount">0</span> logs</span>
-      <span class="stat">Last: <span id="lastPollTime">Never</span></span>
     </div>
   </div>
 

@@ -22,6 +22,7 @@ class DebugLogManager {
   async startMonitoring(orgId, session, options = {}) {
     const {
       pollInterval = 30,
+      logLimit = 15,
       notifyOnNew = true,
       autoDownload = false,
       filterUsers = [],
@@ -41,6 +42,7 @@ class DebugLogManager {
       ...session,
       options: {
         pollInterval,
+        logLimit,
         notifyOnNew,
         autoDownload,
         filterUsers,
@@ -86,6 +88,7 @@ class DebugLogManager {
         isMonitoring: session.isMonitoring,
         startTime: session.startTime,
         pollInterval: session.options.pollInterval,
+        logLimit: session.options.logLimit,
         lastPoll: this.lastLogTimes.get(orgId)?.lastPoll,
         logCount: this.lastLogTimes.get(orgId)?.logCount || 0
       });
@@ -137,11 +140,12 @@ class DebugLogManager {
     }
 
     try {
+      const logLimit = session.options.logLimit || 15;
       const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
                      FROM ApexLog 
                      WHERE StartTime > ${lastLogInfo.lastLogTime}
                      ORDER BY StartTime DESC 
-                     LIMIT 50`;
+                     LIMIT ${logLimit}`;
 
       const result = await this.executeToolingQuery(session, query);
       

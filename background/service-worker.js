@@ -52,6 +52,9 @@ async function handleMessage(request, sender, sendResponse) {
       case 'EXECUTE_TOOLING_QUERY':
         result = await handleExecuteToolingQuery(request, sender);
         break;
+      case 'TOOLING_CREATE':
+        result = await handleToolingCreate(request, sender);
+        break;
       case 'DOWNLOAD_LOG':
         result = await handleDownloadLog(request, sender);
         break;
@@ -367,6 +370,33 @@ async function handleExecuteToolingQuery(request, sender) {
     return {
       success: false,
       error: error.message || 'Failed to execute tooling query'
+    };
+  }
+}
+
+async function handleToolingCreate(request, sender) {
+  try {
+    const { sobjectType, data, session } = request;
+    
+    if (!sobjectType) {
+      return { success: false, message: 'SObject type is required' };
+    }
+    
+    if (!data) {
+      return { success: false, message: 'Data is required' };
+    }
+    
+    if (!session) {
+      return { success: false, message: 'Session is required' };
+    }
+
+    const result = await debugLogManager.executeToolingCreate(session, sobjectType, data);
+    
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to create record via Tooling API'
     };
   }
 }

@@ -14,6 +14,17 @@ class SmartDebugLogPopup {
 
   setupEventListeners() {
     document.getElementById('openDashboardBtn').addEventListener('click', () => this.openDashboard());
+    
+    // Add simple hover effects for feature cards
+    document.querySelectorAll('.feature-card').forEach(card => {
+      card.addEventListener('mouseenter', () => {
+        card.style.transform = 'translateY(-1px)';
+      });
+      
+      card.addEventListener('mouseleave', () => {
+        card.style.transform = 'translateY(0)';
+      });
+    });
   }
 
   async checkConnection() {
@@ -21,7 +32,8 @@ class SmartDebugLogPopup {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
       if (!tab || !tab.url) {
-        this.updateStatus('disconnected', 'Cannot access tab information');
+        this.updateStatus('disconnected', 'No active tab detected');
+        this.hideOrgInfo();
         return;
       }
 
@@ -31,7 +43,8 @@ class SmartDebugLogPopup {
       });
 
       if (!hostResponse || !hostResponse.success) {
-        this.updateStatus('disconnected', 'Not a Salesforce page');
+        this.updateStatus('disconnected', 'Not connected to Salesforce');
+        this.hideOrgInfo();
         return;
       }
 
@@ -42,16 +55,20 @@ class SmartDebugLogPopup {
       });
 
       if (!sessionResponse || !sessionResponse.success) {
-        this.updateStatus('disconnected', 'No active Salesforce session');
+        this.updateStatus('disconnected', 'Salesforce session not found');
+        this.hideOrgInfo();
         return;
       }
 
       const session = sessionResponse.data;
       const orgName = session.orgName || session.hostname || sfHost;
-      this.updateStatus('connected', `Connected to ${orgName}`);
+      
+      this.updateStatus('connected', 'Connected to Salesforce');
+      this.showOrgInfo(orgName);
       
     } catch (error) {
       this.updateStatus('error', 'Connection check failed');
+      this.hideOrgInfo();
     }
   }
 
@@ -88,9 +105,8 @@ class SmartDebugLogPopup {
               active: false
             });
           }
-          // If developer console already exists, do nothing - just proceed to open dashboard
         } catch (debugError) {
-          // Continue
+          // Continue if developer console creation fails
         }
       }
       
@@ -113,7 +129,7 @@ class SmartDebugLogPopup {
         await chrome.tabs.update(existingDashboard.id, { active: true });
         await chrome.windows.update(existingDashboard.windowId, { focused: true });
       } else {
-        const newTab = await chrome.tabs.create({
+        await chrome.tabs.create({
           url: dashboardUrl,
           active: true
         });
@@ -122,6 +138,7 @@ class SmartDebugLogPopup {
     } catch (error) {
       this.updateStatus('error', 'Failed to open dashboard');
       
+      // Fallback: try to open dashboard without specific host
       try {
         const fallbackUrl = chrome.runtime.getURL('dashboard.html');
         await chrome.tabs.create({
@@ -129,7 +146,7 @@ class SmartDebugLogPopup {
           active: true
         });
       } catch (fallbackError) {
-        // Failed
+        console.error('Dashboard launch failed:', fallbackError);
       }
     } finally {
       setTimeout(() => window.close(), 100);
@@ -142,8 +159,10 @@ class SmartDebugLogPopup {
     
     if (!dot || !text) return;
     
+    // Remove all status classes
     dot.classList.remove('connected', 'disconnected', 'error');
     
+    // Add the current status class if not connected
     if (status !== 'connected') {
       dot.classList.add(status);
     }
@@ -158,14 +177,24 @@ class SmartDebugLogPopup {
     if (!orgInfo || !orgNameElement) return;
     
     if (orgName) {
-      orgNameElement.textContent = orgName;
-      orgInfo.classList.remove('hidden');
+      // Clean up the org name (remove protocol and paths)
+      const cleanOrgName = orgName.replace(/^https?:\/\//, '').split('/')[0];
+      orgNameElement.textContent = cleanOrgName;
+      orgInfo.style.display = 'block';
     } else {
-      orgInfo.classList.add('hidden');
+      orgInfo.style.display = 'none';
+    }
+  }
+
+  hideOrgInfo() {
+    const orgInfo = document.getElementById('orgInfo');
+    if (orgInfo) {
+      orgInfo.style.display = 'none';
     }
   }
 }
 
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   new SmartDebugLogPopup();
 }); 

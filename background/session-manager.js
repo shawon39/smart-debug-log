@@ -84,12 +84,34 @@ class SessionManager {
         return null;
       }
 
+      // Try to get userId by querying a Salesforce tab if available
+      let userId = null;
+      try {
+        if (tabId) {
+          const tab = await chrome.tabs.get(tabId);
+          if (tab && tab.url) {
+            // Try to extract user ID from the page
+            try {
+              const response = await chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_USER_ID' });
+              if (response && response.success && response.userId) {
+                userId = response.userId;
+              }
+            } catch (e) {
+              // Continue without user ID
+            }
+          }
+        }
+      } catch (e) {
+        // Continue without user ID
+      }
+
       const sessionData = {
         key: sessionCookie.value,
         hostname: sessionCookie.domain,
         orgId: orgId,
         sessionId: sessionCookie.value,
         sessionToken: sessionParts[0],
+        userId: userId, // Add userId to session data
         created: Date.now(),
         lastUsed: Date.now(),
         isValid: true,
@@ -123,7 +145,6 @@ class SessionManager {
       if (currentCookie) {
         const [orgId] = currentCookie.value.split('!');
         if (orgId) {
-          console.log(`Found session cookie for org ${orgId} on ${currentDomain}`);
           
           const apiDomain = await this.findApiEnabledDomain(orgId, cookieStoreId);
           const effectiveDomain = apiDomain || currentDomain;
@@ -158,13 +179,11 @@ class SessionManager {
           session.isValid = isValid;
           
           if (!isValid) {
-            console.warn(`Session validation failed for org ${session.orgId}`);
             return null;
           }
         }
 
         this.sessions.set(session.orgId, session);
-        console.log(`Session retrieved for org ${session.orgId} on ${sfHost}`);
         return session;
       }
       
@@ -180,13 +199,11 @@ class SessionManager {
             session.isValid = isValid;
             
             if (!isValid) {
-              console.warn(`Session validation failed for org ${session.orgId}`);
               return null;
             }
           }
 
           this.sessions.set(session.orgId, session);
-          console.log(`Session retrieved for org ${session.orgId} on API domain ${apiDomain} (requested: ${sfHost})`);
           return session;
         }
       }
@@ -203,22 +220,18 @@ class SessionManager {
             session.isValid = isValid;
             
             if (!isValid) {
-              console.warn(`Session validation failed for org ${session.orgId}`);
               continue;
             }
           }
 
           this.sessions.set(session.orgId, session);
-          console.log(`Session retrieved for org ${session.orgId} on related domain ${domain} (requested: ${sfHost})`);
           return session;
         }
       }
       
-      console.log(`No valid session found for ${sfHost} or any related domains`);
       return null;
 
     } catch (error) {
-      console.error('Failed to get session:', error);
       return null;
     }
   }
@@ -235,7 +248,6 @@ class SessionManager {
     try {
       const session = this.sessions.get(orgId);
       if (!session) {
-        console.warn(`No session found for org ${orgId}`);
         return false;
       }
 
@@ -245,16 +257,13 @@ class SessionManager {
       session.isValid = isValid;
 
       if (isValid) {
-        console.log(`Session refreshed for org ${orgId}`);
         return true;
       } else {
-        console.warn(`Session validation failed for org ${orgId}`);
         this.sessions.delete(orgId);
         return false;
       }
 
     } catch (error) {
-      console.error('Failed to refresh session:', error);
       return false;
     }
   }
@@ -265,7 +274,6 @@ class SessionManager {
     
     for (const [orgId, session] of this.sessions.entries()) {
       if (now - session.lastUsed > maxAge || !session.isValid) {
-        console.log(`Cleaning up expired session for org ${orgId}`);
         this.sessions.delete(orgId);
       }
     }
@@ -274,7 +282,6 @@ class SessionManager {
   clearAllSessions() {
     this.sessions.clear();
     this.domainCache.clear();
-    console.log('All sessions cleared');
   }
 
   async getCookieStoreId(tabId) {

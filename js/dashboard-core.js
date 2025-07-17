@@ -19,6 +19,8 @@ const elements = {
   orgActions: document.getElementById('orgActions'),
   copySessionBtn: document.getElementById('copySessionBtn'),
   openIncognitoBtn: document.getElementById('openIncognitoBtn'),
+  deployPrettierBtn: document.getElementById('deployPrettierBtn'),
+  autoRefreshToggle: document.getElementById('autoRefreshToggle'),
   devConsoleWarning: document.getElementById('devConsoleWarning'),
   openDevConsoleBtn: document.getElementById('openDevConsoleBtn'),
   dismissWarningBtn: document.getElementById('dismissWarningBtn'),
@@ -60,6 +62,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load saved preferences
   await loadPreferences();
   
+  // Ensure auto-refresh default is saved if not present
+  await ensureAutoRefreshDefault();
+  
   // Initialize stats display
   initializeStats();
   
@@ -80,12 +85,29 @@ const refreshDashboard = async () => {
 };
 
 document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) setTimeout(refreshDashboard, 100);
+  if (!document.hidden) {
+    const autoRefreshEnabled = getAutoRefreshState();
+    if (autoRefreshEnabled) {
+      setTimeout(refreshDashboard, 100);
+    }
+  }
 });
 
 window.addEventListener('focus', () => {
-  setTimeout(refreshDashboard, 100);
+  const autoRefreshEnabled = getAutoRefreshState();
+  if (autoRefreshEnabled) {
+    setTimeout(refreshDashboard, 100);
+  }
 });
+
+// Helper function to get auto-refresh state
+function getAutoRefreshState() {
+  const toggle = document.getElementById('autoRefreshToggle');
+  if (!toggle) {
+    return true; // Default to enabled if element not found
+  }
+  return toggle.checked;
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -101,6 +123,7 @@ function setupEventListeners() {
   
   copySessionBtn?.addEventListener('click', copySessionUrl);
   openIncognitoBtn?.addEventListener('click', openInIncognito);
+  deployPrettierBtn?.addEventListener('click', deployPrettierClass);
   openDevConsoleBtn?.addEventListener('click', openDeveloperConsole);
   dismissWarningBtn?.addEventListener('click', dismissDevConsoleWarning);
   copyRawResponseBtn?.addEventListener('click', copyRawResponse);
@@ -116,6 +139,14 @@ function setupEventListeners() {
     if (isMonitoring) await restartMonitoring();
     loadDebugLogs();
   });
+  
+  // Auto refresh toggle event listener
+  const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+  if (autoRefreshToggle) {
+    autoRefreshToggle.addEventListener('change', async () => {
+      await savePreferences();
+    });
+  }
 }
 
 function updatePollIntervalStat() {
@@ -125,10 +156,25 @@ function updatePollIntervalStat() {
   pollIntervalStat.textContent = interval >= 60 ? `${interval/60}m` : `${interval}s`;
 }
 
+
+
+// Ensure auto-refresh default value is saved
+async function ensureAutoRefreshDefault() {
+  try {
+    const result = await chrome.storage.local.get(['autoRefresh']);
+    
+    if (result.autoRefresh === undefined) {
+      await chrome.storage.local.set({ autoRefresh: true });
+    }
+  } catch (error) {
+    // Silent error handling
+  }
+}
+
 // Preference management
 async function loadPreferences() {
   try {
-    const result = await chrome.storage.local.get(['pollInterval', 'logLimit']);
+    const result = await chrome.storage.local.get(['pollInterval', 'logLimit', 'autoRefresh']);
     
     if (result.pollInterval && elements.pollInterval) {
       elements.pollInterval.value = result.pollInterval;
@@ -137,8 +183,15 @@ async function loadPreferences() {
     if (result.logLimit && elements.logLimit) {
       elements.logLimit.value = result.logLimit;
     }
+    
+    // Load auto-refresh preference (default to true)
+    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+    if (autoRefreshToggle) {
+      const autoRefreshValue = result.autoRefresh !== undefined ? result.autoRefresh : true;
+      autoRefreshToggle.checked = autoRefreshValue;
+    }
   } catch (error) {
-    console.error('Failed to load preferences:', error);
+    // Silent error handling
   }
 }
 
@@ -154,9 +207,14 @@ async function savePreferences() {
       preferences.logLimit = elements.logLimit.value;
     }
     
+    const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+    if (autoRefreshToggle) {
+      preferences.autoRefresh = autoRefreshToggle.checked;
+    }
+    
     await chrome.storage.local.set(preferences);
   } catch (error) {
-    console.error('Failed to save preferences:', error);
+    // Silent error handling
   }
 }
 
@@ -369,10 +427,8 @@ async function startMonitoring() {
       monitoringInterval = setInterval(loadDebugLogs, uiUpdateInterval);
     } else {
       updateMonitoringStatus(false, 'Failed to start');
-      console.error('Failed to start monitoring:', result.error);
     }
   } catch (error) {
-    console.error('Error starting monitoring:', error);
     updateMonitoringStatus(false, 'Error');
   }
 }
@@ -393,7 +449,7 @@ async function stopMonitoring() {
       });
     }
   } catch (error) {
-    console.error('Error stopping monitoring:', error);
+
   }
   
   updateMonitoringStatus(false, 'Stopped');
@@ -456,6 +512,198 @@ async function openInIncognito() {
     } catch (fallbackError) {
       // Failed
     }
+  }
+}
+
+// Custom modal dialog for code deployment
+function showCodeDeployDialog(description) {
+  return new Promise((resolve) => {
+    // Create modal elements
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 10000;
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    `;
+    
+    const content = document.createElement('div');
+    content.style.cssText = `
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      line-height: 1.6;
+    `;
+    
+    // Format the description with proper code styling
+    const formattedDescription = description
+      .replace(/List<\w+>\s+\w+\s*=\s*\[SELECT[^\]]+\];/g, (match) => {
+        const escapedMatch = match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        return `<code style="background: #f8f9fa; padding: 8px; border-radius: 4px; display: block; font-family: 'Courier New', monospace; font-size: 13px; margin: 8px 0; color: #0176d3;">${escapedMatch}</code>`;
+      })
+      .replace(/Console\.log\([^)]+\);/g, `<code style="background: #f8f9fa; padding: 4px 8px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; color: #d73a49;">$&</code>`)
+      .replace(/Deploy to org: (.+)$/m, `<div style="margin-top: 16px; padding: 12px; background: #e3f2fd; border-radius: 4px; font-size: 13px; color: #1976d2;"><strong>Deploy to org:</strong> $1</div>`)
+      .replace(/\n/g, '<br>');
+    
+    content.innerHTML = `
+      <h3 style="margin: 0 0 16px 0; color: #2c3e50;">Deploy Console Class</h3>
+      <div style="margin-bottom: 20px;">${formattedDescription}</div>
+      <div style="text-align: center; margin-top: 20px;">
+        <button id="deployConfirm" style="background: #0176d3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Deploy to Org</button>
+        <button id="deployCancel" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Cancel</button>
+      </div>
+    `;
+    
+    modal.appendChild(content);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Add event listeners
+    document.getElementById('deployConfirm').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(true);
+    });
+    
+    document.getElementById('deployCancel').addEventListener('click', () => {
+      document.body.removeChild(overlay);
+      resolve(false);
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) {
+        document.body.removeChild(overlay);
+        resolve(false);
+      }
+    });
+    
+    // Close on escape key
+    const escapeHandler = (e) => {
+      if (e.key === 'Escape') {
+        document.body.removeChild(overlay);
+        document.removeEventListener('keydown', escapeHandler);
+        resolve(false);
+      }
+    };
+    document.addEventListener('keydown', escapeHandler);
+  });
+}
+
+async function deployPrettierClass() {
+  if (!currentSession || !sfHost) {
+    alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');
+    return;
+  }
+
+  // Pre-deployment validation
+  console.log('Current session:', currentSession);
+  console.log('SF Host:', sfHost);
+  
+  // Check if we're in a sandbox environment
+  const isSandbox = sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch');
+  if (isSandbox) {
+    console.log('Detected sandbox environment:', sfHost);
+  }
+  
+  // Validate session has required properties
+  if (!currentSession.sessionId && !currentSession.key) {
+    alert('❌ Invalid session: No authentication token found. Please refresh Salesforce and try again.');
+    return;
+  }
+
+  const className = 'Console';
+  const classBody = `public with sharing class Console {
+    public static void log(Object obj) {
+        System.debug(JSON.serializePretty(obj));
+    }
+    
+    public static void log(String label, Object obj) {
+        System.debug(label);
+        System.debug(JSON.serializePretty(obj));
+    }
+}`;
+
+  const classDescription = `📋 Console Utility Class
+
+Ready to use enhanced debug logging for your Salesforce development.
+
+⚡ Code Example:
+List<Account> accountList = [SELECT Id, Name, Industry, Type FROM Account LIMIT 5];
+
+⚡ Usage Examples:
+Console.log(accountList);
+Console.log('Account Results', accountList);
+
+Deploy to org: ${sfHost}`;
+
+  // Show confirmation dialog with better formatting
+  const confirmed = await showCodeDeployDialog(classDescription);
+  if (!confirmed) {
+    return;
+  }
+
+  // Update button state
+  const { deployPrettierBtn } = elements;
+  const originalText = deployPrettierBtn.innerHTML;
+  deployPrettierBtn.innerHTML = 'Deploying...';
+  deployPrettierBtn.disabled = true;
+
+  try {
+    // Prepare the class data for deployment
+    const classData = {
+      Name: className,
+      Body: classBody
+    };
+
+    // Deploy using the Tooling API
+    const result = await chrome.runtime.sendMessage({
+      type: 'TOOLING_CREATE',
+      sobjectType: 'ApexClass',
+      data: classData,
+      session: currentSession
+    });
+
+    if (result.success) {
+      alert('✅ Class is deployed');
+      
+      // Update button to show success
+      deployPrettierBtn.innerHTML = 'Deployed ✓';
+      deployPrettierBtn.style.backgroundColor = '#28a745';
+      
+      setTimeout(() => {
+        deployPrettierBtn.innerHTML = originalText;
+        deployPrettierBtn.style.backgroundColor = '';
+        deployPrettierBtn.disabled = false;
+      }, 3000);
+    } else {
+      throw new Error(result.error || 'Unknown deployment error');
+    }
+  } catch (error) {
+    console.error('Deployment error:', error);
+    
+    let errorMessage = '⚠️ Console class already exists in your org.';
+    
+    alert(errorMessage);
+    
+    // Reset button state
+    deployPrettierBtn.innerHTML = originalText;
+    deployPrettierBtn.disabled = false;
   }
 }
 
@@ -616,3 +864,90 @@ window.addEventListener('beforeunload', () => {
     clearInterval(monitoringInterval);
   }
 }); 
+
+// Test deployment function to verify setup
+async function testDeploymentSetup() {
+  if (!currentSession || !sfHost) {
+    console.error('❌ No active Salesforce session found');
+    return false;
+  }
+  
+  console.log('🧪 Testing deployment setup...');
+  console.log('Session ID length:', (currentSession.sessionId || currentSession.key || '').length);
+  console.log('Instance URL:', sfHost);
+  console.log('Is Sandbox:', sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch'));
+  
+  try {
+    // Test with a simple query first
+    const result = await chrome.runtime.sendMessage({
+      type: 'EXECUTE_TOOLING_QUERY',
+      query: 'SELECT Id, Name FROM ApexClass WHERE Name = \'Console\' LIMIT 1',
+      session: currentSession
+    });
+    
+    if (result.success) {
+      console.log('✅ Tooling API access verified');
+      if (result.data && result.data.records && result.data.records.length > 0) {
+        console.log('⚠️  Console class already exists');
+        return 'EXISTS';
+      } else {
+        console.log('✅ Ready for deployment');
+        return 'READY';
+      }
+    } else {
+      console.error('❌ Tooling API test failed:', result.error);
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Test deployment setup failed:', error);
+    return false;
+  }
+}
+
+// Add this to window for manual testing
+if (typeof window !== 'undefined') {
+  window.testDeploymentSetup = testDeploymentSetup;
+  
+  // Debug function to test user ID extraction
+  window.debugUserIdExtraction = async function() {
+    if (!currentSession || !sfHost) {
+      console.error('❌ No active Salesforce session found');
+      return;
+    }
+    
+    console.log('🔍 Testing User ID extraction...');
+    console.log('Current session:', currentSession);
+    console.log('Has userId in session:', !!currentSession.userId);
+    
+    try {
+      // Test if we can get user ID via API
+      const userQuery = "SELECT Id, Name, Email FROM User WHERE Id = UserInfo.getUserId() LIMIT 1";
+      const result = await chrome.runtime.sendMessage({
+        type: 'EXECUTE_TOOLING_QUERY',
+        query: userQuery,
+        session: currentSession
+      });
+      
+      if (result.success && result.data && result.data.records && result.data.records.length > 0) {
+        const user = result.data.records[0];
+        console.log('✅ Current user found via API:', user);
+        console.log('User ID:', user.Id);
+        console.log('User Name:', user.Name);
+        console.log('User Email:', user.Email);
+        
+        // Update session with userId if missing
+        if (!currentSession.userId) {
+          currentSession.userId = user.Id;
+          console.log('✅ Updated session with userId');
+        }
+        
+        return user.Id;
+      } else {
+        console.error('❌ Could not retrieve current user via API');
+        console.log('API Result:', result);
+      }
+    } catch (error) {
+      console.error('❌ Error testing user ID extraction:', error);
+    }
+  };
+} 

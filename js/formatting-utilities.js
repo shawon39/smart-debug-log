@@ -87,6 +87,17 @@ function extractAndParseSalesforceObjects(text) {
   // Decode HTML entities first for better processing
   let decodedText = decodeHtmlEntities(text);
   
+  // First, try to clean Salesforce API responses (JSON with attributes/metadata)
+  try {
+    const cleanedResponse = cleanSalesforceResponse(decodedText);
+    if (cleanedResponse !== decodedText) {
+      const highlightedJson = highlightJsonKeys(cleanedResponse);
+      return highlightedJson;
+    }
+  } catch (error) {
+    // Continue with original parsing if cleaning fails
+  }
+  
   // Check for multi-line Salesforce object pattern: ObjectName:\n"[...]"
   const multiLineMatch = decodedText.match(/^(\w+):\s*[\r\n]+\s*"(\[.*\])"$/s);
   if (multiLineMatch) {
@@ -106,9 +117,9 @@ function extractAndParseSalesforceObjects(text) {
   }
   
   // Convert literal \n sequences to spaces for single-line processing
+  // But preserve actual newlines for JSON.serializePretty() output
   decodedText = decodedText
-    .replace(/\\n/g, ' ')
-    .replace(/\s+/g, ' ');
+    .replace(/\\n/g, ' ');
   
   // Try to find where the Salesforce object data starts
   let objectPart = decodedText;

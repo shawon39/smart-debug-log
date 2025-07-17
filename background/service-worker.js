@@ -58,9 +58,7 @@ async function handleMessage(request, sender, sendResponse) {
       case 'DOWNLOAD_LOG':
         result = await handleDownloadLog(request, sender);
         break;
-      case 'ENSURE_DEBUG_INFRASTRUCTURE':
-        result = await handleEnsureDebugInfrastructure(request, sender);
-        break;
+
       default:
         result = { success: false, message: `Unknown message type: ${request.type}` };
     }
@@ -419,24 +417,3 @@ async function handleDownloadLog(request, sender) {
   }
 }
 
-async function handleEnsureDebugInfrastructure(request, sender) {
-  try {
-    const { session } = request;
-    
-    if (!session) {
-      return { success: false, message: 'Session is required' };
-    }
-
-    const infrastructureReady = await debugLogManager.ensureDebugInfrastructure(session);
-    
-    return { 
-      success: infrastructureReady, 
-      message: infrastructureReady ? 'Debug infrastructure ready' : 'Failed to setup debug infrastructure'
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Failed to ensure debug infrastructure'
-    };
-  }
-} 

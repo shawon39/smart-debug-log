@@ -14,15 +14,7 @@ async function loadDebugLogs() {
   showLoading();
 
   try {
-    try {
-      await chrome.runtime.sendMessage({
-        type: 'ENSURE_DEBUG_INFRASTRUCTURE',
-        session: currentSession,
-        sfHost: sfHost
-      });
-    } catch (error) {
-      // Continue anyway
-    }
+
 
     const salesforceTabs = await getSalesforceTabs();
 

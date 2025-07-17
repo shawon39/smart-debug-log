@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   updatePollIntervalStat();
 });
 
-// Refresh dashboard when window becomes visible or focused
+// Refresh dashboard when window gains focus (handles both tab switching and window focus)
 const refreshDashboard = async () => {
   const targetHost = getHostFromUrl();
   await checkConnectionStatus(targetHost);
@@ -83,15 +83,6 @@ const refreshDashboard = async () => {
   }
   setTimeout(checkDeveloperConsoleStatus, 300);
 };
-
-document.addEventListener('visibilitychange', () => {
-  if (!document.hidden) {
-    const autoRefreshEnabled = getAutoRefreshState();
-    if (autoRefreshEnabled) {
-      setTimeout(refreshDashboard, 100);
-    }
-  }
-});
 
 window.addEventListener('focus', () => {
   const autoRefreshEnabled = getAutoRefreshState();
@@ -865,89 +856,3 @@ window.addEventListener('beforeunload', () => {
   }
 }); 
 
-// Test deployment function to verify setup
-async function testDeploymentSetup() {
-  if (!currentSession || !sfHost) {
-    console.error('❌ No active Salesforce session found');
-    return false;
-  }
-  
-  console.log('🧪 Testing deployment setup...');
-  console.log('Session ID length:', (currentSession.sessionId || currentSession.key || '').length);
-  console.log('Instance URL:', sfHost);
-  console.log('Is Sandbox:', sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch'));
-  
-  try {
-    // Test with a simple query first
-    const result = await chrome.runtime.sendMessage({
-      type: 'EXECUTE_TOOLING_QUERY',
-      query: 'SELECT Id, Name FROM ApexClass WHERE Name = \'Console\' LIMIT 1',
-      session: currentSession
-    });
-    
-    if (result.success) {
-      console.log('✅ Tooling API access verified');
-      if (result.data && result.data.records && result.data.records.length > 0) {
-        console.log('⚠️  Console class already exists');
-        return 'EXISTS';
-      } else {
-        console.log('✅ Ready for deployment');
-        return 'READY';
-      }
-    } else {
-      console.error('❌ Tooling API test failed:', result.error);
-      return false;
-    }
-  } catch (error) {
-    console.error('❌ Test deployment setup failed:', error);
-    return false;
-  }
-}
-
-// Add this to window for manual testing
-if (typeof window !== 'undefined') {
-  window.testDeploymentSetup = testDeploymentSetup;
-  
-  // Debug function to test user ID extraction
-  window.debugUserIdExtraction = async function() {
-    if (!currentSession || !sfHost) {
-      console.error('❌ No active Salesforce session found');
-      return;
-    }
-    
-    console.log('🔍 Testing User ID extraction...');
-    console.log('Current session:', currentSession);
-    console.log('Has userId in session:', !!currentSession.userId);
-    
-    try {
-      // Test if we can get user ID via API
-      const userQuery = "SELECT Id, Name, Email FROM User WHERE Id = UserInfo.getUserId() LIMIT 1";
-      const result = await chrome.runtime.sendMessage({
-        type: 'EXECUTE_TOOLING_QUERY',
-        query: userQuery,
-        session: currentSession
-      });
-      
-      if (result.success && result.data && result.data.records && result.data.records.length > 0) {
-        const user = result.data.records[0];
-        console.log('✅ Current user found via API:', user);
-        console.log('User ID:', user.Id);
-        console.log('User Name:', user.Name);
-        console.log('User Email:', user.Email);
-        
-        // Update session with userId if missing
-        if (!currentSession.userId) {
-          currentSession.userId = user.Id;
-          console.log('✅ Updated session with userId');
-        }
-        
-        return user.Id;
-      } else {
-        console.error('❌ Could not retrieve current user via API');
-        console.log('API Result:', result);
-      }
-    } catch (error) {
-      console.error('❌ Error testing user ID extraction:', error);
-    }
-  };
-} 

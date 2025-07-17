@@ -29,14 +29,7 @@ class DebugLogManager {
       logTypes = ['USER_DEBUG']
     } = options;
 
-    try {
-      const infrastructureReady = await this.ensureDebugInfrastructure(session);
-      if (!infrastructureReady) {
-        // Continue anyway
-      }
-    } catch (error) {
-      // Continue anyway
-    }
+
 
     this.sessions.set(orgId, {
       ...session,
@@ -298,134 +291,7 @@ class DebugLogManager {
     return false;
   }
 
-  async ensureDebugInfrastructure(session) {
-    try {
-      // First, ensure we have a userId - if not, try to get it
-      let userId = session.userId;
-      
-      if (!userId) {
-        console.log('No userId in session, attempting to fetch current user...');
-        try {
-          // Query for current user ID using UserInfo.getUserId()
-          const userQuery = "SELECT Id FROM User WHERE Id = UserInfo.getUserId() LIMIT 1";
-          const userResult = await this.executeToolingQuery(session, userQuery);
-          
-          if (userResult && userResult.records && userResult.records.length > 0) {
-            userId = userResult.records[0].Id;
-            console.log('Retrieved current user ID:', userId);
-            
-            // Update session with userId for future use
-            session.userId = userId;
-          }
-        } catch (error) {
-          console.warn('Could not retrieve current user ID:', error.message);
-          
-          // Provide specific guidance based on error type
-          if (error.message.includes('INVALID_SESSION_ID')) {
-            console.error('❌ Session expired - please refresh Salesforce tab');
-          } else if (error.message.includes('INSUFFICIENT_ACCESS')) {
-            console.error('❌ Insufficient permissions to query User object');
-          } else {
-            console.error('❌ Unable to determine current user - debug infrastructure may be limited');
-          }
-        }
-      }
-      
-      // If we still don't have userId, skip user-specific debug setup
-      if (!userId) {
-        console.warn('⚠️  Skipping debug infrastructure setup - no user ID available');
-        console.warn('💡 This may limit debug log functionality. Try running debugUserIdExtraction() in console.');
-        return false;
-      }
-      
-      // Check for existing TraceFlag for this user
-      const existingTraceFlagQuery = `SELECT Id, TracedEntityId, DebugLevelId, LogType, StartDate, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND ExpirationDate > TODAY ORDER BY CreatedDate DESC LIMIT 1`;
-      
-      try {
-        const existingTraceFlags = await this.executeToolingQuery(session, existingTraceFlagQuery);
-        if (existingTraceFlags && existingTraceFlags.records && existingTraceFlags.records.length > 0) {
-          console.log('Debug infrastructure already exists for user:', userId);
-          return true;
-        }
-      } catch (error) {
-        console.warn('Error checking existing TraceFlags:', error.message);
-      }
 
-      // Find or create DebugLevel
-      let debugLevelId = null;
-      try {
-        const debugLevelQuery = "SELECT Id FROM DebugLevel WHERE DeveloperName = 'SFDC_DevConsole' LIMIT 1";
-        const debugLevels = await this.executeToolingQuery(session, debugLevelQuery);
-        
-        if (debugLevels && debugLevels.records && debugLevels.records.length > 0) {
-          debugLevelId = debugLevels.records[0].Id;
-          console.log('Found existing DebugLevel:', debugLevelId);
-        }
-      } catch (error) {
-        console.warn('Error querying DebugLevel:', error.message);
-      }
-
-      if (!debugLevelId) {
-        console.log('Creating new DebugLevel...');
-        const debugLevelData = {
-          DeveloperName: 'SFDC_DevConsole',
-          MasterLabel: 'SFDC_DevConsole',
-          Apex_Code: 'DEBUG',
-          Apex_Profiling: 'INFO',
-          Callout: 'INFO',
-          Database: 'INFO',
-          System: 'DEBUG',
-          Validation: 'INFO',
-          Visualforce: 'INFO',
-          Workflow: 'INFO'
-        };
-
-        try {
-          const createResult = await this.executeToolingCreate(session, 'DebugLevel', debugLevelData);
-          if (createResult && createResult.success) {
-            debugLevelId = createResult.id;
-            console.log('Created DebugLevel:', debugLevelId);
-          } else if (createResult && createResult.id) {
-            debugLevelId = createResult.id;
-            console.log('Created DebugLevel (alt format):', debugLevelId);
-          } else {
-            throw new Error('Failed to create DebugLevel - no ID returned');
-          }
-        } catch (error) {
-          console.error('Failed to create DebugLevel:', error.message);
-          return false;
-        }
-      }
-
-      if (debugLevelId) {
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        
-        const traceFlagData = {
-          TracedEntityId: userId,
-          DebugLevelId: debugLevelId,
-          LogType: 'USER_DEBUG',
-          StartDate: new Date().toISOString(),
-          ExpirationDate: tomorrow.toISOString()
-        };
-
-        try {
-          const createResult = await this.executeToolingCreate(session, 'TraceFlag', traceFlagData);
-          if (createResult && createResult.success) {
-            return true;
-          } else {
-            throw new Error('Failed to create TraceFlag');
-          }
-        } catch (error) {
-          return false;
-        }
-      }
-
-      return false;
-    } catch (error) {
-      return false;
-    }
-  }
 
   async executeToolingCreate(session, sobjectType, data) {
     const tabs = await chrome.tabs.query({
@@ -487,11 +353,6 @@ class DebugLogManager {
         // Validate session before attempting deployment
         if (!sessionToken || sessionToken.length < 20) {
           throw new Error('Invalid session token: too short or empty');
-        }
-        
-        // Add sandbox-specific validation
-        if (instanceUrl.includes('sandbox') || instanceUrl.includes('develop') || instanceUrl.includes('scratch')) {
-          console.log(`Deploying to sandbox environment: ${instanceUrl}`);
         }
 
         const response = await chrome.tabs.sendMessage(tab.id, {

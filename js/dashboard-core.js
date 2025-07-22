@@ -50,6 +50,9 @@ const elements = {
 document.addEventListener('DOMContentLoaded', async () => {
   await new Promise(resolve => setTimeout(resolve, 100));
   
+  // Initialize theme first
+  await initializeTheme();
+  
   const targetHost = getHostFromUrl();
   const headerHost = document.getElementById('headerHost');
   if (headerHost && targetHost) {
@@ -104,6 +107,12 @@ function getAutoRefreshState() {
 function setupEventListeners() {
   const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, markAllReadBtn, copySessionBtn, 
           openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, copyRawResponseBtn } = elements;
+  
+  // Setup theme toggle
+  const themeToggle = document.getElementById('themeToggleDashboard');
+  if (themeToggle) {
+    setupThemeToggle(themeToggle);
+  }
   
   startMonitoringBtn?.addEventListener('click', startMonitoring);
   stopMonitoringBtn?.addEventListener('click', stopMonitoring);
@@ -511,53 +520,30 @@ function showCodeDeployDialog(description) {
   return new Promise((resolve) => {
     // Create modal elements
     const overlay = document.createElement('div');
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 10000;
-    `;
+    overlay.className = 'modal-overlay';
     
     const modal = document.createElement('div');
-    modal.style.cssText = `
-      background: white;
-      padding: 24px;
-      border-radius: 8px;
-      max-width: 500px;
-      width: 90%;
-      max-height: 80vh;
-      overflow-y: auto;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-    `;
+    modal.className = 'modal-content';
     
     const content = document.createElement('div');
-    content.style.cssText = `
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      line-height: 1.6;
-    `;
+    content.className = 'modal-text';
     
     // Format the description with proper code styling
     const formattedDescription = description
       .replace(/List<\w+>\s+\w+\s*=\s*\[SELECT[^\]]+\];/g, (match) => {
         const escapedMatch = match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        return `<code style="background: #f8f9fa; padding: 8px; border-radius: 4px; display: block; font-family: 'Courier New', monospace; font-size: 13px; margin: 8px 0; color: #0176d3;">${escapedMatch}</code>`;
+        return `<code class="code-block">${escapedMatch}</code>`;
       })
-      .replace(/Console\.log\([^)]+\);/g, `<code style="background: #f8f9fa; padding: 4px 8px; border-radius: 3px; font-family: 'Courier New', monospace; font-size: 12px; color: #d73a49;">$&</code>`)
-      .replace(/Deploy to org: (.+)$/m, `<div style="margin-top: 16px; padding: 12px; background: #e3f2fd; border-radius: 4px; font-size: 13px; color: #1976d2;"><strong>Deploy to org:</strong> $1</div>`)
+      .replace(/Console\.log\([^)]+\);/g, `<code class="code-inline">$&</code>`)
+      .replace(/Deploy to org: (.+)$/m, `<div class="deploy-info-block"><strong>Deploy to org:</strong> $1</div>`)
       .replace(/\n/g, '<br>');
     
     content.innerHTML = `
-      <h3 style="margin: 0 0 16px 0; color: #2c3e50;">Deploy Console Class</h3>
-      <div style="margin-bottom: 20px;">${formattedDescription}</div>
-      <div style="text-align: center; margin-top: 20px;">
-        <button id="deployConfirm" style="background: #0176d3; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Deploy to Org</button>
-        <button id="deployCancel" style="background: #6c757d; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer;">Cancel</button>
+      <h3 class="modal-title">Deploy Console Class</h3>
+      <div class="modal-description">${formattedDescription}</div>
+      <div class="modal-actions">
+        <button id="deployConfirm" class="modal-button-primary">Deploy to Org</button>
+        <button id="deployCancel" class="modal-button-secondary">Cancel</button>
       </div>
     `;
     
@@ -576,23 +562,12 @@ function showCodeDeployDialog(description) {
       resolve(false);
     });
     
-    // Close on overlay click
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         document.body.removeChild(overlay);
         resolve(false);
       }
     });
-    
-    // Close on escape key
-    const escapeHandler = (e) => {
-      if (e.key === 'Escape') {
-        document.body.removeChild(overlay);
-        document.removeEventListener('keydown', escapeHandler);
-        resolve(false);
-      }
-    };
-    document.addEventListener('keydown', escapeHandler);
   });
 }
 

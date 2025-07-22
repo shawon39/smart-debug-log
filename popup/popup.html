@@ -8,7 +8,16 @@
 </head>
 <body>
   <div class="popup-header">
-    <div class="app-title">Salesforce Debug Log Beautifier</div>
+    <div class="header-content">
+      <div class="app-title">Salesforce Debug Log Beautifier</div>
+    </div>
+    <div class="theme-toggle">
+      <label class="theme-toggle-label" for="themeToggle">Dark</label>
+      <div class="theme-switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="theme-slider"></span>
+      </div>
+    </div>
   </div>
 
   <div class="popup-body">
@@ -51,6 +60,7 @@
     Ready to <span class="footer-highlight">beautify</span> your debug logs?
   </div>
 
+  <script src="../js/basic-utilities.js"></script>
   <script src="popup.js"></script>
 </body>
 </html> 

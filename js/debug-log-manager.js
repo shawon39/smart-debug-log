@@ -279,8 +279,8 @@ async function showLogDetails(logId) {
   // Clear raw response while loading
   clearRawResponse();
   
-  debugContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #6c757d;">Loading debug messages...</div>';
-  limitsContent.innerHTML = '<div style="text-align: center; padding: 20px; color: #6c757d;">Loading governor limits...</div>';
+  debugContent.innerHTML = '<div class="loading-message">Loading debug messages...</div>';
+  limitsContent.innerHTML = '<div class="loading-message">Loading governor limits...</div>';
 
   try {
     // Get log content
@@ -323,11 +323,11 @@ async function showLogDetails(logId) {
             formattedMessage = escapeHtml(formattedMessage);
           }
           
-          return `<div class="debug-message-block" data-message-index="${index}"><pre style="margin: 0; white-space: pre-wrap; font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace; font-size: 10px; color: inherit;">${formattedMessage}</pre></div>`;
+          return `<div class="debug-message-block" data-message-index="${index}"><pre class="debug-message-pre">${formattedMessage}</pre></div>`;
         }).join('');
         debugContent.innerHTML = messageBlocks;
       } else {
-        debugContent.innerHTML = '<div style="color: #6c757d; font-style: italic;">No DEBUG messages found in this log.</div>';
+        debugContent.innerHTML = '<div class="info-message">No DEBUG messages found in this log.</div>';
       }
       
       // Display limits with enhanced formatting
@@ -336,32 +336,32 @@ async function showLogDetails(logId) {
         limitsContent.innerHTML = formattedLimits;
         limitsContent.classList.remove('hidden');
       } else {
-        limitsContent.innerHTML = '<div style="color: #6c757d; font-style: italic;">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
+        limitsContent.innerHTML = '<div class="info-message">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
         limitsContent.classList.remove('hidden');
       }
     } else {
       // Handle specific error cases
       let errorMessage = 'Failed to load debug log content.';
       if (response.error && response.error.includes('not found or expired')) {
-        errorMessage = '<div style="color: #dc3545; font-style: italic; padding: 10px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 4px;">' +
+        errorMessage = '<div class="error-message-block">' +
           '<strong>Debug Log Expired</strong><br>' +
           'This debug log is no longer available. Debug logs in Salesforce automatically expire after 24 hours or may be deleted.<br>' +
           '<small>Try generating a new debug log to view recent execution details.</small>' +
           '</div>';
       } else if (response.message) {
-        errorMessage = `<div style="color: #dc3545; font-style: italic;">Error: ${escapeHtml(response.message)}</div>`;
+        errorMessage = `<div class="error-message">Error: ${escapeHtml(response.message)}</div>`;
       }
       
       debugContent.innerHTML = errorMessage;
-      limitsContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Unable to load governor limits.</div>';
+      limitsContent.innerHTML = '<div class="error-message">Unable to load governor limits.</div>';
       limitsContent.classList.remove('hidden');
       
       // Clear raw response and hide button on error
       clearRawResponse();
     }
   } catch (error) {
-    debugContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Error loading debug messages.</div>';
-    limitsContent.innerHTML = '<div style="color: #dc3545; font-style: italic;">Error loading governor limits.</div>';
+    debugContent.innerHTML = '<div class="error-message">Error loading debug messages.</div>';
+    limitsContent.innerHTML = '<div class="error-message">Error loading governor limits.</div>';
     limitsContent.classList.remove('hidden');
     
     // Clear raw response and hide button on error

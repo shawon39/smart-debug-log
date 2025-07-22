@@ -8,19 +8,19 @@ function highlightJsonKeys(jsonString) {
     
     // Highlight JSON keys only - property names in quotes followed by colon
     // Pattern 1: Standard &quot; format followed by colon
-    highlighted = highlighted.replace(/&quot;([^&"]*?)&quot;(\s*):/g, '<span style="color:#d73a49;font-weight:bold">&quot;$1&quot;</span>$2:');
+    highlighted = highlighted.replace(/&quot;([^&"]*?)&quot;(\s*):/g, '<span class="json-key">&quot;$1&quot;</span>$2:');
     // Pattern 2: In case quotes aren't escaped as &quot;
-    highlighted = highlighted.replace(/"([^"]*?)"(\s*):/g, '<span style="color:#d73a49;font-weight:bold">"$1"</span>$2:');
+    highlighted = highlighted.replace(/"([^"]*?)"(\s*):/g, '<span class="json-key">"$1"</span>$2:');
     
     // Highlight string values
-    highlighted = highlighted.replace(/:\s*&quot;([^&"]*?)&quot;/g, ': <span style="color:#032f62">&quot;$1&quot;</span>');
-    highlighted = highlighted.replace(/:\s*"([^"]*?)"/g, ': <span style="color:#032f62">"$1"</span>');
+    highlighted = highlighted.replace(/:\s*&quot;([^&"]*?)&quot;/g, ': <span class="json-string">&quot;$1&quot;</span>');
+    highlighted = highlighted.replace(/:\s*"([^"]*?)"/g, ': <span class="json-string">"$1"</span>');
     
     // Highlight numbers
-    highlighted = highlighted.replace(/:\s*(\d+\.?\d*)/g, ': <span style="color:#005cc5">$1</span>');
+    highlighted = highlighted.replace(/:\s*(\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
     
     // Highlight booleans and null
-    highlighted = highlighted.replace(/:\s*(true|false|null)\b/g, ': <span style="color:#6f42c1">$1</span>');
+    highlighted = highlighted.replace(/:\s*(true|false|null)\b/g, ': <span class="json-boolean">$1</span>');
     
     return highlighted;
   } catch (error) {
@@ -36,37 +36,34 @@ function formatGovernorLimits(limitsText) {
     
     let formattedLimits = limitsText;
     
-    // Define color for LIMIT_USAGE_FOR_NS theme (light black)
-    const limitHeaderColor = '#444';
-    
     // Format the main header (LIMIT_USAGE_FOR_NS)
     formattedLimits = formattedLimits.replace(
       /^(LIMIT_USAGE_FOR_NS.*?)$/gm, 
-      `<div class="limit-header" style="color: ${limitHeaderColor}; font-weight: bold; margin-bottom: 4px; font-size: 11px;">$1</div>`
+      `<div class="limit-header">$1</div>`
     );
     
     // Format category lines like "Number of SOQL queries: 0 out of 1000"
     formattedLimits = formattedLimits.replace(
       /^([A-Za-z\s]+):\s*(\d+)\s+(out of)\s+(\d+)(.*)$/gm,
-      `<div style="margin: 1px 0;"><span class="limit-category" style="color: ${limitHeaderColor}; font-weight: 500;">$1:</span> <span class="limit-used" style="color: #d73a49; font-weight: bold; margin: 0 3px;">$2</span> <span class="limit-separator" style="color: ${limitHeaderColor}; margin: 0 1px;">$3</span> <span class="limit-value" style="font-weight: bold; margin-left: 3px;">$4</span>$5</div>`
+      `<div style="margin: 1px 0;"><span class="limit-category">$1:</span> <span class="limit-used">$2</span> <span class="limit-separator">$3</span> <span class="limit-value">$4</span>$5</div>`
     );
     
     // Format percentage lines like "****** CLOSE TO LIMIT (85%)"
     formattedLimits = formattedLimits.replace(
       /(\*+)\s*(CLOSE TO LIMIT|OVER LIMIT)\s*\((\d+%)\)/g,
-      '<div style="margin: 1px 0;"><span class="limit-separator" style="margin-right: 3px;">$1</span> <span class="limit-used" style="color: #dc3545; font-weight: bold;">$2</span> <span class="limit-percentage" style="color: #dc3545; font-weight: bold; margin-left: 3px;">($3)</span></div>'
+      '<div style="margin: 1px 0;"><span class="limit-separator">$1</span> <span class="limit-used">$2</span> <span class="limit-percentage">($3)</span></div>'
     );
     
     // Format OK status percentages
     formattedLimits = formattedLimits.replace(
       /\((\d+%)\)$/gm,
-      '<span class="limit-percentage" style="margin-left: 3px; color: #666;">($1)</span>'
+      '<span class="limit-percentage">($1)</span>'
     );
     
     // Format number ranges like "0 out of 1000" (fallback for any missed cases)
     formattedLimits = formattedLimits.replace(
       /(\d+)\s+(out of)\s+(\d+)/g,
-      `<span class="limit-used" style="color: #d73a49; font-weight: bold; margin: 0 3px;">$1</span> <span class="limit-separator" style="color: ${limitHeaderColor}; margin: 0 1px;">$2</span> <span class="limit-value" style="font-weight: bold; margin-left: 3px;">$3</span>`
+      `<span class="limit-used">$1</span> <span class="limit-separator">$2</span> <span class="limit-value">$3</span>`
     );
     
     // Improved spacing between sections
@@ -214,7 +211,7 @@ function extractAndParseSalesforceObjects(text) {
     // Combine prefix (if any) with formatted JSON
     if (prefix.trim()) {
       const escapedPrefix = escapeHtml(prefix.trim());
-      return `<span style="color: #6c757d;">${escapedPrefix}</span>\n${highlightedJson}`;
+      return `<span class="content-prefix">${escapedPrefix}</span>\n${highlightedJson}`;
     } else {
       return highlightedJson;
     }

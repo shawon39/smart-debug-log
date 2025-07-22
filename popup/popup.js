@@ -5,10 +5,28 @@ class SmartDebugLogPopup {
 
   async init() {
     try {
+      // Initialize theme first
+      await this.initializeTheme();
+      
       this.setupEventListeners();
       await this.checkConnection();
     } catch (error) {
       this.updateStatus('error', 'Initialization failed');
+    }
+  }
+
+  async initializeTheme() {
+    try {
+      // Initialize theme from storage
+      await initializeTheme();
+      
+      // Setup theme toggle
+      const themeToggle = document.getElementById('themeToggle');
+      if (themeToggle) {
+        setupThemeToggle(themeToggle);
+      }
+    } catch (error) {
+      console.warn('Failed to initialize theme:', error);
     }
   }
 

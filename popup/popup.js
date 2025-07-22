@@ -31,6 +31,7 @@ class SmartDebugLogPopup {
   }
 
   setupEventListeners() {
+    // Event listener for dashboard button
     document.getElementById('openDashboardBtn').addEventListener('click', () => this.openDashboard());
     
     // Add simple hover effects for feature cards
@@ -50,8 +51,9 @@ class SmartDebugLogPopup {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       
       if (!tab || !tab.url) {
-        this.updateStatus('disconnected', 'No active tab detected');
+        this.showNotOnSalesforceNotification();
         this.hideOrgInfo();
+        this.hideButton();
         return;
       }
 
@@ -61,8 +63,9 @@ class SmartDebugLogPopup {
       });
 
       if (!hostResponse || !hostResponse.success) {
-        this.updateStatus('disconnected', 'Not connected to Salesforce');
+        this.showNotOnSalesforceNotification();
         this.hideOrgInfo();
+        this.hideButton();
         return;
       }
 
@@ -73,20 +76,58 @@ class SmartDebugLogPopup {
       });
 
       if (!sessionResponse || !sessionResponse.success) {
-        this.updateStatus('disconnected', 'Salesforce session not found');
+        this.showNotOnSalesforceNotification();
         this.hideOrgInfo();
+        this.hideButton();
         return;
       }
 
       const session = sessionResponse.data;
       const orgName = session.orgName || session.hostname || sfHost;
       
-      this.updateStatus('connected', 'Connected to Salesforce');
+      this.hideNotOnSalesforceNotification();
       this.showOrgInfo(orgName);
+      this.showButton();
       
     } catch (error) {
-      this.updateStatus('error', 'Connection check failed');
+      this.showNotOnSalesforceNotification();
       this.hideOrgInfo();
+      this.hideButton();
+    }
+  }
+
+  showNotOnSalesforceNotification() {
+    const notification = document.getElementById('notOnSalesforceNotification');
+    if (notification) {
+      notification.style.display = 'block';
+      
+      // Add a slight delay for smooth animation
+      setTimeout(() => {
+        notification.style.opacity = '1';
+      }, 10);
+    }
+  }
+
+  hideNotOnSalesforceNotification() {
+    const notification = document.getElementById('notOnSalesforceNotification');
+    if (notification) {
+      notification.style.display = 'none';
+      notification.style.opacity = '0';
+    }
+  }
+
+  hideButton() {
+    const button = document.getElementById('openDashboardBtn');
+    if (button) {
+      button.style.display = 'none';
+    }
+  }
+
+  showButton() {
+    const button = document.getElementById('openDashboardBtn');
+    if (button) {
+      button.style.display = 'block';
+      button.textContent = 'Open Debug Dashboard';
     }
   }
 

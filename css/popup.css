@@ -36,6 +36,14 @@
   --status-dot-connected: #10b981;
   --status-dot-disconnected: #f59e0b;
   --status-dot-error: #ef4444;
+
+  /* Notification Colors */
+  --notification-bg: #FEF3C7;
+  --notification-border: #F59E0B;
+  --notification-icon: #D97706;
+  --notification-title: #92400E;
+  --notification-message: #B45309;
+  --notification-hint: #A16207;
 }
 
 /* Dark Theme Colors */
@@ -75,6 +83,14 @@
   --status-dot-connected: #48bb78;
   --status-dot-disconnected: #ed8936;
   --status-dot-error: #f56565;
+
+  /* Dark Theme Notification Colors */
+  --notification-bg: #44403C;
+  --notification-border: #F59E0B;
+  --notification-icon: #FCD34D;
+  --notification-title: #FDE68A;
+  --notification-message: #F3E8FF;
+  --notification-hint: #E0E7FF;
 }
 
 * {
@@ -212,6 +228,76 @@ input:checked + .theme-slider:before {
   line-height: 1.4;
   font-weight: 500;
   transition: color 0.3s ease;
+}
+
+/* Notification Styles */
+.notification-wrapper {
+  margin-bottom: 18px;
+}
+
+.notification {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--notification-bg);
+  border: 2px solid var(--notification-border);
+  transition: all 0.3s ease;
+  animation: slideInDown 0.4s ease-out;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.notification.not-on-salesforce {
+  border-left: 4px solid var(--notification-border);
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--notification-icon);
+  margin-top: 2px;
+}
+
+.notification-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--notification-title);
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+
+.notification-message {
+  font-size: 12px;
+  color: var(--notification-message);
+  line-height: 1.4;
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.notification-hint {
+  font-size: 11px;
+  color: var(--notification-hint);
+  line-height: 1.3;
+  font-style: italic;
+  opacity: 0.9;
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .org-info {

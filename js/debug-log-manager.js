@@ -266,7 +266,7 @@ async function showLogDetails(logId) {
   const log = debugLogs.find(l => l.Id === logId);
   if (!log) return;
 
-  const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel, debugContent, limitsContent, copyRawResponseBtn } = elements;
+  const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel, debugContent, limitsContent, copyRawResponseBtn, errorAndLimitsContent, errorContent } = elements;
   
   if (selectedLogIdElement) {
     selectedLogIdElement.textContent = `Log ID: ${logId}`;
@@ -280,7 +280,15 @@ async function showLogDetails(logId) {
   clearRawResponse();
   
   debugContent.innerHTML = '<div class="loading-message">Loading debug messages...</div>';
-  limitsContent.innerHTML = '<div class="loading-message">Loading governor limits...</div>';
+  if (errorAndLimitsContent) {
+    errorAndLimitsContent.classList.remove('hidden');
+    if (errorContent) {
+      errorContent.innerHTML = '<div class="loading-message">Analyzing errors...</div>';
+    }
+    if (limitsContent) {
+      limitsContent.innerHTML = '<div class="loading-message">Loading governor limits...</div>';
+    }
+  }
 
   try {
     // Get log content
@@ -330,14 +338,22 @@ async function showLogDetails(logId) {
         debugContent.innerHTML = '<div class="info-message">No DEBUG messages found in this log.</div>';
       }
       
+      // Display error analysis
+      if (errorContent && parsedContent.errors) {
+        const formattedErrors = formatErrorsForDisplay(parsedContent.errors);
+        errorContent.innerHTML = formattedErrors;
+      }
+      
       // Display limits with enhanced formatting
       if (parsedContent.limits) {
         const formattedLimits = formatGovernorLimits(parsedContent.limits);
-        limitsContent.innerHTML = formattedLimits;
-        limitsContent.classList.remove('hidden');
+        if (limitsContent) {
+          limitsContent.innerHTML = formattedLimits;
+        }
       } else {
-        limitsContent.innerHTML = '<div class="info-message">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
-        limitsContent.classList.remove('hidden');
+        if (limitsContent) {
+          limitsContent.innerHTML = '<div class="info-message">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
+        }
       }
     } else {
       // Handle specific error cases
@@ -353,16 +369,24 @@ async function showLogDetails(logId) {
       }
       
       debugContent.innerHTML = errorMessage;
-      limitsContent.innerHTML = '<div class="error-message">Unable to load governor limits.</div>';
-      limitsContent.classList.remove('hidden');
+      if (errorContent) {
+        errorContent.innerHTML = '<div class="error-message">Unable to analyze errors.</div>';
+      }
+      if (limitsContent) {
+        limitsContent.innerHTML = '<div class="error-message">Unable to load governor limits.</div>';
+      }
       
       // Clear raw response and hide button on error
       clearRawResponse();
     }
   } catch (error) {
     debugContent.innerHTML = '<div class="error-message">Error loading debug messages.</div>';
-    limitsContent.innerHTML = '<div class="error-message">Error loading governor limits.</div>';
-    limitsContent.classList.remove('hidden');
+    if (errorContent) {
+      errorContent.innerHTML = '<div class="error-message">Error analyzing errors.</div>';
+    }
+    if (limitsContent) {
+      limitsContent.innerHTML = '<div class="error-message">Error loading governor limits.</div>';
+    }
     
     // Clear raw response and hide button on error
     clearRawResponse();
@@ -372,6 +396,9 @@ async function showLogDetails(logId) {
 function parseDebugLogContent(content) {
   try {
     const debugMessages = extractUserDebugBlocks(content);
+    
+    // Extract error information
+    const errorData = extractErrorsFromDebugLog(content);
           
     // Extract limits section
     const lines = content.split('\n');
@@ -419,11 +446,13 @@ function parseDebugLogContent(content) {
     
     return {
       debugMessages: debugMessages,
+      errors: errorData,
       limits: limitsSection.trim()
     };
   } catch (error) {
     return {
       debugMessages: [],
+      errors: { hasErrors: false, errors: [], errorSummary: null },
       limits: ''
     };
   }

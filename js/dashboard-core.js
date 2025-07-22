@@ -43,7 +43,9 @@ const elements = {
   selectedLogIdElement: document.getElementById('selectedLogId'),
   debugContent: document.getElementById('debugContent'),
   limitsContent: document.getElementById('limitsContent'),
-  copyRawResponseBtn: document.getElementById('copyRawResponseBtn')
+  copyRawResponseBtn: document.getElementById('copyRawResponseBtn'),
+  errorAndLimitsContent: document.getElementById('errorAndLimitsContent'),
+  errorContent: document.getElementById('errorContent')
 };
 
 // Initialize dashboard
@@ -578,14 +580,8 @@ async function deployPrettierClass() {
   }
 
   // Pre-deployment validation
-  console.log('Current session:', currentSession);
-  console.log('SF Host:', sfHost);
-  
   // Check if we're in a sandbox environment
   const isSandbox = sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch');
-  if (isSandbox) {
-    console.log('Detected sandbox environment:', sfHost);
-  }
   
   // Validate session has required properties
   if (!currentSession.sessionId && !currentSession.key) {

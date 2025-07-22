@@ -145,30 +145,41 @@
       </div>
     </div>
 
-    <!-- Governor Limits -->
+    <!-- Error Analysis & Governor Limits -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          Governor Limits
+          Error Analysis & Governor Limits
         </div>
       </div>
       <div class="panel-content">
         <div class="welcome-state" id="limitsWelcomeState">
           <div class="welcome-icon">⚡</div>
           <h4>Select a Debug Log</h4>
-          <p>Governor limits will appear here</p>
+          <p>Error analysis and governor limits will appear here</p>
         </div>
-        <div class="limits-content hidden" id="limitsContent"></div>
+        <div class="hidden" id="errorAndLimitsContent">
+          <!-- Error Analysis Section -->
+          <div id="errorAnalysisSection" style="margin-top: 5px;">
+            <div id="errorContent"></div>
+          </div>
+          
+          <!-- Governor Limits Section -->
+          <div id="governorLimitsSection" style="margin-top: 12px;">
+            <div class="limits-content" id="limitsContent"></div>
+          </div>
+        </div>
       </div>
       </div>
 </div>
 
-<!-- Load JavaScript files in order: basic utilities, parsing, formatting, debug manager, then dashboard core -->
+<!-- Load JavaScript files in order: basic utilities, parsing, formatting, error extraction, debug manager, then dashboard core -->
 <script src="js/basic-utilities.js"></script>
 <script src="js/basic-parsing.js"></script>
 <script src="js/complex-parsing.js"></script>
 <script src="js/salesforce-response-cleaner.js"></script>
 <script src="js/formatting-utilities.js"></script>
+<script src="js/error-extraction.js"></script>
 <script src="js/debug-log-manager.js"></script>
 <script src="js/dashboard-core.js"></script>
 </body>

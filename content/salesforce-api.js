@@ -144,8 +144,6 @@
       const instanceUrl = session.instanceUrl.replace(/\/$/, ''); // Remove trailing slash
       const url = `${instanceUrl}/services/data/${SalesforceAPIHandler.API_VERSION}/tooling/sobjects/${sobjectType}/`;
       
-      console.log(`Attempting deployment to: ${url}`);
-      
       try {
         const response = await fetch(url, {
           method: 'POST',
@@ -186,7 +184,6 @@
         }
 
         const result = await response.json();
-        console.log(`Successfully deployed using API version ${SalesforceAPIHandler.API_VERSION}:`, result);
         return result;
         
       } catch (fetchError) {
@@ -462,7 +459,6 @@
         // Method 1: UserContext (most common in Lightning)
         if (typeof window.UserContext !== 'undefined' && window.UserContext.userId) {
           userId = window.UserContext.userId;
-          console.log('User ID found in UserContext:', userId);
           return userId;
         }
         
@@ -471,7 +467,6 @@
           try {
             userId = window.sforce.connection.getUserId();
             if (userId) {
-              console.log('User ID found in sforce.connection:', userId);
               return userId;
             }
           } catch (e) {
@@ -484,7 +479,6 @@
           try {
             userId = window.$Api.getUserId();
             if (userId) {
-              console.log('User ID found in $Api:', userId);
               return userId;
             }
           } catch (e) {
@@ -501,7 +495,6 @@
               const currentUserId = window.$A.get('$SObjectType.User.Id');
               if (currentUserId) {
                 userId = currentUserId;
-                console.log('User ID found in $A.get:', userId);
                 return userId;
               }
               
@@ -509,7 +502,6 @@
               const globalUserId = window.$A.get('$Global.CurrentUser.Id');
               if (globalUserId) {
                 userId = globalUserId;
-                console.log('User ID found in $A.get global:', userId);
                 return userId;
               }
             }
@@ -523,7 +515,6 @@
                   const currentUser = gvp['$CurrentUser'].getValue();
                   if (currentUser && currentUser.Id) {
                     userId = currentUser.Id;
-                    console.log('User ID found in Lightning context:', userId);
                     return userId;
                   }
                 }
@@ -553,7 +544,6 @@
               const match = content.match(pattern);
               if (match && match[1]) {
                 userId = match[1];
-                console.log('User ID found in page content:', userId);
                 return userId;
               }
             }
@@ -578,7 +568,6 @@
               const data = await response.json();
               if (data.records && data.records.length > 0) {
                 userId = data.records[0].Id;
-                console.log('User ID found via REST API:', userId);
                 return userId;
               }
             }

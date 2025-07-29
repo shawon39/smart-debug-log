@@ -5,6 +5,7 @@
 let debugLogs = [];
 let selectedLogId = null;
 let readLogs = new Set();
+let clearedLogs = new Set();
 
 async function loadDebugLogs() {
   if (!currentSession || !sfHost) {
@@ -200,7 +201,15 @@ function displayDebugLogs() {
     return;
   }
 
-  logsList.innerHTML = debugLogs.map(log => {
+  // Filter out cleared logs
+  const visibleLogs = debugLogs.filter(log => !isLogCleared(log.Id));
+  
+  if (visibleLogs.length === 0) {
+    showEmptyState();
+    return;
+  }
+
+  logsList.innerHTML = visibleLogs.map(log => {
     const logTime = new Date(log.StartTime);
     const now = new Date();
     const hoursSinceLog = (now - logTime) / (1000 * 60 * 60);
@@ -359,7 +368,9 @@ async function showLogDetails(logId) {
 function updateStats() {
   const { totalLogsCount, lastPollTime } = elements;
   if (totalLogsCount) {
-    totalLogsCount.textContent = debugLogs.length;
+    // Count only visible logs (not cleared)
+    const visibleLogsCount = debugLogs.filter(log => !isLogCleared(log.Id)).length;
+    totalLogsCount.textContent = visibleLogsCount;
   }
   if (lastPollTime) {
     lastPollTime.textContent = new Date().toLocaleTimeString();

@@ -169,6 +169,70 @@ async function savePreferences() {
   }
 }
 
+// Clear all logs from UI
+function clearAllLogs() {
+  if (!debugLogs || debugLogs.length === 0) {
+    return;
+  }
+  
+  // Mark all current logs as cleared for persistent filtering
+  debugLogs.forEach(log => {
+    markLogAsCleared(log.Id);
+  });
+  
+  // Clear selected log state
+  selectedLogId = null;
+  
+  // Clear the logs list UI
+  const { logsList, welcomeState, limitsWelcomeState, debugContentPanel, 
+          errorAndLimitsContent, selectedLogIdElement } = elements;
+  
+  if (logsList) {
+    logsList.innerHTML = '';
+  }
+  
+  // Reset debug messages panel to welcome state
+  if (welcomeState && debugContentPanel) {
+    welcomeState.classList.remove('hidden');
+    debugContentPanel.classList.add('hidden');
+  }
+  
+  // Reset error analysis panel to welcome state
+  if (limitsWelcomeState && errorAndLimitsContent) {
+    limitsWelcomeState.classList.remove('hidden');
+    errorAndLimitsContent.classList.add('hidden');
+  }
+  
+  // Clear selected log ID display
+  if (selectedLogIdElement) {
+    selectedLogIdElement.textContent = '';
+  }
+  
+  // Clear raw response
+  if (typeof clearRawResponse === 'function') {
+    clearRawResponse();
+  }
+  
+  // Show empty state
+  showEmptyState();
+  
+  // Update stats (debugLogs array remains for future filtering)
+  updateStats();
+  
+  // Show confirmation message
+  const { clearLogsBtn } = elements;
+  if (clearLogsBtn) {
+    const originalText = clearLogsBtn.textContent;
+    clearLogsBtn.textContent = 'Cleared ✓';
+    clearLogsBtn.style.color = '#ffffff';
+    
+    setTimeout(() => {
+      clearLogsBtn.textContent = originalText;
+      clearLogsBtn.style.color = '';
+    }, 2000);
+  }
+}
+
 // Mark all logs as read
 function markAllLogsAsRead() {
   if (!debugLogs || debugLogs.length === 0) {

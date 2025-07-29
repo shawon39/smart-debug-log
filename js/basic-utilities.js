@@ -86,8 +86,16 @@ function loadReadLogsFromStorage() {
   try {
     const storedReadLogs = localStorage.getItem(storageKey);
     if (storedReadLogs) {
-      const readLogsArray = JSON.parse(storedReadLogs);
-      readLogs = new Set(readLogsArray);
+      const readLogsData = JSON.parse(storedReadLogs);
+      
+      // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
+      if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
+        // Old format - just load the log IDs
+        readLogs = new Set(readLogsData);
+      } else {
+        // New format - extract log IDs from objects
+        readLogs = new Set(readLogsData.map(entry => entry.logId));
+      }
     }
   } catch (error) {
     readLogs = new Set();
@@ -99,7 +107,11 @@ function saveReadLogsToStorage() {
   if (!storageKey) return;
   
   try {
-    const readLogsArray = Array.from(readLogs);
+    // Convert Set to array of objects with timestamps
+    const readLogsArray = Array.from(readLogs).map(logId => ({
+      logId: logId,
+      readAt: Date.now()
+    }));
     localStorage.setItem(storageKey, JSON.stringify(readLogsArray));
   } catch (error) {
     // Ignore storage errors
@@ -114,6 +126,142 @@ function markLogAsRead(logId) {
 
 function isLogRead(logId) {
   return readLogs.has(logId);
+}
+
+// Cleared logs storage functions
+function getClearedLogsStorageKey() {
+  if (!currentSession || !sfHost) return null;
+  const orgId = currentSession.organizationId || currentSession.orgId || sfHost;
+  return `clearedLogs_${orgId}`;
+}
+
+function loadClearedLogsFromStorage() {
+  const storageKey = getClearedLogsStorageKey();
+  if (!storageKey) return;
+  
+  try {
+    const storedClearedLogs = localStorage.getItem(storageKey);
+    if (storedClearedLogs) {
+      const clearedLogsData = JSON.parse(storedClearedLogs);
+      
+      // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
+      if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
+        // Old format - just load the log IDs
+        clearedLogs = new Set(clearedLogsData);
+      } else {
+        // New format - extract log IDs from objects
+        clearedLogs = new Set(clearedLogsData.map(entry => entry.logId));
+      }
+    }
+  } catch (error) {
+    clearedLogs = new Set();
+  }
+}
+
+function saveClearedLogsToStorage() {
+  const storageKey = getClearedLogsStorageKey();
+  if (!storageKey) return;
+  
+  try {
+    // Convert Set to array of objects with timestamps
+    const clearedLogsArray = Array.from(clearedLogs).map(logId => ({
+      logId: logId,
+      clearedAt: Date.now()
+    }));
+    localStorage.setItem(storageKey, JSON.stringify(clearedLogsArray));
+  } catch (error) {
+    // Ignore storage errors
+  }
+}
+
+function markLogAsCleared(logId) {
+  if (!logId) return;
+  clearedLogs.add(logId);
+  saveClearedLogsToStorage();
+}
+
+function isLogCleared(logId) {
+  return clearedLogs.has(logId);
+}
+
+// Cleanup functions for expired logs (Salesforce logs expire after 24 hours)
+function cleanupExpiredLogs() {
+  const EXPIRY_HOURS = 25; // 24h + 1h buffer
+  const expiryTime = Date.now() - (EXPIRY_HOURS * 60 * 60 * 1000);
+  
+  // Cleanup expired cleared logs
+  cleanupExpiredClearedLogs(expiryTime);
+  
+  // Cleanup expired read logs  
+  cleanupExpiredReadLogs(expiryTime);
+}
+
+function cleanupExpiredClearedLogs(expiryTime) {
+  const storageKey = getClearedLogsStorageKey();
+  if (!storageKey) return;
+  
+  try {
+    const storedClearedLogs = localStorage.getItem(storageKey);
+    if (!storedClearedLogs) return;
+    
+    const clearedLogsData = JSON.parse(storedClearedLogs);
+    
+    // Handle both old format (array of strings) and new format (array of objects)
+    let filteredLogs;
+    if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
+      // Old format - can't filter by time, just keep as is for now
+      filteredLogs = clearedLogsData;
+    } else {
+      // New format - filter out expired entries
+      filteredLogs = clearedLogsData.filter(entry => entry.clearedAt > expiryTime);
+    }
+    
+    // Update localStorage and memory
+    localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
+    
+    // Rebuild clearedLogs Set from filtered data
+    if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
+      clearedLogs = new Set(filteredLogs);
+    } else {
+      clearedLogs = new Set(filteredLogs.map(entry => entry.logId));
+    }
+  } catch (error) {
+    // If cleanup fails, just continue with existing data
+  }
+}
+
+function cleanupExpiredReadLogs(expiryTime) {
+  const storageKey = getReadLogsStorageKey();
+  if (!storageKey) return;
+  
+  try {
+    const storedReadLogs = localStorage.getItem(storageKey);
+    if (!storedReadLogs) return;
+    
+    const readLogsData = JSON.parse(storedReadLogs);
+    
+    // Handle both old format (array of strings) and new format (array of objects)
+    let filteredLogs;
+    if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
+      // Old format - can't filter by time, just keep as is for now
+      filteredLogs = readLogsData;
+    } else {
+      // New format - filter out expired entries
+      filteredLogs = readLogsData.filter(entry => entry.readAt > expiryTime);
+    }
+    
+    // Update localStorage and memory
+    localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
+    
+    // Rebuild readLogs Set from filtered data
+    if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
+      readLogs = new Set(filteredLogs);
+    } else {
+      readLogs = new Set(filteredLogs.map(entry => entry.logId));
+    }
+  } catch (error) {
+    // If cleanup fails, just continue with existing data
+  }
 }
 
 // Debug log parsing utilities

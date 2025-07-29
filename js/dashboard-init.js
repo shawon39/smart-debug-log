@@ -24,6 +24,7 @@ const elements = {
   startMonitoringBtn: document.getElementById('startMonitoringBtn'),
   stopMonitoringBtn: document.getElementById('stopMonitoringBtn'),
   refreshLogsBtn: document.getElementById('refreshLogsBtn'),
+  clearLogsBtn: document.getElementById('clearLogsBtn'),
   markAllReadBtn: document.getElementById('markAllReadBtn'),
   monitoringStats: document.getElementById('monitoringStats'),
   totalLogsCount: document.getElementById('totalLogsCount'),
@@ -83,7 +84,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Setup event listeners
 function setupEventListeners() {
-  const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, markAllReadBtn, copySessionBtn, 
+  const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
           openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, toggleViewBtn, copyRawBtn } = elements;
   
   // Setup theme toggle
@@ -95,6 +96,7 @@ function setupEventListeners() {
   startMonitoringBtn?.addEventListener('click', startMonitoring);
   stopMonitoringBtn?.addEventListener('click', stopMonitoring);
   refreshLogsBtn?.addEventListener('click', refreshDashboard);
+  clearLogsBtn?.addEventListener('click', clearAllLogs);
   markAllReadBtn?.addEventListener('click', markAllLogsAsRead);
   
   document.getElementById('closeDashboardBtn')?.addEventListener('click', () => window.close());

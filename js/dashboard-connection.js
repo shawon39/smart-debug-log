@@ -26,6 +26,8 @@ async function checkConnectionStatus(targetHost = null) {
           sfHost = sessionData.sfHost;
           currentSession = sessionData.session;
           loadReadLogsFromStorage(); // Load read logs for this org
+          loadClearedLogsFromStorage(); // Load cleared logs for this org
+          cleanupExpiredLogs(); // Cleanup expired logs after loading
           updateConnectionStatus(true, `Connected to ${targetHost}`, sessionData.session);
           return;
         }
@@ -47,6 +49,8 @@ async function checkConnectionStatus(targetHost = null) {
         sfHost = sessionData.sfHost;
         currentSession = sessionData.session;
         loadReadLogsFromStorage();
+        loadClearedLogsFromStorage();
+        cleanupExpiredLogs();
         updateConnectionStatus(true, 'Connected', sessionData.session);
         return;
       }
@@ -68,6 +72,8 @@ async function checkConnectionStatus(targetHost = null) {
         sfHost = sessionData.sfHost;
         currentSession = sessionData.session;
         loadReadLogsFromStorage(); // Load read logs for this org
+        loadClearedLogsFromStorage(); // Load cleared logs for this org
+        cleanupExpiredLogs(); // Cleanup expired logs after loading
         updateConnectionStatus(true, 'Connected', sessionData.session);
         return;
       }

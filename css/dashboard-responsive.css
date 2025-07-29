@@ -1,0 +1,44 @@
+/* Responsive Design */
+
+@media (max-width: 1200px) {
+  .main-content {
+    grid-template-columns: 30% 40% 30%;
+    padding: 10px 15px 10px 10px;
+  }
+}
+
+@media (max-width: 900px) {
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: 200px 1fr 200px;
+    padding: 10px 15px 10px 10px;
+  }
+  
+  .controls-bar {
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px;
+  }
+
+  .dev-console-warning {
+    flex-direction: column;
+    text-align: center;
+    gap: 8px;
+    padding: 10px 16px;
+  }
+
+  .warning-content {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .warning-actions {
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .dev-console-btn, .dismiss-btn {
+    font-size: 11px;
+    padding: 6px 12px;
+  }
+}

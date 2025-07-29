@@ -4,7 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Salesforce Debug Log Beautifier</title>
-  <link rel="stylesheet" href="css/dashboard.css">
+  <link rel="stylesheet" href="css/theme-variables.css">
+  <link rel="stylesheet" href="css/dashboard-base.css">
+  <link rel="stylesheet" href="css/dashboard-components.css">
+  <link rel="stylesheet" href="css/dashboard-syntax.css">
+  <link rel="stylesheet" href="css/dashboard-modals.css">
+  <link rel="stylesheet" href="css/dashboard-responsive.css">
 </head>
 <body>
   <!-- Compact Header -->
@@ -129,8 +134,21 @@
           Debug Messages
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="button secondary hidden" id="copyRawResponseBtn" style="font-size: 10px; padding: 3px 8px;" title="Copy raw response">Copy Raw Response</button>
+          <button class="button secondary hidden" id="toggleViewBtn" style="font-size: 10px; padding: 3px 8px;" title="Toggle between debug messages and raw response">Show Raw Response</button>
+          <button class="copy-icon-btn hidden" id="copyRawBtn" style="font-size: 10px; padding: 3px 6px;" title="Copy raw response">📋</button>
           <div id="selectedLogId" style="font-family: monospace; font-size: 10px; color: #6c757d;"></div>
+        </div>
+      </div>
+      <!-- Search Box for Raw Response -->
+      <div class="raw-search-container hidden" id="rawSearchContainer">
+        <div class="search-box">
+          <input type="text" id="rawSearchInput" placeholder="Search in raw response..." />
+          <div class="search-controls">
+            <span id="searchResultsInfo" class="search-info">0 matches</span>
+            <button id="searchPrevBtn" class="search-nav-btn" title="Previous match">↑</button>
+            <button id="searchNextBtn" class="search-nav-btn" title="Next match">↓</button>
+            <button id="clearSearchBtn" class="search-clear-btn" title="Clear search">✕</button>
+          </div>
         </div>
       </div>
       <div class="panel-content">
@@ -173,14 +191,20 @@
       </div>
 </div>
 
-<!-- Load JavaScript files in order: basic utilities, parsing, formatting, error extraction, debug manager, then dashboard core -->
+<!-- Load JavaScript files in order: utilities, parsing, formatting, error extraction, then dashboard modules -->
 <script src="js/basic-utilities.js"></script>
 <script src="js/basic-parsing.js"></script>
 <script src="js/complex-parsing.js"></script>
 <script src="js/salesforce-response-cleaner.js"></script>
 <script src="js/formatting-utilities.js"></script>
 <script src="js/error-extraction.js"></script>
-<script src="js/debug-log-manager.js"></script>
-<script src="js/dashboard-core.js"></script>
+<script src="js/syntax-highlighting.js"></script>
+<script src="js/log-parsing.js"></script>
+<script src="js/log-display.js"></script>
+<script src="js/raw-view.js"></script>
+<script src="js/dashboard-connection.js"></script>
+<script src="js/dashboard-monitoring.js"></script>
+<script src="js/dashboard-actions.js"></script>
+<script src="js/dashboard-init.js"></script>
 </body>
 </html> 

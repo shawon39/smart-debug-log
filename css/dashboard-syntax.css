@@ -1,0 +1,434 @@
+/* Syntax Highlighting and Content Display */
+
+/* Debug Content Panel */
+.debug-content {
+  padding: 8px;
+}
+
+.debug-message-block {
+  background: var(--bg-debug-message);
+  border: 1px solid var(--border-debug-message);
+  border-radius: 6px;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-left: 3px solid var(--border-debug-message-left);
+  font-size: 10px;
+  line-height: 1.5;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  position: relative;
+  color: var(--text-debug-message);
+  box-shadow: var(--shadow-debug-message);
+  transition: all 0.3s ease;
+}
+
+.debug-message-block:hover {
+  background: var(--bg-debug-message-hover);
+  border-left-color: var(--border-debug-message-hover);
+  box-shadow: var(--shadow-debug-message-hover);
+  transform: translateY(-1px);
+}
+
+[data-theme="dark"] .debug-message-block:hover {
+  background: var(--bg-debug-message-hover);
+  border-left-color: var(--border-debug-message-hover);
+  box-shadow: var(--shadow-debug-message-hover);
+  transform: none; /* Remove transform in dark mode for subtlety */
+}
+
+/* Enhanced JSON formatting styles */
+.debug-message-block pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+/* Better spacing for nested structures */
+.debug-message-block {
+  tab-size: 2;
+  -moz-tab-size: 2;
+  -o-tab-size: 2;
+}
+
+.debug-message-block:last-child {
+  margin-bottom: 0;
+}
+
+/* Governor Limits Panel */
+.limits-content {
+  padding: 10px 18px;
+  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  background: var(--bg-limits-content);
+  border-radius: 4px;
+  border: 1px solid var(--border-limits-content);
+  transition: all 0.3s ease;
+}
+
+/* Governor Limits Syntax Highlighting */
+.limits-content .limit-header {
+  color: var(--text-limits-header);
+  font-weight: bold;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-limits-content);
+  font-size: 11px;
+  transition: color 0.3s ease, border-color 0.3s ease;
+}
+
+.limits-content .limit-category {
+  color: var(--text-limits-category);
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.limits-content .limit-value {
+  color: var(--text-limits-value);
+  font-weight: 500;
+  margin-left: 3px;
+  transition: color 0.3s ease;
+}
+
+.limits-content .limit-used {
+  color: var(--text-limits-used);
+  font-weight: bold;
+  margin: 0 3px;
+  transition: color 0.3s ease;
+}
+
+.limits-content .limit-separator {
+  color: var(--text-limits-separator);
+  margin: 0 1px;
+  transition: color 0.3s ease;
+}
+
+.limits-content .limit-percentage {
+  color: var(--text-limits-percentage);
+  font-weight: 500;
+  margin-left: 3px;
+  transition: color 0.3s ease;
+}
+
+/* Improve governor limits number visibility in dark mode */
+[data-theme="dark"] .limits-content .limit-used {
+  color: #fbbf24; /* Bright yellow for used numbers */
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(251, 191, 36, 0.3);
+}
+
+[data-theme="dark"] .limits-content .limit-value {
+  color: #60a5fa; /* Bright blue for limit values */
+  font-weight: bold;
+}
+
+[data-theme="dark"] .limits-content .limit-percentage {
+  color: #34d399; /* Bright green for percentages */
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(52, 211, 153, 0.3);
+}
+
+[data-theme="dark"] .limits-content .limit-header {
+  color: #5DBEEA; /* Bright cyan for headers */
+  font-weight: bold;
+  text-shadow: 0 0 2px rgba(93, 190, 234, 0.3);
+}
+
+/* Dynamic Content Classes - Theme-aware styling for JavaScript-generated content */
+
+/* Loading and message states */
+.loading-message {
+  text-align: center;
+  padding: 20px;
+  color: var(--text-loading);
+  font-style: italic;
+  transition: color 0.3s ease;
+}
+
+.error-message {
+  color: var(--text-error);
+  font-style: italic;
+  transition: color 0.3s ease;
+}
+
+.error-message-block {
+  color: var(--text-error);
+  font-style: italic;
+  padding: 10px;
+  background-color: var(--bg-error-message);
+  border: 1px solid var(--border-error-message);
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+/* Error Extraction Display Styles */
+.error-status-success {
+  text-align: center;
+  padding: 12px 16px;
+  color: var(--text-limits-percentage);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-limits-content);
+  border-radius: 6px;
+  margin: 8px;
+  border: 1px solid var(--border-limits-content);
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.error-section {
+  margin: 8px;
+}
+
+.error-summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-error-message);
+  border: 1px solid var(--border-error-message);
+  border-radius: 6px 6px 0 0;
+  margin-bottom: 0;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.error-count {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-error);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  transition: color 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.error-count::before {
+  content: "🚨";
+  font-size: 12px;
+}
+
+.error-type-badge {
+  font-size: 9px;
+  padding: 3px 8px;
+  background: var(--text-error);
+  color: var(--bg-primary);
+  border-radius: 12px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.error-item-block {
+  background: var(--bg-debug-message);
+  border: 1px solid var(--border-error-message);
+  border-top: none;
+  padding: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.error-item-block:last-child {
+  border-radius: 0 0 6px 6px;
+}
+
+.error-item-block:only-child {
+  border-top: 1px solid var(--border-error-message);
+  border-radius: 6px;
+}
+
+.error-item-block:hover {
+  background: var(--bg-debug-message-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.error-message-text {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  color: var(--text-debug-message);
+  margin-bottom: 6px;
+  word-wrap: break-word;
+  transition: color 0.3s ease;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.error-location-line {
+  font-size: 10px;
+  color: var(--text-error);
+  font-weight: 600;
+  margin: 8px 0 0 0;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  transition: color 0.3s ease;
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.error-location-line::before {
+  content: "📍";
+  font-size: 9px;
+}
+
+/* Dark theme enhancements for error displays */
+[data-theme="dark"] .error-status-success {
+  color: var(--text-limits-percentage);
+  background: var(--bg-limits-content);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .error-summary-header {
+  background: var(--bg-error-message);
+  border-color: var(--border-error-message);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .error-count {
+  color: var(--text-error);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+[data-theme="dark"] .error-type-badge {
+  background: var(--text-error);
+  color: var(--bg-primary);
+}
+
+[data-theme="dark"] .error-item-block {
+  background: var(--bg-debug-message);
+  border-color: var(--border-error-message);
+}
+
+[data-theme="dark"] .error-item-block:hover {
+  background: var(--bg-debug-message-hover);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="dark"] .error-message-text {
+  color: var(--text-debug-message);
+}
+
+[data-theme="dark"] .error-location-line {
+  color: var(--text-error);
+}
+
+.info-message {
+  color: var(--text-info);
+  font-style: italic;
+  transition: color 0.3s ease;
+}
+
+/* Syntax highlighting for JSON and code */
+.json-key {
+  color: var(--syntax-json-key);
+  font-weight: bold;
+  transition: color 0.3s ease;
+}
+
+.json-string {
+  color: var(--syntax-json-string);
+  transition: color 0.3s ease;
+}
+
+.json-number {
+  color: var(--syntax-json-number);
+  transition: color 0.3s ease;
+}
+
+.json-boolean {
+  color: var(--syntax-json-boolean);
+  transition: color 0.3s ease;
+}
+
+.json-null {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.code-block {
+  background: var(--bg-code);
+  padding: 8px;
+  border-radius: 4px;
+  display: block;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  margin: 8px 0;
+  color: var(--text-code);
+  transition: all 0.3s ease;
+}
+
+.code-inline {
+  background: var(--bg-code);
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: var(--text-code);
+  transition: all 0.3s ease;
+}
+
+.code-error {
+  color: var(--text-code-error);
+  transition: color 0.3s ease;
+}
+
+/* Time highlighting */
+.time-highlight {
+  color: var(--text-time-highlight);
+  transition: color 0.3s ease;
+}
+
+/* Prefix text for formatted content */
+.content-prefix {
+  color: var(--text-prefix);
+  transition: color 0.3s ease;
+}
+
+/* Debug message pre styling */
+.debug-message-pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  color: inherit;
+}
+
+/* Debug Log Highlighting */
+.debug-timestamp {
+  color: var(--text-time-highlight);
+  font-weight: 500;
+}
+
+.debug-operation {
+  color: var(--syntax-json-boolean);
+  font-weight: 600;
+}
+
+.debug-level {
+  color: var(--text-error);
+  font-weight: 600;
+}
+
+.debug-number {
+  color: var(--syntax-json-number);
+  font-weight: 500;
+}
+
+.debug-text {
+  color: var(--text-secondary);
+  font-style: italic;
+}

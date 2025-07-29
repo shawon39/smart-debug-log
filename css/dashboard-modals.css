@@ -1,0 +1,357 @@
+/* Modal and Warning Components */
+
+/* Developer Console Warning Banner */
+.dev-console-warning {
+  background: var(--bg-dev-warning);
+  border: 1px solid var(--border-dev-warning);
+  border-left: 4px solid var(--border-dev-warning-left);
+  color: var(--text-dev-warning);
+  padding: 8px 16px;
+  border-radius: 6px;
+  margin: 8px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: var(--shadow-dev-warning);
+  font-size: 13px;
+  transition: all 0.3s ease;
+}
+
+.dev-console-warning:hover {
+  box-shadow: var(--shadow-dev-warning-hover);
+  transform: translateY(-1px);
+}
+
+.dev-console-warning.hidden {
+  display: none;
+}
+
+.warning-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+}
+
+.warning-icon {
+  font-size: 16px;
+  color: var(--border-dev-warning-left);
+  opacity: 0.8;
+  transition: color 0.3s ease;
+}
+
+.warning-text {
+  flex: 1;
+  line-height: 1.4;
+}
+
+.warning-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 1px;
+  color: var(--text-dev-warning-title);
+  transition: color 0.3s ease;
+}
+
+.warning-subtitle {
+  font-size: 11px;
+  color: var(--text-dev-warning-subtitle);
+  opacity: 0.9;
+  transition: color 0.3s ease;
+}
+
+.warning-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.dev-console-btn {
+  background: var(--bg-dev-warning-btn);
+  border: none;
+  color: var(--text-dev-warning-btn);
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: var(--shadow-dev-warning-btn);
+}
+
+.dev-console-btn:hover {
+  background: var(--bg-dev-warning-btn-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-dev-warning-btn-hover);
+}
+
+.dev-console-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-dev-warning-btn);
+}
+
+.dismiss-btn {
+  background: var(--bg-dismiss-btn);
+  border: 1px solid var(--border-dismiss-btn);
+  color: var(--text-dismiss-btn);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.3s ease;
+}
+
+.dismiss-btn:hover {
+  background: var(--bg-dismiss-btn-hover);
+  border-color: var(--border-dismiss-btn-hover);
+  color: var(--text-dismiss-btn-hover);
+}
+
+/* Modal styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg-modal-overlay);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 10000;
+  transition: background 0.3s ease;
+}
+
+.modal-content {
+  background: var(--bg-modal);
+  padding: 24px;
+  border-radius: 8px;
+  max-width: 500px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-modal);
+  transition: all 0.3s ease;
+}
+
+.modal-text {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text-modal);
+  transition: color 0.3s ease;
+}
+
+.modal-title {
+  margin: 0 0 16px 0;
+  color: var(--text-modal-title);
+  transition: color 0.3s ease;
+}
+
+.modal-description {
+  margin-bottom: 20px;
+  color: var(--text-modal);
+  transition: color 0.3s ease;
+}
+
+.modal-actions {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.modal-button-primary {
+  background: var(--bg-button);
+  color: var(--text-button);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  transition: all 0.3s ease;
+}
+
+.modal-button-secondary {
+  background: var(--bg-button-secondary);
+  color: var(--text-button);
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.deploy-info-block {
+  margin-top: 16px;
+  padding: 12px;
+  background: var(--bg-deploy-info);
+  border-radius: 4px;
+  font-size: 13px;
+  color: var(--text-deploy-info);
+  transition: all 0.3s ease;
+}
+
+/* Raw Response View Styles */
+.raw-response-container {
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  background: var(--bg-debug-message);
+  border: 1px solid var(--border-debug-message);
+  border-radius: 4px;
+  padding: 12px;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  max-height: 70vh;
+  overflow-y: auto;
+  transition: all 0.3s ease;
+}
+
+.raw-response-container:hover {
+  border-color: var(--border-debug-message-hover);
+  box-shadow: var(--shadow-debug-message-hover);
+}
+
+/* Search Container */
+.raw-search-container {
+  padding: 8px 16px;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-panel);
+  transition: all 0.3s ease;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#rawSearchInput {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+#rawSearchInput:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.2);
+}
+
+.search-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.search-info {
+  font-size: 10px;
+  color: var(--text-secondary);
+  min-width: 60px;
+  transition: color 0.3s ease;
+}
+
+.search-nav-btn,
+.search-clear-btn {
+  padding: 4px 6px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.3s ease;
+}
+
+.search-nav-btn:hover,
+.search-clear-btn:hover {
+  background: var(--bg-button);
+  color: var(--text-button);
+  border-color: var(--bg-button);
+}
+
+.search-nav-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.search-nav-btn:disabled:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-secondary);
+}
+
+/* Copy Icon Button */
+.copy-icon-btn {
+  padding: 3px 6px;
+  border: 1px solid var(--border-secondary);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 10px;
+  transition: all 0.3s ease;
+}
+
+.copy-icon-btn:hover {
+  background: var(--bg-button);
+  color: var(--text-button);
+  border-color: var(--bg-button);
+}
+
+/* Search Match Highlighting */
+.search-highlight {
+  background-color: #ffeb3b;
+  color: #000;
+  padding: 1px 2px;
+  border-radius: 2px;
+}
+
+.search-highlight.current {
+  background-color: #ff9800;
+  color: #fff;
+}
+
+[data-theme="dark"] .search-highlight {
+  background-color: #ffc107;
+  color: #000;
+}
+
+[data-theme="dark"] .search-highlight.current {
+  background-color: #ff6f00;
+  color: #fff;
+}
+
+/* Raw Response Line Numbers (optional enhancement) */
+.raw-response-line {
+  display: block;
+  position: relative;
+  padding-left: 40px;
+}
+
+.raw-response-line:before {
+  content: attr(data-line);
+  position: absolute;
+  left: 8px;
+  color: var(--text-secondary);
+  font-size: 9px;
+  width: 30px;
+  text-align: right;
+  user-select: none;
+}
+
+/* Toggle button states */
+#toggleViewBtn.raw-mode {
+  background: var(--bg-button);
+  color: var(--text-button);
+}
+
+#toggleViewBtn.raw-mode:hover {
+  background: var(--bg-button-hover);
+}

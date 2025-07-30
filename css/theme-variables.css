@@ -112,6 +112,7 @@
   --status-dot-monitoring: #00A1E0;
   --status-dot-error: #dc3545;
   --unread-indicator: #00A1E0;
+  --no-debug-indicator: #9ca3af;
 }
 
 /* Dark Theme Colors */
@@ -227,4 +228,5 @@
   --status-dot-monitoring: #5DBEEA;
   --status-dot-error: #f56565;
   --unread-indicator: #5DBEEA;
+  --no-debug-indicator: #64748b;
 }

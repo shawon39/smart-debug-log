@@ -321,7 +321,11 @@ class DebugLogManager {
           try {
             await chrome.scripting.executeScript({
               target: { tabId: tab.id },
-              files: ['content/salesforce-api.js']
+              files: [
+                'content/api-handler.js',
+                'content/api-operations.js', 
+                'content/session-extraction.js'
+              ]
             });
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (injectionError) {
@@ -408,7 +412,11 @@ class DebugLogManager {
           try {
             await chrome.scripting.executeScript({
               target: { tabId: tab.id },
-              files: ['content/salesforce-api.js']
+              files: [
+                'content/api-handler.js',
+                'content/api-operations.js', 
+                'content/session-extraction.js'
+              ]
             });
             
             await new Promise(resolve => setTimeout(resolve, 500));

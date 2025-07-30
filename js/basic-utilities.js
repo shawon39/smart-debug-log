@@ -277,6 +277,13 @@ function extractUserDebugBlocks(rawLog) {
   return msgs;
 }
 
+// Helper function to check if log content contains debug messages
+function hasDebugMessages(logContent) {
+  if (!logContent) return false;
+  const debugMessages = extractUserDebugBlocks(logContent);
+  return debugMessages.length > 0;
+}
+
 function containsSalesforceObjects(text) {
   if (!text) return false;
   

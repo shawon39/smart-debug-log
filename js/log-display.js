@@ -6,6 +6,7 @@ let debugLogs = [];
 let selectedLogId = null;
 let readLogs = new Set();
 let clearedLogs = new Set();
+let logDebugStatusCache = new Map(); // Cache for logs with debug message status
 
 async function loadDebugLogs() {
   if (!currentSession || !sfHost) {
@@ -71,7 +72,11 @@ async function loadDebugLogs() {
           try {
             await chrome.scripting.executeScript({
               target: { tabId: tab.id },
-              files: ['content/salesforce-api.js']
+              files: [
+                'content/api-handler.js',
+                'content/api-operations.js', 
+                'content/session-extraction.js'
+              ]
             });
             await new Promise(resolve => setTimeout(resolve, 500));
           } catch (injectionError) {
@@ -116,7 +121,7 @@ async function loadDebugLogs() {
 
         if (response && response.success && response.data) {
           debugLogs = response.data.records || [];
-          displayDebugLogs();
+          await displayDebugLogs();
           updateStats();
           logsFound = true;
           break;
@@ -136,7 +141,7 @@ async function loadDebugLogs() {
 
         if (response.success && response.data && response.data.length > 0) {
           debugLogs = response.data;
-          displayDebugLogs();
+          await displayDebugLogs();
           updateStats();
           logsFound = true;
         }
@@ -159,7 +164,7 @@ async function loadDebugLogs() {
 
           if (response.success && response.data && response.data.records) {
             debugLogs = response.data.records;
-            displayDebugLogs();
+            await displayDebugLogs();
             updateStats();
             logsFound = true;
           }
@@ -191,7 +196,7 @@ function showEmptyState() {
   logsList.innerHTML = '';
 }
 
-function displayDebugLogs() {
+async function displayDebugLogs() {
   const { logsLoading, emptyState, logsList } = elements;
   logsLoading.classList.add('hidden');
   emptyState.classList.add('hidden');
@@ -209,6 +214,7 @@ function displayDebugLogs() {
     return;
   }
 
+  // Render logs immediately for fast display
   logsList.innerHTML = visibleLogs.map(log => {
     const logTime = new Date(log.StartTime);
     const now = new Date();
@@ -222,12 +228,16 @@ function displayDebugLogs() {
     const isUnread = !isLogRead(log.Id);
     const unreadIndicator = isUnread ? '<span class="unread-indicator" title="Unread log"></span>' : '';
     
+    // Check if this log has debug messages (from cache)
+    const debugStatus = logDebugStatusCache.get(log.Id);
+    const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">🚩</span>' : '';
+    
     return `
     <div class="log-item ${selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
       <div class="log-header">
         <div class="log-id">${log.Id}${unreadIndicator}</div>
         <div class="log-time">
-          ${expiredIndicator}
+          ${expiredIndicator}${hasDebugIndicator}
           ${formatDateTimeWithHighlight(log.StartTime)}
         </div>
       </div>
@@ -246,6 +256,9 @@ function displayDebugLogs() {
       selectDebugLog(logId);
     });
   });
+
+  // Check debug status for logs that haven't been cached yet (async, non-blocking)
+  checkDebugStatusForLogsProgressive(visibleLogs);
 }
 
 function selectDebugLog(logId) {
@@ -316,6 +329,13 @@ async function showLogDetails(logId) {
       // Store raw response data
       currentRawResponse = response.data.content || response.data;
       
+      // Cache debug message status for this log
+      const hasDebugMsgs = hasDebugMessages(currentRawResponse);
+      logDebugStatusCache.set(logId, hasDebugMsgs);
+      
+      // Update the log display to show the new indicator
+      await displayDebugLogs();
+      
       // Show toggle button and set up view controls
       const { toggleViewBtn } = elements;
       toggleViewBtn?.classList.remove('hidden');
@@ -350,6 +370,10 @@ async function showLogDetails(logId) {
       
       // Clear raw response and hide button on error
       clearRawResponse();
+      
+      // Cache that this log was checked but has no accessible debug messages  
+      logDebugStatusCache.set(logId, false);
+      await displayDebugLogs();
     }
   } catch (error) {
     debugContent.innerHTML = '<div class="error-message">Error loading debug messages.</div>';
@@ -362,6 +386,10 @@ async function showLogDetails(logId) {
     
     // Clear raw response and hide button on error
     clearRawResponse();
+    
+    // Cache that this log was checked but has no accessible debug messages  
+    logDebugStatusCache.set(logId, false);
+    await displayDebugLogs();
   }
 }
 
@@ -384,5 +412,132 @@ function initializeStats() {
   }
   if (lastPollTime) {
     lastPollTime.textContent = 'Never';
+  }
+}
+
+// Helper function to update individual log indicator in the DOM
+function updateLogIndicator(logId, hasDebugMessages) {
+  const logElement = document.querySelector(`[data-log-id="${logId}"]`);
+  if (!logElement) return;
+  
+  const logTimeElement = logElement.querySelector('.log-time');
+  if (!logTimeElement) return;
+  
+  // Remove existing debug indicator if any
+  const existingIndicator = logTimeElement.querySelector('.has-debug-indicator');
+  if (existingIndicator) {
+    existingIndicator.remove();
+  }
+  
+  // Add new indicator if log has debug messages
+  if (hasDebugMessages) {
+    const expiredIndicator = logTimeElement.querySelector('.expired-indicator');
+    const indicatorHtml = '<span class="has-debug-indicator" title="Contains debug messages">🚩</span>';
+    
+    if (expiredIndicator) {
+      // Insert after expired indicator
+      expiredIndicator.insertAdjacentHTML('afterend', indicatorHtml);
+    } else {
+      // Insert at beginning
+      logTimeElement.insertAdjacentHTML('afterbegin', indicatorHtml);
+    }
+  }
+}
+
+// Check debug status for logs progressively (non-blocking)
+async function checkDebugStatusForLogsProgressive(logs) {
+  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id));
+  
+  if (uncachedLogs.length === 0) {
+    return; // All logs already cached
+  }
+
+  // Process all uncached logs in batches to avoid overwhelming the system
+  const batchSize = 3;
+  
+  for (let i = 0; i < uncachedLogs.length; i += batchSize) {
+    const batch = uncachedLogs.slice(i, i + batchSize);
+    
+    // Process each log in the batch independently
+    batch.forEach(async (log) => {
+      try {
+        const targetHost = getHostFromUrl();
+        const response = await chrome.runtime.sendMessage({
+          type: 'GET_LOG_CONTENT',
+          logId: log.Id,
+          orgId: currentSession.orgId,
+          targetHost: targetHost
+        });
+
+        if (response.success && response.data) {
+          const logContent = response.data.content || response.data;
+          const hasDebugMsgs = hasDebugMessages(logContent);
+          logDebugStatusCache.set(log.Id, hasDebugMsgs);
+          
+          // Update UI immediately for this specific log
+          updateLogIndicator(log.Id, hasDebugMsgs);
+        } else {
+          // If we can't fetch the log content, assume no debug messages
+          logDebugStatusCache.set(log.Id, false);
+          updateLogIndicator(log.Id, false);
+        }
+      } catch (error) {
+        // If there's an error, assume no debug messages
+        logDebugStatusCache.set(log.Id, false);
+        updateLogIndicator(log.Id, false);
+      }
+    });
+    
+    // Add a small delay between batches to avoid overwhelming the system
+    if (i + batchSize < uncachedLogs.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  }
+}
+
+// Check debug status for logs that haven't been cached yet
+async function checkDebugStatusForLogs(logs) {
+  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id));
+  
+  if (uncachedLogs.length === 0) {
+    return; // All logs already cached
+  }
+
+  // Only check a few logs at a time to avoid overwhelming the system
+  const maxConcurrentChecks = 3;
+  const logsToCheck = uncachedLogs.slice(0, maxConcurrentChecks);
+  
+  const checkPromises = logsToCheck.map(async (log) => {
+    try {
+      const targetHost = getHostFromUrl();
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_LOG_CONTENT',
+        logId: log.Id,
+        orgId: currentSession.orgId,
+        targetHost: targetHost
+      });
+
+      if (response.success && response.data) {
+        const logContent = response.data.content || response.data;
+        const hasDebugMsgs = hasDebugMessages(logContent);
+        logDebugStatusCache.set(log.Id, hasDebugMsgs);
+      } else {
+        // If we can't fetch the log content, assume no debug messages
+        logDebugStatusCache.set(log.Id, false);
+      }
+    } catch (error) {
+      // If there's an error, assume no debug messages
+      logDebugStatusCache.set(log.Id, false);
+    }
+  });
+
+  // Wait for all checks to complete (or timeout after 5 seconds)
+  try {
+    await Promise.race([
+      Promise.all(checkPromises),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 5000))
+    ]);
+  } catch (error) {
+    // Some checks failed or timed out, but that's okay
   }
 }

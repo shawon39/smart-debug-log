@@ -247,6 +247,14 @@ input:checked + .toggle-slider:hover {
   opacity: 0.8;
 }
 
+.has-debug-indicator {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 12px;
+  opacity: 0.7;
+  color: var(--text-secondary);
+}
+
 .log-header {
   display: flex;
   justify-content: space-between;

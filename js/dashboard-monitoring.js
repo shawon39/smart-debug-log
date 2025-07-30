@@ -64,7 +64,7 @@ async function startMonitoring() {
       
       // Set up interval for UI updates
       const uiUpdateInterval = Math.max(parseInt(elements.pollInterval.value) * 1000, 5000);
-      monitoringInterval = setInterval(loadDebugLogs, uiUpdateInterval);
+      monitoringInterval = setInterval(async () => await loadDebugLogs(), uiUpdateInterval);
     } else {
       updateMonitoringStatus(false, 'Failed to start');
     }

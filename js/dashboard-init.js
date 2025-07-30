@@ -118,7 +118,7 @@ function setupEventListeners() {
   logLimit?.addEventListener('change', async () => {
     savePreferences();
     if (isMonitoring) await restartMonitoring();
-    loadDebugLogs();
+    await loadDebugLogs();
   });
   
   // Auto refresh toggle event listener

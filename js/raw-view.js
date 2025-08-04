@@ -278,18 +278,28 @@ function applyCleanSearchHighlighting(container, originalText, matches) {
   // Replace markers with actual search highlight spans
   let finalContent = syntaxHighlightedContent;
   
-  // Extract timestamp from the first marker to match with what was used
-  const timestampMatch = finalContent.match(/SEARCH_HIGHLIGHT_START_\d+_(\d+)_MARKER/);
-  const timestamp = timestampMatch ? timestampMatch[1] : Date.now();
-  
+  // Replace markers dynamically by extracting timestamp from each marker
   for (let i = 0; i < matches.length; i++) {
-    const startMarker = `SEARCH_HIGHLIGHT_START_${i}_${timestamp}_MARKER`;
-    const endMarker = `SEARCH_HIGHLIGHT_END_${i}_${timestamp}_MARKER`;
-    const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
-    const endSpan = `</span>`;
+    // Find the actual markers in the content (they may have different timestamps)
+    const startMarkerRegex = new RegExp(`SEARCH_HIGHLIGHT_START_${i}_(\\d+)_MARKER`);
+    const endMarkerRegex = new RegExp(`SEARCH_HIGHLIGHT_END_${i}_(\\d+)_MARKER`);
     
-    finalContent = finalContent.replace(startMarker, startSpan).replace(endMarker, endSpan);
+    const startMatch = finalContent.match(startMarkerRegex);
+    const endMatch = finalContent.match(endMarkerRegex);
+    
+    if (startMatch && endMatch) {
+      const startMarker = startMatch[0];
+      const endMarker = endMatch[0];
+      const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
+      const endSpan = `</span>`;
+      
+      finalContent = finalContent.replace(startMarker, startSpan).replace(endMarker, endSpan);
+    }
   }
+  
+  // Fallback: Clean up any remaining search markers that weren't replaced
+  finalContent = finalContent.replace(/SEARCH_HIGHLIGHT_START_\d+_\d+_MARKER/g, '');
+  finalContent = finalContent.replace(/SEARCH_HIGHLIGHT_END_\d+_\d+_MARKER/g, '');
   
   // Update the container
   container.innerHTML = finalContent;

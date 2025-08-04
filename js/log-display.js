@@ -7,6 +7,7 @@ let selectedLogId = null;
 let readLogs = new Set();
 let clearedLogs = new Set();
 let logDebugStatusCache = new Map(); // Cache for logs with debug message status
+let logErrorStatusCache = new Map(); // Cache for logs with error status
 
 async function loadDebugLogs() {
   if (!currentSession || !sfHost) {
@@ -232,12 +233,16 @@ async function displayDebugLogs() {
     const debugStatus = logDebugStatusCache.get(log.Id);
     const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">📋</span>' : '';
     
+    // Check if this log has errors (from cache)
+    const errorStatus = logErrorStatusCache.get(log.Id);
+    const hasErrorIndicator = (errorStatus === true) ? '<span class="has-error-indicator" title="Contains errors">❗</span>' : '';
+    
     return `
     <div class="log-item ${selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
       <div class="log-header">
         <div class="log-id">${log.Id}${unreadIndicator}</div>
         <div class="log-time">
-          ${expiredIndicator}${hasDebugIndicator}
+          ${expiredIndicator}${hasDebugIndicator}${hasErrorIndicator}
           ${formatDateTimeWithHighlight(log.StartTime)}
         </div>
       </div>
@@ -333,6 +338,10 @@ async function showLogDetails(logId) {
       const hasDebugMsgs = hasDebugMessages(currentRawResponse);
       logDebugStatusCache.set(logId, hasDebugMsgs);
       
+      // Cache error status for this log
+      const hasErrorMsgs = hasErrors(currentRawResponse);
+      logErrorStatusCache.set(logId, hasErrorMsgs);
+      
       // Update the log display to show the new indicator
       await displayDebugLogs();
       
@@ -373,6 +382,7 @@ async function showLogDetails(logId) {
       
       // Cache that this log was checked but has no accessible debug messages  
       logDebugStatusCache.set(logId, false);
+      logErrorStatusCache.set(logId, false);
       await displayDebugLogs();
     }
   } catch (error) {
@@ -389,6 +399,7 @@ async function showLogDetails(logId) {
     
     // Cache that this log was checked but has no accessible debug messages  
     logDebugStatusCache.set(logId, false);
+    logErrorStatusCache.set(logId, false);
     await displayDebugLogs();
   }
 }
@@ -416,37 +427,54 @@ function initializeStats() {
 }
 
 // Helper function to update individual log indicator in the DOM
-function updateLogIndicator(logId, hasDebugMessages) {
+function updateLogIndicator(logId) {
   const logElement = document.querySelector(`[data-log-id="${logId}"]`);
   if (!logElement) return;
   
   const logTimeElement = logElement.querySelector('.log-time');
   if (!logTimeElement) return;
   
-  // Remove existing debug indicator if any
-  const existingIndicator = logTimeElement.querySelector('.has-debug-indicator');
-  if (existingIndicator) {
-    existingIndicator.remove();
+  // Get current status from caches
+  const debugStatus = logDebugStatusCache.get(logId) || false;
+  const errorStatus = logErrorStatusCache.get(logId) || false;
+  
+  // Remove existing indicators
+  const existingDebugIndicator = logTimeElement.querySelector('.has-debug-indicator');
+  if (existingDebugIndicator) {
+    existingDebugIndicator.remove();
   }
   
-  // Add new indicator if log has debug messages
-  if (hasDebugMessages) {
+  const existingErrorIndicator = logTimeElement.querySelector('.has-error-indicator');
+  if (existingErrorIndicator) {
+    existingErrorIndicator.remove();
+  }
+  
+  // Build indicators HTML
+  let indicatorsHtml = '';
+  if (debugStatus) {
+    indicatorsHtml += '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
+  }
+  if (errorStatus) {
+    indicatorsHtml += '<span class="has-error-indicator" title="Contains errors">❗</span>';
+  }
+  
+  // Add indicators if any exist
+  if (indicatorsHtml) {
     const expiredIndicator = logTimeElement.querySelector('.expired-indicator');
-    const indicatorHtml = '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
     
     if (expiredIndicator) {
       // Insert after expired indicator
-      expiredIndicator.insertAdjacentHTML('afterend', indicatorHtml);
+      expiredIndicator.insertAdjacentHTML('afterend', indicatorsHtml);
     } else {
       // Insert at beginning
-      logTimeElement.insertAdjacentHTML('afterbegin', indicatorHtml);
+      logTimeElement.insertAdjacentHTML('afterbegin', indicatorsHtml);
     }
   }
 }
 
 // Check debug status for logs progressively (non-blocking)
 async function checkDebugStatusForLogsProgressive(logs) {
-  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id));
+  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id) || !logErrorStatusCache.has(log.Id));
   
   if (uncachedLogs.length === 0) {
     return; // All logs already cached
@@ -474,17 +502,22 @@ async function checkDebugStatusForLogsProgressive(logs) {
           const hasDebugMsgs = hasDebugMessages(logContent);
           logDebugStatusCache.set(log.Id, hasDebugMsgs);
           
+          const hasErrorMsgs = hasErrors(logContent);
+          logErrorStatusCache.set(log.Id, hasErrorMsgs);
+          
           // Update UI immediately for this specific log
-          updateLogIndicator(log.Id, hasDebugMsgs);
+          updateLogIndicator(log.Id);
         } else {
           // If we can't fetch the log content, assume no debug messages
           logDebugStatusCache.set(log.Id, false);
-          updateLogIndicator(log.Id, false);
+          logErrorStatusCache.set(log.Id, false);
+          updateLogIndicator(log.Id);
         }
       } catch (error) {
         // If there's an error, assume no debug messages
         logDebugStatusCache.set(log.Id, false);
-        updateLogIndicator(log.Id, false);
+        logErrorStatusCache.set(log.Id, false);
+        updateLogIndicator(log.Id);
       }
     });
     
@@ -497,7 +530,7 @@ async function checkDebugStatusForLogsProgressive(logs) {
 
 // Check debug status for logs that haven't been cached yet
 async function checkDebugStatusForLogs(logs) {
-  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id));
+  const uncachedLogs = logs.filter(log => !logDebugStatusCache.has(log.Id) || !logErrorStatusCache.has(log.Id));
   
   if (uncachedLogs.length === 0) {
     return; // All logs already cached
@@ -521,13 +554,18 @@ async function checkDebugStatusForLogs(logs) {
         const logContent = response.data.content || response.data;
         const hasDebugMsgs = hasDebugMessages(logContent);
         logDebugStatusCache.set(log.Id, hasDebugMsgs);
+        
+        const hasErrorMsgs = hasErrors(logContent);
+        logErrorStatusCache.set(log.Id, hasErrorMsgs);
       } else {
         // If we can't fetch the log content, assume no debug messages
         logDebugStatusCache.set(log.Id, false);
+        logErrorStatusCache.set(log.Id, false);
       }
     } catch (error) {
       // If there's an error, assume no debug messages
       logDebugStatusCache.set(log.Id, false);
+      logErrorStatusCache.set(log.Id, false);
     }
   });
 

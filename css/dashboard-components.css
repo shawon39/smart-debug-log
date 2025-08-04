@@ -255,6 +255,14 @@ input:checked + .toggle-slider:hover {
   color: var(--text-secondary);
 }
 
+.has-error-indicator {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+  color: var(--text-error);
+}
+
 .log-header {
   display: flex;
   justify-content: space-between;

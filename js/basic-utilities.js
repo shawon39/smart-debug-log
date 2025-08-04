@@ -284,6 +284,13 @@ function hasDebugMessages(logContent) {
   return debugMessages.length > 0;
 }
 
+// Helper function to check if log content contains errors
+function hasErrors(logContent) {
+  if (!logContent) return false;
+  const errorData = extractErrorsFromDebugLog(logContent);
+  return errorData.hasErrors;
+}
+
 function containsSalesforceObjects(text) {
   if (!text) return false;
   

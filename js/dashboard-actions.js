@@ -133,7 +133,7 @@ async function deployPrettierClass() {
     }
     
     public static void log(String label, Object obj) {
-        System.debug(label);
+        System.debug('👉 ' + label);
         System.debug(JSON.serializePretty(obj));
     }
 }`;

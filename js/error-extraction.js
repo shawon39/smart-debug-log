@@ -26,71 +26,80 @@ function extractErrorsFromDebugLog(content) {
     const fatalErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|FATAL_ERROR\|(.*)/);
     
     if (fatalErrorMatch) {
-      const errorMessage = fatalErrorMatch[1].trim();
+      const firstErrorLine = fatalErrorMatch[1].trim();
+      let fullErrorMessage = firstErrorLine;
+      let stackTrace = [];
       
-      // Look for location information in the next few lines
-      let locationInfo = null;
+      // Collect all lines until the next timestamp entry
+      let j = i + 1;
+      while (j < lines.length) {
+        const nextLine = lines[j];
+        
+        // Stop if we hit another log entry with timestamp and pipe
+        if (nextLine.match(/^\d{2}:\d{2}:\d{2}\.\d+.*\|/)) {
+          break;
+        }
+        
+        // Add non-empty lines to the error message
+        const cleanLine = nextLine.trim();
+        if (cleanLine) {
+          // Check if this is a stack trace line (Class.Method: line X, column Y, AnonymousBlock: line X, column Y)
+          if (cleanLine.match(/^(Class\.|Trigger\.|AnonymousBlock:)/)) {
+            stackTrace.push(cleanLine);
+          } else {
+            // Add to the main error message
+            fullErrorMessage += '\n' + cleanLine;
+          }
+        }
+        
+        j++;
+      }
+      
+      // Parse the first line of error to get basic info
+      const errorDetails = parseErrorMessage(firstErrorLine);
+      
+      // Extract line and column information from stack trace
       let lineNumber = null;
       let columnNumber = null;
+      let locationInfo = null;
       
-      // Search the next 3 lines for location information
-      for (let j = i + 1; j < Math.min(i + 4, lines.length); j++) {
-        const nextLine = lines[j].trim();
+      if (stackTrace.length > 0) {
+        // Use the first stack trace entry as the primary location
+        locationInfo = stackTrace.join('\n');
         
-        // Skip empty lines
-        if (!nextLine) continue;
+        // Extract line/column from the first stack trace entry
+        const firstTrace = stackTrace[0];
+        const linePatterns = [
+          /line\s+(\d+)/i,
+          /line:\s*(\d+)/i,
+          /Line\s+(\d+)/i
+        ];
         
-        // Stop if we hit another log entry (contains timestamp and |)
-        if (nextLine.match(/^\d{2}:\d{2}:\d{2}\.\d+.*\|/)) break;
+        const columnPatterns = [
+          /column\s+(\d+)/i,
+          /column:\s*(\d+)/i
+        ];
         
-        // Check if this line looks like location info
-        if (nextLine.includes('line') || nextLine.includes('AnonymousBlock') || nextLine.includes('Line')) {
-          locationInfo = nextLine;
-          
-          // Extract line and column numbers from the location info
-          // Try multiple patterns to ensure we catch the line number
-          const linePatterns = [
-            /line\s+(\d+)/i,           // "line 16"
-            /line:\s*(\d+)/i,          // "line: 16" 
-            /line\s*(\d+)/i,           // "line16"
-            /Line\s+(\d+)/i            // "Line 16"
-          ];
-          
-          const columnPatterns = [
-            /column\s+(\d+)/i,         // "column 1"
-            /column:\s*(\d+)/i,        // "column: 1"
-            /column\s*(\d+)/i          // "column1"
-          ];
-          
-          // Try each line pattern
-          for (const pattern of linePatterns) {
-            const match = nextLine.match(pattern);
-            if (match) {
-              lineNumber = parseInt(match[1], 10);
-              break;
-            }
+        for (const pattern of linePatterns) {
+          const match = firstTrace.match(pattern);
+          if (match) {
+            lineNumber = parseInt(match[1], 10);
+            break;
           }
-          
-          // Try each column pattern
-          for (const pattern of columnPatterns) {
-            const match = nextLine.match(pattern);
-            if (match) {
-              columnNumber = parseInt(match[1], 10);
-              break;
-            }
+        }
+        
+        for (const pattern of columnPatterns) {
+          const match = firstTrace.match(pattern);
+          if (match) {
+            columnNumber = parseInt(match[1], 10);
+            break;
           }
-          
-          // If we found location info, stop searching
-          break;
         }
       }
       
-      // Parse error details
-      const errorDetails = parseErrorMessage(errorMessage);
-      
       // Fallback: try to extract line number from the error message itself
       if (lineNumber === null) {
-        const errorLineMatch = errorMessage.match(/line\s+(\d+)/i);
+        const errorLineMatch = fullErrorMessage.match(/line\s+(\d+)/i);
         if (errorLineMatch) {
           lineNumber = parseInt(errorLineMatch[1], 10);
         }
@@ -99,9 +108,10 @@ function extractErrorsFromDebugLog(content) {
       errors.push({
         type: 'FATAL_ERROR',
         timestamp: extractTimestamp(line),
-        rawMessage: errorMessage,
+        rawMessage: fullErrorMessage,
         parsedMessage: errorDetails,
         location: locationInfo,
+        stackTrace: stackTrace,
         lineNumber: lineNumber,
         columnNumber: columnNumber,
         line: i + 1
@@ -258,38 +268,58 @@ function formatErrorsForDisplay(errorData) {
   
   let html = '<div class="error-section">';
   
-  // Add error summary header
+  // Add error summary header showing all error types
   if (errorData.errorSummary) {
     const summary = errorData.errorSummary;
     html += '<div class="error-summary-header">';
-    html += `<div class="error-count">${summary.primaryErrorType}</div>`;
+    
+    // Show count and types
+    const errorTypeList = Object.keys(summary.errorTypes).map(type => {
+      const count = summary.errorTypes[type];
+      const displayName = getErrorTypeDisplayName(type);
+      return count > 1 ? `${displayName} (${count})` : displayName;
+    }).join(', ');
+    
+    html += `<div class="error-count">${summary.totalErrors} Error${summary.totalErrors > 1 ? 's' : ''}: ${errorTypeList}</div>`;
     html += '</div>';
   }
   
   // Add individual error details
-  errorData.errors.forEach((error, index) => {
+  errorData.errors.forEach((error) => {
     html += '<div class="error-item-block">';
     
-    // Error message (simplified, no redundant type)
-    html += '<div class="error-message-text">';
-    html += escapeHtml(error.parsedMessage.message);
+    // Error type header
+    html += '<div class="error-type-header">';
+    html += `<strong>${getErrorTypeDisplayName(error.type)}</strong>`;
     html += '</div>';
     
-    // Combined location and line number information (single clean line)
-    let locationDisplay = '';
+    // Full error message (preserve multi-line formatting)
+    html += '<div class="error-message-text">';
+    const formattedMessage = escapeHtml(error.rawMessage).replace(/\n/g, '<br>');
+    html += formattedMessage;
+    html += '</div>';
     
-    if (error.location) {
-      // Use the full location string if available
-      locationDisplay = error.location;
+    // Stack trace information (if available)
+    if (error.stackTrace && error.stackTrace.length > 0) {
+      html += '<div class="error-stack-trace">';
+      html += '<div class="stack-trace-header">Stack Trace:</div>';
+      error.stackTrace.forEach(trace => {
+        html += '<div class="stack-trace-line">';
+        html += escapeHtml(trace);
+        html += '</div>';
+      });
+      html += '</div>';
+    } else if (error.location) {
+      // Fallback to location info if no stack trace
+      html += '<div class="error-location-line">';
+      html += escapeHtml(error.location);
+      html += '</div>';
     } else if (error.lineNumber !== null && error.lineNumber !== undefined && !isNaN(error.lineNumber)) {
       // Fallback to just line/column if location string not available
-      locationDisplay = `Line ${error.lineNumber}`;
+      let locationDisplay = `Line ${error.lineNumber}`;
       if (error.columnNumber !== null && error.columnNumber !== undefined && !isNaN(error.columnNumber)) {
         locationDisplay += `, Column ${error.columnNumber}`;
       }
-    }
-    
-    if (locationDisplay) {
       html += '<div class="error-location-line">';
       html += escapeHtml(locationDisplay);
       html += '</div>';

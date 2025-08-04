@@ -230,7 +230,7 @@ async function displayDebugLogs() {
     
     // Check if this log has debug messages (from cache)
     const debugStatus = logDebugStatusCache.get(log.Id);
-    const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">🚩</span>' : '';
+    const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">📋</span>' : '';
     
     return `
     <div class="log-item ${selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
@@ -432,7 +432,7 @@ function updateLogIndicator(logId, hasDebugMessages) {
   // Add new indicator if log has debug messages
   if (hasDebugMessages) {
     const expiredIndicator = logTimeElement.querySelector('.expired-indicator');
-    const indicatorHtml = '<span class="has-debug-indicator" title="Contains debug messages">🚩</span>';
+    const indicatorHtml = '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
     
     if (expiredIndicator) {
       // Insert after expired indicator

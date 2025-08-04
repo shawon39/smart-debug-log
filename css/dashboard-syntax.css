@@ -174,7 +174,7 @@
   text-align: center;
   padding: 12px 16px;
   color: var(--text-limits-percentage);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg-limits-content);
@@ -203,7 +203,7 @@
 }
 
 .error-count {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   color: var(--text-error);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -215,7 +215,7 @@
 
 .error-count::before {
   content: "🚨";
-  font-size: 12px;
+  font-size: 10px;
 }
 
 .error-type-badge {
@@ -235,7 +235,7 @@
   border: 1px solid var(--border-error-message);
   border-top: none;
   padding: 12px;
-  font-size: 11px;
+  font-size: 10px;
   line-height: 1.5;
   transition: all 0.3s ease;
   position: relative;
@@ -284,6 +284,48 @@
   font-size: 9px;
 }
 
+/* New error formatting styles */
+.error-type-header {
+  margin-bottom: 8px;
+  font-size: 10px;
+}
+
+.error-timestamp {
+  font-size: 10px;
+  color: var(--text-debug-status);
+  font-weight: normal;
+}
+
+.error-stack-trace {
+  margin-top: 12px;
+  padding: 8px;
+  background: var(--bg-debug-message);
+  border: 1px solid var(--border-debug-message);
+  border-radius: 4px;
+}
+
+.stack-trace-header {
+  font-size: 10px;
+  font-weight: bold;
+  color: var(--text-debug-status);
+  margin-bottom: 6px;
+}
+
+.stack-trace-line {
+  font-size: 10px;
+  color: var(--text-debug-message);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  margin: 2px 0;
+  padding-left: 12px;
+}
+
+.stack-trace-line::before {
+  content: "→";
+  color: var(--text-error);
+  margin-right: 6px;
+  margin-left: -12px;
+}
+
 /* Dark theme enhancements for error displays */
 [data-theme="dark"] .error-status-success {
   color: var(--text-limits-percentage);
@@ -324,6 +366,27 @@
 
 [data-theme="dark"] .error-location-line {
   color: var(--text-error);
+}
+
+[data-theme="dark"] .error-type-header {
+  color: var(--text-debug-message);
+}
+
+[data-theme="dark"] .error-timestamp {
+  color: var(--text-debug-status);
+}
+
+[data-theme="dark"] .error-stack-trace {
+  background: var(--bg-debug-message);
+  border-color: var(--border-debug-message);
+}
+
+[data-theme="dark"] .stack-trace-header {
+  color: var(--text-debug-status);
+}
+
+[data-theme="dark"] .stack-trace-line {
+  color: var(--text-debug-message);
 }
 
 .info-message {

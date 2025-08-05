@@ -107,6 +107,19 @@ input:checked + .theme-slider-header:before {
   background: var(--status-dot-error);
 }
 
+/* Success feedback styles for buttons */
+.success-feedback {
+  color: var(--text-button) !important;
+  background-color: var(--status-dot-connected) !important;
+  transition: all 0.3s ease !important;
+}
+
+.deploy-success {
+  background-color: var(--status-dot-connected) !important;
+  color: var(--text-button) !important;
+  transition: all 0.3s ease !important;
+}
+
 /* Buttons */
 .button {
   background: var(--bg-button);
@@ -130,6 +143,15 @@ input:checked + .theme-slider-header:before {
 
 .button.secondary {
   background: var(--bg-button-secondary);
+}
+
+.button.apex-execution-btn {
+  background: #28a745;
+  color: white;
+}
+
+.button.apex-execution-btn:hover {
+  background: #218838;
 }
 
 /* Auto Refresh Toggle */

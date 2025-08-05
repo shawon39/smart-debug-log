@@ -183,11 +183,11 @@ Deploy to org: ${sfHost}`;
       
       // Update button to show success
       deployPrettierBtn.innerHTML = 'Deployed ✓';
-      deployPrettierBtn.style.backgroundColor = '#28a745';
+      deployPrettierBtn.classList.add('deploy-success');
       
       setTimeout(() => {
         deployPrettierBtn.innerHTML = originalText;
-        deployPrettierBtn.style.backgroundColor = '';
+        deployPrettierBtn.classList.remove('deploy-success');
         deployPrettierBtn.disabled = false;
       }, 3000);
     } else {

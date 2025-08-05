@@ -3,14 +3,34 @@ import DebugLogManager from './debug-log-manager.js';
 
 const debugLogManager = new DebugLogManager();
 
+// Simple error check for harmless extension warnings
+function checkLastError() {
+  if (chrome.runtime.lastError) {
+    // Just log the error - no need for complex suppression logic
+    console.debug('Extension runtime message:', chrome.runtime.lastError.message);
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  sessionManager.initialize();
-  debugLogManager.initialize();
+  try {
+    sessionManager.initialize();
+    debugLogManager.initialize();
+    
+    checkLastError();
+  } catch (error) {
+    console.warn('Extension initialization warning:', error.message);
+  }
 });
 
 chrome.runtime.onStartup.addListener(() => {
-  sessionManager.initialize();
-  debugLogManager.initialize();
+  try {
+    sessionManager.initialize();
+    debugLogManager.initialize();
+    
+    checkLastError();
+  } catch (error) {
+    console.warn('Extension startup warning:', error.message);
+  }
 });
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -18,11 +38,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   return true;
 });
 
-chrome.notifications.onClicked.addListener(async (notificationId) => {
-  if (notificationId.startsWith('debug-log-')) {
-    const logId = notificationId.replace('debug-log-', '');
-  }
-});
+
 
 async function handleMessage(request, sender, sendResponse) {
   try {
@@ -57,6 +73,21 @@ async function handleMessage(request, sender, sendResponse) {
         break;
       case 'DOWNLOAD_LOG':
         result = await handleDownloadLog(request, sender);
+        break;
+      case 'SAVE_APEX_CODE':
+        result = await handleSaveApexCode(request, sender);
+        break;
+      case 'UPDATE_APEX_CODE':
+        result = await handleUpdateApexCode(request, sender);
+        break;
+      case 'GET_APEX_CODES':
+        result = await handleGetApexCodes(request, sender);
+        break;
+      case 'DELETE_APEX_CODE':
+        result = await handleDeleteApexCode(request, sender);
+        break;
+      case 'EXECUTE_ANONYMOUS':
+        result = await handleExecuteAnonymous(request, sender);
         break;
 
       default:
@@ -416,4 +447,199 @@ async function handleDownloadLog(request, sender) {
     };
   }
 }
+
+// Apex Code Management Functions
+async function handleSaveApexCode(request, sender) {
+  try {
+    const { name, code, orgId } = request;
+    
+    if (!name || !code) {
+      return { success: false, message: 'Name and code are required' };
+    }
+
+    await saveApexCodeToStorage({
+      name,
+      code,
+      orgId: orgId || 'unknown',
+      timestamp: Date.now()
+    });
+
+    return { success: true, message: 'Apex code saved successfully' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to save Apex code'
+    };
+  }
+}
+
+async function handleGetApexCodes(request, sender) {
+  try {
+    const { orgId } = request;
+    const codes = await getApexCodesFromStorage(orgId);
+    return { success: true, data: codes };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to get Apex codes'
+    };
+  }
+}
+
+async function handleUpdateApexCode(request, sender) {
+  try {
+    const { id, name, code, orgId } = request;
+    
+    if (!id || !name || !code) {
+      return { success: false, message: 'ID, name and code are required' };
+    }
+
+    await updateApexCodeInStorage({
+      id,
+      name,
+      code,
+      orgId: orgId || 'unknown',
+      timestamp: Date.now()
+    });
+
+    return { success: true, message: 'Apex code updated successfully' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to update Apex code'
+    };
+  }
+}
+
+async function handleDeleteApexCode(request, sender) {
+  try {
+    const { id } = request;
+    await deleteApexCodeFromStorage(id);
+    return { success: true, message: 'Apex code deleted successfully' };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to delete Apex code'
+    };
+  }
+}
+
+async function handleExecuteAnonymous(request, sender) {
+  try {
+    const { code, session } = request;
+    
+    if (!code || !session) {
+      return { success: false, message: 'Code and session are required' };
+    }
+
+    const result = await executeAnonymousApex(session, code);
+    return { success: true, data: result };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.message || 'Failed to execute anonymous Apex'
+    };
+  }
+}
+
+// Storage Functions
+async function saveApexCodeToStorage(apexData) {
+  const id = `apex_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const storageKey = `apexCodes_${apexData.orgId}`;
+  
+  const result = await chrome.storage.local.get(storageKey);
+  const codes = result[storageKey] || [];
+  
+  codes.push({
+    id,
+    ...apexData
+  });
+  
+  await chrome.storage.local.set({ [storageKey]: codes });
+}
+
+async function getApexCodesFromStorage(orgId) {
+  const storageKey = `apexCodes_${orgId}`;
+  const result = await chrome.storage.local.get(storageKey);
+  return result[storageKey] || [];
+}
+
+async function updateApexCodeInStorage(apexData) {
+  const allKeys = await chrome.storage.local.get();
+  
+  for (const key of Object.keys(allKeys)) {
+    if (key.startsWith('apexCodes_')) {
+      const codes = allKeys[key];
+      const codeIndex = codes.findIndex(code => code.id === apexData.id);
+      
+      if (codeIndex !== -1) {
+        // Update existing code
+        codes[codeIndex] = {
+          ...codes[codeIndex],
+          ...apexData,
+          timestamp: Date.now() // Update timestamp
+        };
+        await chrome.storage.local.set({ [key]: codes });
+        return;
+      }
+    }
+  }
+  
+  // If code not found, throw error
+  throw new Error('Apex code not found for update');
+}
+
+async function deleteApexCodeFromStorage(id) {
+  const allKeys = await chrome.storage.local.get();
+  
+  for (const key of Object.keys(allKeys)) {
+    if (key.startsWith('apexCodes_')) {
+      const codes = allKeys[key];
+      const updatedCodes = codes.filter(code => code.id !== id);
+      
+      if (updatedCodes.length !== codes.length) {
+        await chrome.storage.local.set({ [key]: updatedCodes });
+        break;
+      }
+    }
+  }
+}
+
+async function executeAnonymousApex(session, apexCode) {
+  const tabs = await chrome.tabs.query({});
+  const salesforceTabs = tabs.filter(tab => 
+    tab.url && (
+      tab.url.includes('.salesforce.com') || 
+      tab.url.includes('.force.com') ||
+      tab.url.includes('.lightning.force.com') ||
+      tab.url.includes('.my.salesforce.com')
+    )
+  );
+
+  if (salesforceTabs.length === 0) {
+    throw new Error('No Salesforce tabs available for API calls');
+  }
+
+  const targetTab = salesforceTabs[0];
+  const encodedCode = encodeURIComponent(apexCode);
+  
+  // Ensure session has instanceUrl
+  const sessionForApex = {
+    ...session,
+    instanceUrl: session.instanceUrl || `https://${session.domain || session.hostname}`
+  };
+  
+  const response = await chrome.tabs.sendMessage(targetTab.id, {
+    action: 'EXECUTE_ANONYMOUS',
+    code: encodedCode,
+    session: sessionForApex
+  });
+
+  if (response && response.success) {
+    return response.data;
+  } else {
+    throw new Error(response?.error || 'Failed to execute anonymous Apex');
+  }
+}
+
 

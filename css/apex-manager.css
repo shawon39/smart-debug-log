@@ -1,0 +1,855 @@
+/* Apex Manager Modal Styles */
+
+/* Modal specific styles */
+.apex-manager-modal {
+  max-width: 1200px;
+  width: 95vw;
+  height: 80vh;
+  min-height: 500px;
+  max-height: calc(100vh - 40px);
+  padding: 0;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.modal-close-btn:hover {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+/* Apex Manager Layout - Modal Version */
+.apex-manager-content {
+  display: flex;
+  height: calc(80vh - 60px);
+  min-height: 440px;
+  gap: 1px;
+  background: var(--border-primary);
+}
+
+/* Left Panel - Apex Code List (25%) */
+.apex-list-panel {
+  flex: 0 0 25%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  overflow: hidden;
+  border-right: 1px solid var(--border-primary);
+}
+
+.apex-list-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.apex-code-list {
+  height: 100%;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+/* Apex Code List Items */
+.apex-code-item {
+  padding: 8px 12px;
+  margin-bottom: 2px;
+  background: transparent;
+  border: none;
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border-radius: 0 4px 4px 0;
+}
+
+.apex-code-item:hover {
+  background: var(--bg-log-item-hover);
+  border-left-color: var(--bg-button);
+}
+
+.apex-code-item.selected {
+  background: var(--bg-log-item-selected);
+  color: var(--text-primary);
+  border-left-color: var(--bg-button);
+}
+
+.apex-code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.apex-code-name {
+  font-weight: 500;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+}
+
+
+
+
+
+.apex-code-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.apex-action-btn {
+  background: none;
+  border: 1px solid transparent;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.apex-action-btn:hover {
+  opacity: 1;
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
+.apex-code-item.selected .apex-action-btn {
+  color: var(--text-primary);
+  opacity: 0.8;
+}
+
+.apex-code-item.selected .apex-action-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.apex-code-meta {
+  font-size: 10px;
+  opacity: 0.7;
+  display: flex;
+  justify-content: space-between;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* Empty Apex State */
+.empty-apex-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.empty-apex-state .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-apex-state h4 {
+  margin: 0 0 8px 0;
+  color: var(--text-primary);
+}
+
+.empty-apex-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Right Panel - Code Editor (70%) */
+.apex-editor-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-panel);
+  overflow: hidden;
+}
+
+.apex-editor-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Code Editor - Dynamic Height for Better Visibility */
+.code-editor-container {
+  flex: 0 0 70%;
+  min-height: calc(50vh - 100px);
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-code);
+  position: relative;
+}
+
+.code-editor-wrapper {
+  position: relative;
+  flex: 1;
+  overflow: hidden;
+}
+
+.apex-code-editor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  padding-bottom: 32px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+  tab-size: 4;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  overflow: auto;
+  overflow-y: scroll;
+  z-index: 2;
+  caret-color: var(--text-primary);
+  opacity: 0.8;
+  box-sizing: border-box;
+}
+
+.apex-code-editor:focus {
+  outline: 2px solid var(--bg-button);
+  outline-offset: -2px;
+}
+
+.apex-code-editor.read-only {
+  background: rgba(128, 128, 128, 0.1);
+  cursor: not-allowed;
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
+.apex-code-editor.read-only:focus {
+  outline: 1px solid var(--border-secondary);
+  outline-offset: -1px;
+}
+
+.apex-code-editor::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.8;
+  font-style: italic;
+}
+
+/* Syntax Highlighting Overlay */
+.syntax-highlight-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  padding-bottom: 32px;
+  font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow: auto;
+  overflow-y: scroll;
+  pointer-events: none;
+  z-index: 1;
+  color: var(--text-primary);
+  background: transparent;
+  border: none;
+  outline: none;
+  tab-size: 4;
+  word-wrap: break-word;
+  overflow-wrap: normal;
+  transition: color 0.3s ease;
+  box-sizing: border-box;
+}
+
+/* Highlight.js styling overrides for Apex Manager */
+.syntax-highlight-overlay pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  white-space: pre-wrap;
+  overflow: visible;
+}
+
+.syntax-highlight-overlay code {
+  background: transparent;
+  padding: 0;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  color: inherit;
+}
+
+/* Light theme highlight.js overrides */
+.syntax-highlight-overlay .hljs-keyword {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.syntax-highlight-overlay .hljs-type {
+  color: #008080;
+  font-weight: 500;
+}
+
+.syntax-highlight-overlay .hljs-string {
+  color: #008000;
+}
+
+.syntax-highlight-overlay .hljs-comment {
+  color: #666666;
+  font-style: italic;
+}
+
+.syntax-highlight-overlay .hljs-number {
+  color: #ff8800;
+}
+
+.syntax-highlight-overlay .hljs-title.function_ {
+  color: #9932cc;
+  font-weight: 500;
+}
+
+.syntax-highlight-overlay .hljs-meta {
+  color: #808000;
+  font-weight: 500;
+}
+
+/* Dark theme highlight.js overrides */
+[data-theme="dark"] .syntax-highlight-overlay .hljs-keyword {
+  color: #569cd6;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-type {
+  color: #4ec9b0;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-string {
+  color: #ce9178;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-comment {
+  color: #6a9955;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-number {
+  color: #b5cea8;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-title.function_ {
+  color: #dcdcaa;
+}
+
+[data-theme="dark"] .syntax-highlight-overlay .hljs-meta {
+  color: #9cdcfe;
+}
+
+/* Execution Results - Dynamic Responsive Display */
+.execution-results {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: calc(15vh - 40px);
+  max-height: calc(25vh - 20px);
+}
+
+.results-header {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-primary);
+  background: var(--bg-panel-header);
+  flex-shrink: 0;
+}
+
+.results-title {
+  font-weight: 600;
+  font-size: 10px;
+  color: var(--text-primary);
+}
+
+.results-content {
+  flex: 1;
+  padding: 8px 12px;
+  overflow-y: auto;
+  font-size: 10px;
+  line-height: 1.3;
+}
+
+/* Execution Progress */
+.execution-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 20px;
+  color: var(--text-secondary);
+}
+
+.execution-progress .spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--border-primary);
+  border-top: 2px solid var(--bg-button);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Execution Results - Compact */
+.execution-success,
+.execution-error {
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.result-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+.result-header.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.result-header.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+[data-theme="dark"] .result-header.success {
+  background: #1e3d1f;
+  color: #d1f2d1;
+  border-color: #2d5a2d;
+}
+
+[data-theme="dark"] .result-header.error {
+  background: #3d1e1e;
+  color: #f2d1d1;
+  border-color: #5a2d2d;
+}
+
+.result-icon {
+  font-size: 14px;
+}
+
+.result-title {
+  font-size: 12px;
+}
+
+.result-details {
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-top: none;
+}
+
+.result-section {
+  margin-bottom: 8px;
+}
+
+.result-section:last-child {
+  margin-bottom: 0;
+}
+
+.result-section h4 {
+  margin: 0 0 3px 0;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.result-value {
+  padding: 3px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.result-value.success {
+  background: #d4edda;
+  color: #155724;
+  border-color: #c3e6cb;
+}
+
+.result-value.error {
+  background: #f8d7da;
+  color: #721c24;
+  border-color: #f5c6cb;
+}
+
+[data-theme="dark"] .result-value.success {
+  background: #1e3d1f;
+  color: #d1f2d1;
+  border-color: #2d5a2d;
+}
+
+[data-theme="dark"] .result-value.error {
+  background: #3d1e1e;
+  color: #f2d1d1;
+  border-color: #5a2d2d;
+}
+
+.result-value.stack-trace {
+  white-space: pre-wrap;
+  max-height: 100px;
+  overflow-y: auto;
+}
+
+/* Panel Headers Improvements */
+.panel-header {
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-primary);
+  padding: 8px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-height: 40px;
+  flex-shrink: 0;
+}
+
+
+
+/* Unsaved Changes Indicator */
+.unsaved-indicator {
+  color: #ff6b35;
+  font-size: 12px;
+  margin-left: 6px;
+  animation: pulse 2s infinite;
+}
+
+.unsaved-indicator.hidden {
+  display: none;
+}
+
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+/* New Code Block Title Input */
+.new-code-title-input {
+  background: var(--bg-secondary);
+  border: 1px solid var(--bg-button);
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.5px;
+  min-width: 150px;
+}
+
+.new-code-title-input:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Right-align panel-actions when it's the only child */
+.panel-header > .panel-actions:only-child {
+  margin-left: auto;
+}
+
+.panel-actions .button {
+  font-size: 11px;
+  padding: 4px 12px;
+  min-height: 28px;
+  font-weight: 500;
+}
+
+/* Java-style Apex Syntax Highlighting Colors */
+.apex-keyword {
+  color: #0066cc;
+  font-weight: 600;
+}
+
+.apex-type {
+  color: #008080;
+  font-weight: 500;
+}
+
+.apex-string {
+  color: #008000;
+}
+
+.apex-comment {
+  color: #666666;
+  font-style: italic;
+}
+
+.apex-number {
+  color: #ff8800;
+}
+
+.apex-method {
+  color: #9932cc;
+  font-weight: 500;
+}
+
+.apex-annotation {
+  color: #808000;
+  font-weight: 500;
+}
+
+.apex-soql {
+  color: #cc0066;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+/* Dark theme syntax highlighting */
+[data-theme="dark"] .apex-keyword {
+  color: #569cd6;
+}
+
+[data-theme="dark"] .apex-type {
+  color: #4ec9b0;
+}
+
+[data-theme="dark"] .apex-string {
+  color: #ce9178;
+}
+
+[data-theme="dark"] .apex-comment {
+  color: #6a9955;
+}
+
+[data-theme="dark"] .apex-number {
+  color: #b5cea8;
+}
+
+[data-theme="dark"] .apex-method {
+  color: #dcdcaa;
+}
+
+[data-theme="dark"] .apex-annotation {
+  color: #9cdcfe;
+}
+
+[data-theme="dark"] .apex-soql {
+  color: #c586c0;
+}
+
+/* Welcome States - Compact */
+.welcome-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60px;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.welcome-state .welcome-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+  opacity: 0.5;
+}
+
+.welcome-state h4 {
+  margin: 0 0 2px 0;
+  color: var(--text-primary);
+  font-size: 10px;
+}
+
+.welcome-state p {
+  margin: 0;
+  font-size: 9px;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .apex-manager-modal {
+    width: 98vw;
+    height: 85vh;
+    min-height: 600px;
+    max-height: calc(100vh - 20px);
+  }
+  
+  .apex-manager-content {
+    flex-direction: column;
+    height: calc(85vh - 60px);
+    min-height: 540px;
+  }
+  
+  .apex-list-panel {
+    flex: 0 0 25%;
+    min-height: 120px;
+  }
+  
+  .apex-editor-panel {
+    flex: 1;
+    min-height: 350px;
+  }
+  
+  .code-editor-container {
+    flex: 0 0 75%;
+    min-height: calc(40vh - 80px);
+  }
+}
+
+@media (max-width: 768px) {
+  .apex-manager-modal {
+    width: 100vw;
+    max-width: 100vw;
+    height: 95vh;
+    min-height: 400px;
+    max-height: 100vh;
+  }
+  
+  .apex-manager-content {
+    height: calc(95vh - 60px);
+    min-height: 340px;
+  }
+  
+  .modal-header {
+    padding: 12px 16px;
+  }
+  
+  .modal-title {
+    font-size: 16px;
+  }
+  
+  .apex-list-panel {
+    flex: 0 0 20%;
+    min-height: 100px;
+  }
+  
+  .code-editor-container {
+    flex: 0 0 75%;
+    min-height: calc(35vh - 70px);
+  }
+  
+  .execution-results {
+    min-height: calc(12vh - 30px);
+    max-height: calc(20vh - 20px);
+  }
+  
+  /* Enhanced mobile touch targets */
+  .apex-code-item {
+    padding: 12px 16px;
+    margin-bottom: 4px;
+  }
+  
+  .button {
+    padding: 10px 16px;
+    min-height: 44px;
+  }
+  
+  .modal-close-btn {
+    padding: 8px 12px;
+    font-size: 20px;
+  }
+}
+
+/* Extra small screens */
+@media (max-width: 480px) {
+  .apex-manager-modal {
+    height: 98vh;
+    min-height: 350px;
+  }
+  
+  .apex-manager-content {
+    height: calc(98vh - 60px);
+    min-height: 290px;
+  }
+  
+  .apex-list-panel {
+    flex: 0 0 15%;
+    min-height: 60px;
+  }
+  
+  .code-editor-container {
+    flex: 0 0 70%;
+    min-height: calc(30vh - 60px);
+  }
+  
+  .execution-results {
+    min-height: calc(15vh - 30px);
+    max-height: calc(25vh - 20px);
+  }
+  
+  .modal-header {
+    padding: 8px 12px;
+  }
+  
+  .modal-title {
+    font-size: 14px;
+  }
+  
+  .apex-code-editor {
+    font-size: 12px;
+    padding: 12px;
+  }
+}

@@ -79,6 +79,14 @@
   --syntax-json-string: #032f62;
   --syntax-json-number: #005B85;
   --syntax-json-boolean: #6f42c1;
+  --syntax-apex-comment: #6a737d;
+  --syntax-apex-string: #032f62;
+  --syntax-apex-keyword: #d73a49;
+  --syntax-apex-type: #005cc5;
+  --syntax-apex-number: #005B85;
+  --syntax-apex-method: #6f42c1;
+  --syntax-apex-annotation: #e36209;
+  --syntax-apex-soql: #22863a;
   
   --border-primary: #e5e5e5;
   --border-secondary: #ced4da;
@@ -195,6 +203,14 @@
   --syntax-json-string: #81e6d9;
   --syntax-json-number: #7DD3FC;
   --syntax-json-boolean: #e9d8fd;
+  --syntax-apex-comment: #8b949e;
+  --syntax-apex-string: #7ee787;
+  --syntax-apex-keyword: #ff7b72;
+  --syntax-apex-type: #79c0ff;
+  --syntax-apex-number: #79c0ff;
+  --syntax-apex-method: #d2a8ff;
+  --syntax-apex-annotation: #ffa657;
+  --syntax-apex-soql: #7ee787;
   
   --border-primary: #4a5568;
   --border-secondary: #718096;

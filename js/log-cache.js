@@ -124,11 +124,12 @@ class LogCache {
   /**
    * Gets uncached logs from a list
    * @param {Array} logs - Array of log objects
-   * @returns {Array} Logs that don't have cached status
+   * @returns {Array} Logs that don't have cached status and aren't cleared
    */
   getUncachedLogs(logs) {
     return logs.filter(log => 
-      !this.hasDebugStatus(log.Id) || !this.hasErrorStatus(log.Id)
+      (!this.hasDebugStatus(log.Id) || !this.hasErrorStatus(log.Id)) &&
+      !isLogCleared(log.Id)
     );
   }
 

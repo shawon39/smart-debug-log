@@ -10,6 +10,8 @@
   <link rel="stylesheet" href="css/dashboard-syntax.css">
   <link rel="stylesheet" href="css/dashboard-modals.css">
   <link rel="stylesheet" href="css/dashboard-responsive.css">
+  <link rel="stylesheet" href="css/apex-manager.css">
+  <!-- Use local highlight.js - CDN removed for CSP compliance -->
 </head>
 <body>
   <!-- Compact Header -->
@@ -39,6 +41,7 @@
         <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;" title="Copy session URL">Copy Session URL</button>
         <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>
         <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;" title="Deploy Prettier Class">Deploy Prettier Class</button>
+        <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Anonymous Code Manager">Anonymous Execution</button>
         <div class="auto-refresh-toggle">
           <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
           <div class="toggle-switch">
@@ -101,10 +104,11 @@
     </div>
   </div>
 
-  <!-- Main Content - 3 Column Layout -->
-  <div class="main-content">
-    <!-- Recent Debug Logs -->
-    <div class="panel">
+  <!-- Main Content - Direct Layout -->
+    <!-- Main Content - 3 Column Layout -->
+    <div class="main-content">
+      <!-- Recent Debug Logs -->
+      <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
           Recent Debug Logs
@@ -190,7 +194,69 @@
         </div>
       </div>
       </div>
+    </div>
+  </div>
+
+<!-- Apex Manager Modal -->
+<div class="modal-overlay" id="apexManagerModal" style="display: none;">
+  <div class="modal-content apex-manager-modal">
+    <div class="modal-header">
+      <div class="modal-title">Saved Anonymous Code Block</div>
+      <button class="modal-close-btn" id="closeApexManagerBtn">×</button>
+    </div>
+    
+    <div class="apex-manager-content">
+      <!-- Left Panel - Apex Code List -->
+      <div class="apex-list-panel">
+        <div class="panel-header">
+          <div class="panel-actions">
+            <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add Code Block</button>
+          </div>
+        </div>
+        <div class="apex-list-content">
+          <div id="apexCodeList" class="apex-code-list"></div>
+        </div>
+      </div>
+      
+      <!-- Right Panel - Code Editor and Execution -->
+      <div class="apex-editor-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            <span id="apexCodeTitle">Select Apex Code</span>
+            <span id="unsavedIndicator" class="unsaved-indicator hidden">●</span>
+          </div>
+          <div class="panel-actions">
+            <button class="button primary" id="runApexBtn" title="Execute Apex code">Execute</button>
+            <button class="button secondary" id="saveApexBtn" title="Save current code">Save Code</button>
+          </div>
+        </div>
+        <div class="apex-editor-content">
+          <div class="code-editor-container">
+            <div class="code-editor-wrapper">
+              <div id="syntaxHighlightOverlay" class="syntax-highlight-overlay"></div>
+              <textarea id="apexCodeEditor" class="apex-code-editor" spellcheck="false" placeholder="Select an Apex code from the list..."></textarea>
+            </div>
+          </div>
+          <div class="execution-results" id="executionResults">
+            <div class="results-header">
+              <div class="results-title">Execution Results</div>
+            </div>
+            <div class="results-content" id="resultsContent">
+              <div class="welcome-state">
+                <div class="welcome-icon">⚡</div>
+                <h4>Ready to Execute</h4>
+                <p>Select Apex code and click Execute to see results</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
+
+<!-- Local Highlight.js JavaScript -->
+<script src="js/highlight.js"></script>
 
 <!-- Load JavaScript files in order: utilities, parsing, formatting, error extraction, then new modular components, then dashboard modules -->
 <script src="js/basic-utilities.js"></script>
@@ -208,6 +274,9 @@
 <script src="js/log-renderer.js"></script>
 <script src="js/log-display.js"></script>
 <script src="js/raw-view.js"></script>
+<script src="js/apex-storage-service.js"></script>
+<script src="js/apex-code-manager.js"></script>
+<script src="js/apex-executor.js"></script>
 <script src="js/dashboard-connection.js"></script>
 <script src="js/dashboard-monitoring.js"></script>
 <script src="js/dashboard-actions.js"></script>

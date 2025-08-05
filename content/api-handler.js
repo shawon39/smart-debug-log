@@ -53,6 +53,11 @@
             sendResponse({ success: true, userId: userIdResult });
             break;
 
+          case 'EXECUTE_ANONYMOUS':
+            const executeResult = await this.executeAnonymous(message.code, message.session);
+            sendResponse({ success: true, data: executeResult });
+            break;
+
           default:
             sendResponse({ success: false, error: 'Unknown action: ' + message.action });
         }

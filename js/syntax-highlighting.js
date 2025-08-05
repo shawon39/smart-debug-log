@@ -1,6 +1,13 @@
 // Syntax Highlighting for Debug Logs and JSON
 // This file handles syntax highlighting for different content types
 
+// HTML escape function
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function applyDebugLogHighlighting(text) {
   // Check if text already contains actual HTML tags (not debug content like <init>)
   // Only match proper HTML tags with valid tag names, not arbitrary angle bracket content

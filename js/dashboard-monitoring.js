@@ -224,11 +224,11 @@ function clearAllLogs() {
   if (clearLogsBtn) {
     const originalText = clearLogsBtn.textContent;
     clearLogsBtn.textContent = 'Cleared ✓';
-    clearLogsBtn.style.color = '#ffffff';
+    clearLogsBtn.classList.add('success-feedback');
     
     setTimeout(() => {
       clearLogsBtn.textContent = originalText;
-      clearLogsBtn.style.color = '';
+      clearLogsBtn.classList.remove('success-feedback');
     }, 2000);
   }
 }
@@ -254,11 +254,11 @@ function markAllLogsAsRead() {
   if (markAllReadBtn) {
     const originalText = markAllReadBtn.textContent;
     markAllReadBtn.textContent = 'Marked as Read ✓';
-    markAllReadBtn.style.color = '#ffffff';
+    markAllReadBtn.classList.add('success-feedback');
     
     setTimeout(() => {
       markAllReadBtn.textContent = originalText;
-      markAllReadBtn.style.color = '';
+      markAllReadBtn.classList.remove('success-feedback');
     }, 2000);
   }
 }

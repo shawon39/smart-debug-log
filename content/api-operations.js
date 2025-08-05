@@ -225,4 +225,83 @@
     }
   };
 
+  SalesforceAPIHandler.prototype.executeAnonymous = async function(apexCode, session) {
+    if (!session) {
+      throw new Error('No session data provided');
+    }
+    
+    if (!session.sessionId) {
+      throw new Error('No sessionId in session data');
+    }
+    
+    if (!session.instanceUrl) {
+      throw new Error('No instanceUrl in session data');
+    }
+
+    if (!apexCode) {
+      throw new Error('No Apex code provided');
+    }
+
+    const url = `${session.instanceUrl}/services/data/v64.0/tooling/executeAnonymous/?anonymousBody=${apexCode}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.sessionId}`,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorMessage;
+        
+        if (response.status === 401) {
+          errorMessage = `Authentication failed. Your session may have expired. Please refresh the page and try again.`;
+        } else if (response.status === 403) {
+          errorMessage = `Insufficient permissions to execute anonymous Apex. You need "Author Apex" permission.`;
+        } else {
+          errorMessage = `Failed to execute anonymous Apex: ${response.status} ${response.statusText}`;
+          if (errorText) {
+            errorMessage += ` - ${errorText}`;
+          }
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      const result = await response.json();
+      return result;
+    } catch (fetchError) {
+      const pageSession = this.extractSessionFromPage();
+      if (pageSession && pageSession.sessionId !== session.sessionId) {
+        const fallbackUrl = `${pageSession.instanceUrl}/services/data/v64.0/tooling/executeAnonymous/?anonymousBody=${apexCode}`;
+        
+        try {
+          const fallbackResponse = await fetch(fallbackUrl, {
+            method: 'GET',  
+            headers: {
+              'Authorization': `Bearer ${pageSession.sessionId}`,
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            },
+            credentials: 'include'
+          });
+
+          if (fallbackResponse.ok) {
+            const fallbackResult = await fallbackResponse.json();
+            return fallbackResult;
+          }
+        } catch (fallbackError) {
+          // Continue to throw original error
+        }
+      }
+      
+      throw new Error(`Failed to execute anonymous Apex: ${fetchError.message}`);
+    }
+  };
+
 })();

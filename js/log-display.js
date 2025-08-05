@@ -19,7 +19,9 @@ async function loadDebugLogs() {
     updateStats();
     
     // Check debug status for logs progressively (non-blocking)
-    logLoader.checkDebugStatusProgressive(debugLogs, (logId) => {
+    // Only check non-cleared logs to minimize API calls
+    const visibleLogs = debugLogs.filter(log => !isLogCleared(log.Id));
+    logLoader.checkDebugStatusProgressive(visibleLogs, (logId) => {
       logRenderer.updateLogIndicator(logId);
     });
   } catch (error) {
@@ -91,11 +93,15 @@ function updateLogIndicator(logId) {
  * Legacy compatibility functions for progressive checking
  */
 async function checkDebugStatusForLogsProgressive(logs) {
-  await logLoader.checkDebugStatusProgressive(logs, (logId) => {
+  // Filter out cleared logs to minimize API calls
+  const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
+  await logLoader.checkDebugStatusProgressive(visibleLogs, (logId) => {
     logRenderer.updateLogIndicator(logId);
   });
 }
 
 async function checkDebugStatusForLogs(logs) {
-  await logLoader.checkDebugStatusLimited(logs);
+  // Filter out cleared logs to minimize API calls
+  const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
+  await logLoader.checkDebugStatusLimited(visibleLogs);
 }

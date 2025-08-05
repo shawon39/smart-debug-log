@@ -495,3 +495,49 @@
   color: var(--text-secondary);
   font-style: italic;
 }
+
+/* Apex Code Syntax Highlighting */
+.apex-comment {
+  color: var(--syntax-apex-comment);
+  font-style: italic;
+  transition: color 0.3s ease;
+}
+
+.apex-string {
+  color: var(--syntax-apex-string);
+  transition: color 0.3s ease;
+}
+
+.apex-keyword {
+  color: var(--syntax-apex-keyword);
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.apex-type {
+  color: var(--syntax-apex-type);
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.apex-number {
+  color: var(--syntax-apex-number);
+  transition: color 0.3s ease;
+}
+
+.apex-method {
+  color: var(--syntax-apex-method);
+  transition: color 0.3s ease;
+}
+
+.apex-annotation {
+  color: var(--syntax-apex-annotation);
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.apex-soql {
+  color: var(--syntax-apex-soql);
+  font-weight: 600;
+  transition: color 0.3s ease;
+}

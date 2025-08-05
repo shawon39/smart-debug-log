@@ -188,7 +188,17 @@ function performSearch(query) {
   const { debugContent, searchResultsInfo } = elements;
   
   if (!query || !debugContent) {
+    // Clear search state and remove highlights when query is empty
+    searchTerm = '';
+    searchMatches = [];
+    currentMatchIndex = -1;
     updateSearchInfo(0, 0);
+    
+    // Remove visual highlights from DOM
+    const rawContainer = debugContent.querySelector('.raw-response-container');
+    if (rawContainer && isRawView && currentRawResponse) {
+      displayRawResponseWithoutSearch(rawContainer, currentRawResponse);
+    }
     return;
   }
   

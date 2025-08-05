@@ -8,6 +8,8 @@ class ApexCodeManager {
     this.isInitialized = false;
     this.hasUnsavedChanges = false;
     this.isReadOnly = false;
+    this.searchTerm = '';
+    this.filteredCodes = [];
   }
 
   async initialize(orgId) {
@@ -24,10 +26,54 @@ class ApexCodeManager {
     const response = await ApexStorageService.loadApexCodes(this.currentOrgId);
     if (response.success) {
       this.apexCodes = response.data;
-      this.renderApexCodeList();
+      this.filterApexCodes();
     } else {
       console.error('Failed to load Apex codes:', response.error);
     }
+  }
+
+  filterApexCodes() {
+    if (!this.searchTerm || !this.searchTerm.trim()) {
+      // No search term, show all codes
+      this.filteredCodes = [...this.apexCodes];
+    } else {
+      // Filter codes by search term (case-insensitive search in both name and code)
+      const searchLower = this.searchTerm.toLowerCase();
+      this.filteredCodes = this.apexCodes.filter(apexCode => {
+        const nameMatch = apexCode.name.toLowerCase().includes(searchLower);
+        const codeMatch = apexCode.code.toLowerCase().includes(searchLower);
+        return nameMatch || codeMatch;
+      });
+    }
+    this.renderApexCodeList();
+  }
+
+  handleSearch(searchTerm) {
+    this.searchTerm = searchTerm;
+    this.filterApexCodes();
+  }
+
+  setupSearchEventListeners() {
+    const searchInput = document.getElementById('apexSearchInput');
+    if (!searchInput) return;
+
+    // Debounce search for better performance
+    let searchTimeout;
+    
+    searchInput.addEventListener('input', (e) => {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        this.handleSearch(e.target.value);
+      }, 300);
+    });
+
+    // Clear search on Escape key
+    searchInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        searchInput.value = '';
+        this.handleSearch('');
+      }
+    });
   }
 
   async saveApexCode(name, code) {
@@ -303,6 +349,7 @@ class ApexCodeManager {
     
     listContainer.innerHTML = '';
     
+    // Handle different empty states
     if (this.apexCodes.length === 0) {
       listContainer.innerHTML = `
         <div class="empty-apex-state">
@@ -314,7 +361,18 @@ class ApexCodeManager {
       return;
     }
     
-    this.apexCodes.forEach(apexCode => {
+    if (this.filteredCodes.length === 0 && this.searchTerm.trim()) {
+      listContainer.innerHTML = `
+        <div class="empty-apex-state">
+          <div class="empty-icon">🔍</div>
+          <h4>No Results Found</h4>
+          <p>No code blocks match your search term</p>
+        </div>
+      `;
+      return;
+    }
+    
+    this.filteredCodes.forEach(apexCode => {
       const item = document.createElement('div');
       item.className = 'apex-code-item';
       item.dataset.id = apexCode.id;
@@ -640,9 +698,10 @@ class ApexCodeManager {
         this.isInitialized = true;
       }
       
-      // Setup syntax highlighting
+      // Setup syntax highlighting and search
       setTimeout(() => {
         this.setupSyntaxHighlighting();
+        this.setupSearchEventListeners();
       }, 100);
     }
   }

@@ -621,7 +621,6 @@ async function executeAnonymousApex(session, apexCode) {
   }
 
   const targetTab = salesforceTabs[0];
-  const encodedCode = encodeURIComponent(apexCode);
   
   // Ensure session has instanceUrl
   const sessionForApex = {
@@ -629,16 +628,57 @@ async function executeAnonymousApex(session, apexCode) {
     instanceUrl: session.instanceUrl || `https://${session.domain || session.hostname}`
   };
   
-  const response = await chrome.tabs.sendMessage(targetTab.id, {
-    action: 'EXECUTE_ANONYMOUS',
-    code: encodedCode,
-    session: sessionForApex
-  });
+  try {
+    const response = await chrome.tabs.sendMessage(targetTab.id, {
+      action: 'EXECUTE_ANONYMOUS',
+      code: apexCode,
+      session: sessionForApex
+    });
 
-  if (response && response.success) {
-    return response.data;
-  } else {
-    throw new Error(response?.error || 'Failed to execute anonymous Apex');
+    if (response && response.success) {
+      return response.data;
+    } else {
+      throw new Error(response?.error || 'Failed to execute anonymous Apex');
+    }
+  } catch (error) {
+    if (error.message.includes('Receiving end does not exist')) {
+      // Try to inject content script and retry once
+      try {
+        await chrome.scripting.executeScript({
+          target: { tabId: targetTab.id },
+          files: ['content/api-handler.js', 'content/api-operations.js', 'content/session-extraction.js']
+        });
+        
+        // Wait longer for the scripts to initialize and register listeners
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Send a ping to verify content script is ready
+        try {
+          const pingResponse = await chrome.tabs.sendMessage(targetTab.id, { action: 'PING' });
+          if (!pingResponse || !pingResponse.success) {
+            throw new Error('Content script not responding to ping');
+          }
+        } catch (pingError) {
+          throw new Error('Content script failed to initialize properly');
+        }
+        
+        // Retry the message
+        const retryResponse = await chrome.tabs.sendMessage(targetTab.id, {
+          action: 'EXECUTE_ANONYMOUS',
+          code: apexCode,
+          session: sessionForApex
+        });
+
+        if (retryResponse && retryResponse.success) {
+          return retryResponse.data;
+        } else {
+          throw new Error(retryResponse?.error || 'Failed to execute anonymous Apex after retry');
+        }
+      } catch (retryError) {
+        throw new Error(`Could not establish connection: ${retryError.message}. Please refresh the Salesforce tab and try again.`);
+      }
+    }
+    throw error;
   }
 }
 

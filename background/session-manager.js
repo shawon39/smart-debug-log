@@ -7,6 +7,8 @@ const SALESFORCE_DOMAINS = [
   'force.com'
 ];
 
+const SALESFORCE_API_VERSION = 'v62.0';
+
 const DOMAIN_MAPPINGS = {
   '.lightning.force.com': '.my.salesforce.com',
   '.develop.lightning.force.com': '.develop.my.salesforce.com',
@@ -367,7 +369,7 @@ class SessionManager {
     try {
       const apiDomain = sessionData.apiDomain || sessionData.domain;
       
-      const response = await fetch(`https://${apiDomain}/services/data/v58.0/limits`, {
+      const response = await fetch(`https://${apiDomain}/services/data/${SALESFORCE_API_VERSION}/limits`, {
         headers: {
           'Authorization': `Bearer ${sessionData.key}`,
           'Content-Type': 'application/json'

@@ -560,6 +560,36 @@
   align-items: center;
   min-height: 40px;
   flex-shrink: 0;
+  gap: 8px;
+}
+
+/* Apex Search Container */
+.apex-search-container {
+  flex: 1;
+  max-width: 200px;
+}
+
+.apex-search-input {
+  width: 100%;
+  padding: 4px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.apex-search-input:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+}
+
+.apex-search-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
 }
 
 

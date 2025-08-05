@@ -230,8 +230,8 @@
       throw new Error('No session data provided');
     }
     
-    if (!session.sessionId) {
-      throw new Error('No sessionId in session data');
+    if (!session.sessionId && !session.key) {
+      throw new Error('No session token in session data');
     }
     
     if (!session.instanceUrl) {
@@ -242,13 +242,20 @@
       throw new Error('No Apex code provided');
     }
 
-    const url = `${session.instanceUrl}/services/data/v64.0/tooling/executeAnonymous/?anonymousBody=${apexCode}`;
+    console.log('ExecuteAnonymous called with session:', {
+      hasKey: !!session.key,
+      hasSessionId: !!session.sessionId,
+      instanceUrl: session.instanceUrl,
+      orgId: session.orgId
+    });
+
+    const url = `${session.instanceUrl}/services/data/${SalesforceAPIHandler.API_VERSION}/tooling/executeAnonymous/?anonymousBody=${encodeURIComponent(apexCode)}`;
 
     try {
       const response = await fetch(url, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${session.sessionId}`,
+          'Authorization': `Bearer ${session.key || session.sessionId}`,
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
@@ -278,13 +285,13 @@
     } catch (fetchError) {
       const pageSession = this.extractSessionFromPage();
       if (pageSession && pageSession.sessionId !== session.sessionId) {
-        const fallbackUrl = `${pageSession.instanceUrl}/services/data/v64.0/tooling/executeAnonymous/?anonymousBody=${apexCode}`;
+        const fallbackUrl = `${pageSession.instanceUrl}/services/data/${SalesforceAPIHandler.API_VERSION}/tooling/executeAnonymous/?anonymousBody=${encodeURIComponent(apexCode)}`;
         
         try {
           const fallbackResponse = await fetch(fallbackUrl, {
             method: 'GET',  
             headers: {
-              'Authorization': `Bearer ${pageSession.sessionId}`,
+              'Authorization': `Bearer ${pageSession.key || pageSession.sessionId}`,
               'Content-Type': 'application/json',
               'Accept': 'application/json'
             },

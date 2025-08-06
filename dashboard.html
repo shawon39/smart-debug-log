@@ -18,6 +18,7 @@
   <div class="header">
     <h1>
       Salesforce Debug Log Beautifier
+      <span class="connection-status" id="connectionStatusText">Checking...</span>
     </h1>
     <div class="header-controls">
       <div class="theme-toggle-header">
@@ -34,9 +35,6 @@
   <!-- Compact Controls Bar -->
   <div class="controls-bar">
     <div class="status-section">
-      <div class="status-item">
-        <span id="connectionStatusText">Checking...</span>
-      </div>
       <div class="org-actions hidden" id="orgActions" style="display: flex; gap: 8px; align-items: center;">
         <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;" title="Copy session URL">Copy Session URL</button>
         <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>

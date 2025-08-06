@@ -1,10 +1,20 @@
 /* Component Styles - Buttons, Status Dots, Toggles, Logs */
 
+/* Connection Status in Header */
+.connection-status {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: 400;
+  margin-left: 16px;
+  color: var(--text-header);
+}
+
 /* Header Controls */
 .header-controls {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .theme-toggle-header {

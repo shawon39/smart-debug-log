@@ -130,11 +130,15 @@ input:checked + .theme-slider-header:before {
   cursor: pointer;
   font-size: 11px;
   font-weight: 500;
-  transition: all 0.3s;
+  opacity: 0.9;
+  transition: all 0.2s ease;
 }
 
 .button:hover {
   background: var(--bg-button-hover);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .button.danger {
@@ -145,6 +149,26 @@ input:checked + .theme-slider-header:before {
   background: var(--bg-button-secondary);
 }
 
+.button.primary {
+  background: var(--bg-button);
+}
+
+.button.primary:hover {
+  background: var(--bg-button-hover);
+  color: var(--text-button);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.button.secondary:hover {
+  background: var(--bg-button-hover);
+  color: var(--text-button);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .button.apex-execution-btn {
   background: #28a745;
   color: white;
@@ -152,6 +176,9 @@ input:checked + .theme-slider-header:before {
 
 .button.apex-execution-btn:hover {
   background: #218838;
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Auto Refresh Toggle */

@@ -431,3 +431,67 @@ input:checked + .toggle-slider:hover {
   font-weight: 500;
   transition: color 0.3s ease;
 }
+
+/* See More Logs Button */
+.see-more-logs-btn {
+  padding: 16px 0;
+  text-align: center;
+  border-top: 1px solid var(--border-primary);
+  margin-top: 8px;
+}
+
+.see-more-logs-btn .button {
+  width: 80%;
+  max-width: 200px;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--bg-button-secondary);
+  color: var(--text-button);
+  opacity: 0.9;
+  transition: all 0.2s ease;
+}
+
+.see-more-logs-btn .button:hover {
+  background: var(--bg-button-hover);
+  color: var(--text-button);
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.see-more-logs-btn .button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.see-more-logs-btn .button:disabled:hover {
+  background: var(--bg-button-secondary);
+  color: var(--text-button);
+  opacity: 0.6;
+}
+
+.see-more-logs-btn .loading-spinner {
+  font-size: 10px;
+  color: var(--text-button);
+  animation: pulse 1.5s infinite;
+}
+
+.see-more-logs-btn .button-text {
+  transition: opacity 0.2s ease;
+  color: var(--text-button);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+}

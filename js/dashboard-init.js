@@ -144,6 +144,7 @@ function setupEventListeners() {
     await loadDebugLogs();
   });
   
+  
   // Auto refresh toggle event listener
   const autoRefreshToggle = document.getElementById('autoRefreshToggle');
   if (autoRefreshToggle) {

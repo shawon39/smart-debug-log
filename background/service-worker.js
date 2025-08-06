@@ -612,6 +612,7 @@ async function executeAnonymousApex(session, apexCode) {
       tab.url.includes('.salesforce.com') || 
       tab.url.includes('.force.com') ||
       tab.url.includes('.lightning.force.com') ||
+      tab.url.includes('--c.visualforce.com') ||
       tab.url.includes('.my.salesforce.com')
     )
   );
@@ -620,12 +621,37 @@ async function executeAnonymousApex(session, apexCode) {
     throw new Error('No Salesforce tabs available for API calls');
   }
 
-  const targetTab = salesforceTabs[0];
+  // Use the same sophisticated tab selection logic as log retrieval
+  let targetTab = null;
+  for (const tab of salesforceTabs) {
+    try {
+      const tabUrl = new URL(tab.url);
+      const sfHost = tabUrl.hostname;
+      const tabSession = await sessionManager.getSession(sfHost, tab.id);
+      
+      if (tabSession && tabSession.isValid && tabSession.orgId === session.orgId) {
+        targetTab = tab;
+        break;
+      }
+    } catch (error) {
+      // Continue
+    }
+  }
+
+  if (!targetTab) {
+    // Fallback to first available tab
+    targetTab = salesforceTabs[0];
+  }
   
-  // Ensure session has instanceUrl
+  // Use the same session data construction as log retrieval
+  const tabUrl = new URL(targetTab.url);
+  const instanceUrl = `https://${tabUrl.hostname}`;
+
   const sessionForApex = {
-    ...session,
-    instanceUrl: session.instanceUrl || `https://${session.domain || session.hostname}`
+    sessionId: session.sessionId,
+    instanceUrl: instanceUrl,
+    orgId: session.orgId,
+    domain: session.domain
   };
   
   try {

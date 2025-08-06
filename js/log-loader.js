@@ -10,9 +10,10 @@ class LogLoader {
 
   /**
    * Loads debug logs from Salesforce
+   * @param {number} offset - Number of logs to skip (for pagination)
    * @returns {Promise<Array>} Array of debug logs
    */
-  async loadDebugLogs() {
+  async loadDebugLogs(offset = 0) {
     if (!currentSession || !sfHost) {
       const targetHost = getHostFromUrl();
       await checkConnectionStatus(targetHost);
@@ -21,10 +22,12 @@ class LogLoader {
       }
     }
 
+    // Use limit dropdown for initial load, fixed increment for subsequent loads
+    const limit = offset === 0 ? parseInt(elements.logLimit.value) : 10;
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
                    FROM ApexLog 
                    ORDER BY StartTime DESC 
-                   LIMIT ${parseInt(elements.logLimit.value)}`;
+                   LIMIT ${limit} OFFSET ${offset}`;
 
     // Try direct tab communication first
     const tabResult = await this._loadFromTabs(query);
@@ -33,7 +36,7 @@ class LogLoader {
     }
 
     // Try background service worker with recent logs
-    const backgroundResult = await this._loadFromBackground();
+    const backgroundResult = await this._loadFromBackground(offset, limit);
     if (backgroundResult) {
       return backgroundResult;
     }
@@ -45,6 +48,15 @@ class LogLoader {
     }
 
     throw new Error('No logs found from any source');
+  }
+
+  /**
+   * Loads more debug logs for pagination
+   * @param {number} offset - Number of logs to skip
+   * @returns {Promise<Array>} Array of additional debug logs
+   */
+  async loadMoreDebugLogs(offset) {
+    return await this.loadDebugLogs(offset);
   }
 
   /**
@@ -187,14 +199,17 @@ class LogLoader {
   /**
    * Loads logs from background service worker
    * @private
+   * @param {number} offset - Number of logs to skip (for pagination)
+   * @param {number} limit - Number of logs to fetch
    * @returns {Promise<Array|null>} Logs or null if failed
    */
-  async _loadFromBackground() {
+  async _loadFromBackground(offset = 0, limit = 10) {
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'GET_RECENT_LOGS',
         orgId: currentSession.orgId,
-        limit: parseInt(elements.logLimit.value)
+        limit: limit,
+        offset: offset
       });
 
       if (response.success && response.data && response.data.length > 0) {

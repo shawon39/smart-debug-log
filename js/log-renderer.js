@@ -29,35 +29,66 @@ class LogRenderer {
   /**
    * Renders debug logs in the UI
    * @param {Array} logs - Array of debug logs
+   * @param {boolean} append - Whether to append logs or replace them
    */
-  displayDebugLogs(logs) {
+  displayDebugLogs(logs, append = false) {
     const { logsLoading, emptyState, logsList } = elements;
     logsLoading.classList.add('hidden');
     emptyState.classList.add('hidden');
 
     if (!logs || logs.length === 0) {
-      this.showEmptyState();
+      if (!append) {
+        this.showEmptyState();
+      }
       return;
     }
 
     // Filter out cleared logs
     const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
     
-    if (visibleLogs.length === 0) {
+    if (visibleLogs.length === 0 && !append) {
       this.showEmptyState();
       return;
     }
 
     // Render logs
-    logsList.innerHTML = visibleLogs.map(log => this._renderLogItem(log)).join('');
+    const logsHtml = visibleLogs.map(log => this._renderLogItem(log)).join('');
+    
+    if (append) {
+      // Remove existing "See more" button if it exists
+      const existingSeeMoreBtn = document.getElementById('seeMoreLogsBtn');
+      if (existingSeeMoreBtn) {
+        existingSeeMoreBtn.remove();
+      }
+      
+      // Append new logs
+      logsList.insertAdjacentHTML('beforeend', logsHtml);
+    } else {
+      // Replace all logs
+      logsList.innerHTML = logsHtml;
+    }
 
-    // Add click event listeners
+    // Add "See more logs" button if there are potentially more logs
+    this._addSeeMoreButton();
+
+    // Add click event listeners to new log items
     document.querySelectorAll('.log-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const logId = item.getAttribute('data-log-id');
-        this.selectDebugLog(logId);
-      });
+      if (!item.hasAttribute('data-listener-added')) {
+        item.addEventListener('click', () => {
+          const logId = item.getAttribute('data-log-id');
+          this.selectDebugLog(logId);
+        });
+        item.setAttribute('data-listener-added', 'true');
+      }
     });
+  }
+
+  /**
+   * Appends more logs to the existing list
+   * @param {Array} moreLogs - Additional logs to append
+   */
+  appendMoreLogs(moreLogs) {
+    this.displayDebugLogs(moreLogs, true);
   }
 
   /**
@@ -278,6 +309,77 @@ class LogRenderer {
       </div>
     </div>
   `;
+  }
+
+  /**
+   * Adds the "See more logs" button to the logs list
+   * @private
+   */
+  _addSeeMoreButton() {
+    // Don't show the button if we don't have more logs or if we're already loading
+    if (!hasMoreLogs || isLoadingMore) {
+      return;
+    }
+
+    const existingBtn = document.getElementById('seeMoreLogsBtn');
+    if (existingBtn) {
+      existingBtn.remove();
+    }
+
+    const { logsList } = elements;
+    const seeMoreBtn = document.createElement('div');
+    seeMoreBtn.id = 'seeMoreLogsBtn';
+    seeMoreBtn.className = 'see-more-logs-btn';
+    seeMoreBtn.innerHTML = `
+      <button class="button secondary" id="loadMoreBtn">
+        <span class="button-text">See more logs</span>
+        <span class="loading-spinner hidden">Loading...</span>
+      </button>
+    `;
+    
+    // Insert the button after the logs list
+    logsList.parentNode.insertBefore(seeMoreBtn, logsList.nextSibling);
+    
+    // Add click event listener
+    const loadMoreBtn = seeMoreBtn.querySelector('#loadMoreBtn');
+    loadMoreBtn.addEventListener('click', async () => {
+      if (typeof loadMoreLogs === 'function') {
+        await loadMoreLogs();
+      }
+    });
+  }
+
+  /**
+   * Updates the "See more logs" button state
+   * @param {boolean} loading - Whether the button should show loading state
+   */
+  updateSeeMoreButtonState(loading) {
+    const seeMoreBtn = document.getElementById('seeMoreLogsBtn');
+    if (!seeMoreBtn) return;
+
+    const loadMoreBtn = seeMoreBtn.querySelector('#loadMoreBtn');
+    const buttonText = loadMoreBtn.querySelector('.button-text');
+    const spinner = loadMoreBtn.querySelector('.loading-spinner');
+
+    if (loading) {
+      loadMoreBtn.disabled = true;
+      buttonText.classList.add('hidden');
+      spinner.classList.remove('hidden');
+    } else {
+      loadMoreBtn.disabled = false;
+      buttonText.classList.remove('hidden');
+      spinner.classList.add('hidden');
+    }
+  }
+
+  /**
+   * Removes the "See more logs" button
+   */
+  removeSeeMoreButton() {
+    const existingBtn = document.getElementById('seeMoreLogsBtn');
+    if (existingBtn) {
+      existingBtn.remove();
+    }
   }
 
   /**

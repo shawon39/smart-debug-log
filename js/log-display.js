@@ -26,17 +26,18 @@ async function loadDebugLogs() {
   logRenderer.showLoading();
 
   try {
-    const newLogs = await logLoader.loadDebugLogs(currentOffset);
+    const result = await logLoader.loadDebugLogs(currentOffset, true);
     
-    // For initial load, check against the dropdown limit to determine if more logs are available
-    const initialLimit = parseInt(elements.logLimit.value);
-    if (!newLogs || newLogs.length < initialLimit) {
-      hasMoreLogs = false;
-    } else {
+    // Handle structured response from checkForMore
+    const newLogs = result.logs || [];
+    hasMoreLogs = result.hasMore || false;
+    
+    // Update offset only if we have more logs to load
+    if (hasMoreLogs) {
       currentOffset += newLogs.length;
     }
     
-    debugLogs = newLogs || [];
+    debugLogs = newLogs;
     await displayDebugLogs();
     updateStats();
     

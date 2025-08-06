@@ -11,9 +11,10 @@ class LogLoader {
   /**
    * Loads debug logs from Salesforce
    * @param {number} offset - Number of logs to skip (for pagination)
-   * @returns {Promise<Array>} Array of debug logs
+   * @param {boolean} checkForMore - Whether to check if more logs exist (fetches limit+1)
+   * @returns {Promise<Array|Object>} Array of debug logs, or object with {logs, hasMore} if checkForMore is true
    */
-  async loadDebugLogs(offset = 0) {
+  async loadDebugLogs(offset = 0, checkForMore = false) {
     if (!currentSession || !sfHost) {
       const targetHost = getHostFromUrl();
       await checkConnectionStatus(targetHost);
@@ -24,30 +25,47 @@ class LogLoader {
 
     // Use limit dropdown for initial load, fixed increment for subsequent loads
     const limit = offset === 0 ? parseInt(elements.logLimit.value) : 10;
+    
+    // For initial load with checkForMore, fetch one extra log to check if more exist
+    const fetchLimit = checkForMore && offset === 0 ? limit + 1 : limit;
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
                    FROM ApexLog 
                    ORDER BY StartTime DESC 
-                   LIMIT ${limit} OFFSET ${offset}`;
+                   LIMIT ${fetchLimit} OFFSET ${offset}`;
+
+    let result = null;
 
     // Try direct tab communication first
     const tabResult = await this._loadFromTabs(query);
     if (tabResult) {
-      return tabResult;
+      result = tabResult;
+    } else {
+      // Try background service worker with recent logs
+      const backgroundResult = await this._loadFromBackground(offset, fetchLimit);
+      if (backgroundResult) {
+        result = backgroundResult;
+      } else {
+        // Try runtime message for tooling query
+        const runtimeResult = await this._loadFromRuntime(query);
+        if (runtimeResult) {
+          result = runtimeResult;
+        }
+      }
     }
 
-    // Try background service worker with recent logs
-    const backgroundResult = await this._loadFromBackground(offset, limit);
-    if (backgroundResult) {
-      return backgroundResult;
+    if (!result) {
+      throw new Error('No logs found from any source');
     }
 
-    // Try runtime message for tooling query
-    const runtimeResult = await this._loadFromRuntime(query);
-    if (runtimeResult) {
-      return runtimeResult;
+    // If checkForMore is enabled and this is initial load, return structured response
+    if (checkForMore && offset === 0) {
+      const hasMore = result.length > limit;
+      const logs = hasMore ? result.slice(0, limit) : result;
+      return { logs, hasMore };
     }
 
-    throw new Error('No logs found from any source');
+    // For backward compatibility, return just the logs array
+    return result;
   }
 
   /**

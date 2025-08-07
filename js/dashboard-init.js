@@ -204,18 +204,17 @@ async function handleRunApex() {
     
     const result = await window.apexExecutor.executeApexCode(code, sessionForApex);
     
+    // Refresh logs regardless of success so user can see new/related logs
+    if (typeof loadDebugLogs === 'function') {
+      await loadDebugLogs();
+    } else if (typeof refreshDashboard === 'function') {
+      await refreshDashboard();
+    }
+
     // Only close the modal if execution was successful
     if (result && result.success) {
-      // Close the modal and refresh debug logs after successful execution
       if (window.apexCodeManager) {
         window.apexCodeManager.closeModal();
-      }
-      
-      // Refresh debug logs to show new logs from execution
-      if (typeof loadDebugLogs === 'function') {
-        await loadDebugLogs();
-      } else if (typeof refreshDashboard === 'function') {
-        await refreshDashboard();
       }
     }
     // If execution failed but didn't throw an error, keep modal open to show results
@@ -224,6 +223,16 @@ async function handleRunApex() {
     console.error('Apex execution failed:', error);
     // Don't close modal on error - let user see the execution results
     // Remove the alert and let the execution results display handle error messaging
+    // Still refresh logs so latest attempts (and any partial logs) appear
+    try {
+      if (typeof loadDebugLogs === 'function') {
+        await loadDebugLogs();
+      } else if (typeof refreshDashboard === 'function') {
+        await refreshDashboard();
+      }
+    } catch (e) {
+      // ignore refresh errors
+    }
   }
 }
 

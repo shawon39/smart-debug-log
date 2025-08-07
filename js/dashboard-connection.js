@@ -159,6 +159,7 @@ const refreshDashboard = async () => {
   const targetHost = getHostFromUrl();
   await checkConnectionStatus(targetHost);
   if (currentSession && sfHost) {
+    // Incremental refresh to get latest logs without clearing cache
     await loadDebugLogs();
   }
   setTimeout(checkDeveloperConsoleStatus, 300);

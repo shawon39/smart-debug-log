@@ -175,10 +175,23 @@ function clearAllLogs() {
     return;
   }
   
-  // Mark all current logs as cleared for persistent filtering
-  debugLogs.forEach(log => {
-    markLogAsCleared(log.Id);
-  });
+  // Mark all cached logs as cleared for persistent filtering (per org)
+  try {
+    const allCachedLogs = (typeof logLoader?.getCachedLogs === 'function') ? (logLoader.getCachedLogs() || []) : [];
+    const targetLogs = allCachedLogs.length > 0 ? allCachedLogs : debugLogs;
+    targetLogs.forEach(log => {
+      if (log?.Id) {
+        markLogAsCleared(log.Id);
+      }
+    });
+  } catch (e) {
+    // Fallback to current visible logs
+    debugLogs.forEach(log => {
+      if (log?.Id) {
+        markLogAsCleared(log.Id);
+      }
+    });
+  }
   
   // Clear selected log state
   selectedLogId = null;
@@ -216,6 +229,14 @@ function clearAllLogs() {
   // Show empty state
   showEmptyState();
   
+  // Reset pagination state and remove see more button
+  currentOffset = 0;
+  hasMoreLogs = false;
+  isLoadingMore = false;
+  if (typeof logRenderer?.removeSeeMoreButton === 'function') {
+    logRenderer.removeSeeMoreButton();
+  }
+
   // Update stats (debugLogs array remains for future filtering)
   updateStats();
   

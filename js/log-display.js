@@ -11,7 +11,12 @@ let clearedLogs = new Set();
 let currentOffset = 0;
 let isLoadingMore = false;
 let hasMoreLogs = true;
-const LOGS_PER_PAGE = 10;
+
+// Get current page size for pagination
+function getCurrentPageSize() {
+  // Use the selected limit if available, default to 10
+  return parseInt(elements?.logLimit?.value || 10);
+}
 
 /**
  * Main function to load debug logs (resets pagination and loads first page)
@@ -26,25 +31,35 @@ async function loadDebugLogs() {
   logRenderer.showLoading();
 
   try {
-    const result = await logLoader.loadDebugLogs(currentOffset, true);
+    // Load logs (this will cache all available logs internally)
+    await logLoader.loadDebugLogs(currentOffset, true);
     
-    // Handle structured response from checkForMore
-    const newLogs = result.logs || [];
-    hasMoreLogs = result.hasMore || false;
+    // Now get all cached logs for proper pagination
+    const allCachedLogs = logLoader.getCachedLogs();
     
-    // Update offset only if we have more logs to load
-    if (hasMoreLogs) {
-      currentOffset += newLogs.length;
+    if (!allCachedLogs || allCachedLogs.length === 0) {
+      logRenderer.showEmptyState();
+      hasMoreLogs = false;
+      return;
     }
     
-    debugLogs = newLogs;
+    // Filter out cleared logs BEFORE pagination
+    const allVisibleLogs = allCachedLogs.filter(log => !isLogCleared(log.Id));
+    
+    // Get first page of visible logs
+    const pageSize = getCurrentPageSize();
+    debugLogs = allVisibleLogs.slice(0, pageSize);
+    currentOffset = debugLogs.length;
+    
+    // Check if more pages exist
+    hasMoreLogs = allVisibleLogs.length > pageSize;
+    
     await displayDebugLogs();
     updateStats();
     
-    // Check debug status for logs progressively (non-blocking)
-    // Only check non-cleared logs to minimize API calls
-    const visibleLogs = debugLogs.filter(log => !isLogCleared(log.Id));
-    logLoader.checkDebugStatusProgressive(visibleLogs, (logId) => {
+    // First-page icon precompute: fetch raw content once to compute and cache statuses
+    // Subsequent loads will use persisted cache and avoid API calls
+    logLoader.checkDebugStatusProgressive(debugLogs, (logId) => {
       logRenderer.updateLogIndicator(logId);
     });
   } catch (error) {
@@ -114,7 +129,7 @@ function updateLogIndicator(logId) {
 }
 
 /**
- * Loads more debug logs for pagination
+ * Loads more debug logs for pagination (uses cached data with cleared log filtering)
  */
 async function loadMoreLogs() {
   if (isLoadingMore || !hasMoreLogs) {
@@ -125,41 +140,46 @@ async function loadMoreLogs() {
   logRenderer.updateSeeMoreButtonState(true);
 
   try {
-    const moreLogs = await logLoader.loadMoreDebugLogs(currentOffset);
+    // Get all cached logs and filter out cleared ones
+    const allCachedLogs = logLoader.getCachedLogs();
     
-    if (!moreLogs || moreLogs.length === 0) {
+    if (!allCachedLogs || allCachedLogs.length === 0) {
       hasMoreLogs = false;
       logRenderer.removeSeeMoreButton();
       return;
     }
     
-    // Update pagination state
-    if (moreLogs.length < LOGS_PER_PAGE) {
+    // Filter out cleared logs from ALL cached logs
+    const allVisibleLogs = allCachedLogs.filter(log => !isLogCleared(log.Id));
+    
+    // Get the next page of visible logs
+    const pageSize = getCurrentPageSize();
+    const nextPageLogs = allVisibleLogs.slice(currentOffset, currentOffset + pageSize);
+    
+    if (nextPageLogs.length === 0) {
       hasMoreLogs = false;
-    } else {
-      currentOffset += moreLogs.length;
+      logRenderer.removeSeeMoreButton();
+      return;
     }
     
-    // Filter out any logs that are already in our debugLogs array (avoid duplicates)
-    const existingLogIds = new Set(debugLogs.map(log => log.Id));
-    const newLogs = moreLogs.filter(log => !existingLogIds.has(log.Id));
+    // Check if more pages exist after this one
+    const remainingLogs = allVisibleLogs.slice(currentOffset + pageSize);
+    hasMoreLogs = remainingLogs.length > 0;
     
-    if (newLogs.length > 0) {
-      // Add new logs to the debugLogs array
-      debugLogs = debugLogs.concat(newLogs);
-      
-      // Append new logs to the UI
-      logRenderer.appendMoreLogs(newLogs);
-      updateStats();
-      
-      // Check debug status for new logs progressively (non-blocking)
-      const visibleNewLogs = newLogs.filter(log => !isLogCleared(log.Id));
-      logLoader.checkDebugStatusProgressive(visibleNewLogs, (logId) => {
-        logRenderer.updateLogIndicator(logId);
-      });
-    } else {
-      // All logs were duplicates, stop loading more
-      hasMoreLogs = false;
+    // Update pagination state
+    currentOffset += nextPageLogs.length;
+    
+    // Add new logs to debugLogs array and display
+    debugLogs = debugLogs.concat(nextPageLogs);
+    logRenderer.appendMoreLogs(nextPageLogs);
+    updateStats();
+    
+    // Precompute icons for newly appended logs (first time only)
+    logLoader.checkDebugStatusProgressive(nextPageLogs, (logId) => {
+      logRenderer.updateLogIndicator(logId);
+    });
+    
+    if (!hasMoreLogs) {
       logRenderer.removeSeeMoreButton();
     }
     

@@ -143,9 +143,10 @@ class ApexCodeManager {
         
         // Update title display
         const codeTitle = document.getElementById('apexCodeTitle');
-        if (codeTitle && titleToUse) {
-          codeTitle.innerHTML = `<span>${titleToUse}</span>`;
-        }
+      if (codeTitle && titleToUse) {
+        // Avoid unsafe HTML injection
+        codeTitle.textContent = titleToUse;
+      }
       }
     }
 
@@ -381,20 +382,36 @@ class ApexCodeManager {
       const dateStr = date.toLocaleDateString();
       const timeStr = date.toLocaleTimeString();
       
-      item.innerHTML = `
-        <div class="apex-code-header">
-          <div class="apex-code-name">
-            ${apexCode.name}
-          </div>
-          <div class="apex-code-actions">
-            <button class="apex-action-btn delete-btn" data-id="${apexCode.id}" title="Delete">Delete</button>
-          </div>
-        </div>
-        <div class="apex-code-meta">
-          <span class="apex-code-date">${dateStr} ${timeStr}</span>
-          <span class="apex-code-size">${apexCode.code.split('\n').length} lines</span>
-        </div>
-      `;
+      // Build DOM nodes with textContent to prevent XSS
+      const header = document.createElement('div');
+      header.className = 'apex-code-header';
+      const nameDiv = document.createElement('div');
+      nameDiv.className = 'apex-code-name';
+      nameDiv.textContent = apexCode.name;
+      const actionsDiv = document.createElement('div');
+      actionsDiv.className = 'apex-code-actions';
+      const delBtn = document.createElement('button');
+      delBtn.className = 'apex-action-btn delete-btn';
+      delBtn.dataset.id = apexCode.id;
+      delBtn.title = 'Delete';
+      delBtn.textContent = 'Delete';
+      actionsDiv.appendChild(delBtn);
+      header.appendChild(nameDiv);
+      header.appendChild(actionsDiv);
+
+      const meta = document.createElement('div');
+      meta.className = 'apex-code-meta';
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'apex-code-date';
+      dateSpan.textContent = `${dateStr} ${timeStr}`;
+      const sizeSpan = document.createElement('span');
+      sizeSpan.className = 'apex-code-size';
+      sizeSpan.textContent = `${apexCode.code.split('\n').length} lines`;
+      meta.appendChild(dateSpan);
+      meta.appendChild(sizeSpan);
+
+      item.appendChild(header);
+      item.appendChild(meta);
       
       // Add click handler to select the code
       item.addEventListener('click', (e) => {
@@ -612,12 +629,18 @@ class ApexCodeManager {
       this.updateSyntaxHighlighting();
     }
     
-    if (codeTitle) {
-      // Make the title editable for new code blocks
-      codeTitle.innerHTML = '<input type="text" class="new-code-title-input" value="New Code Block" placeholder="Enter code name...">';
+      if (codeTitle) {
+        // Make the title editable for new code blocks (build safely)
+        codeTitle.textContent = '';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'new-code-title-input';
+        input.value = 'New Code Block';
+        input.placeholder = 'Enter code name...';
+        codeTitle.appendChild(input);
       
       // Add event handlers for the title input
-      const titleInput = codeTitle.querySelector('.new-code-title-input');
+        const titleInput = codeTitle.querySelector('.new-code-title-input');
       if (titleInput) {
         titleInput.focus();
         titleInput.select();
@@ -632,12 +655,18 @@ class ApexCodeManager {
             const currentValue = titleInput.value.trim() || 'New Code Block';
             // Check if titleInput is still in the DOM before using it
             if (titleInput.parentNode) {
-              codeTitle.innerHTML = `<span>${currentValue}</span>`;
+              codeTitle.textContent = '';
+              const span = document.createElement('span');
+              span.textContent = currentValue;
+              codeTitle.appendChild(span);
               this.newCodeBlockTitle = currentValue;
             }
           } catch (error) {
             console.warn('Error saving title:', error);
-            codeTitle.innerHTML = '<span>New Code Block</span>';
+            codeTitle.textContent = '';
+            const span = document.createElement('span');
+            span.textContent = 'New Code Block';
+            codeTitle.appendChild(span);
             this.newCodeBlockTitle = 'New Code Block';
           }
         };
@@ -647,7 +676,10 @@ class ApexCodeManager {
           titleSaved = true;
           
           try {
-            codeTitle.innerHTML = '<span>New Code Block</span>';
+            codeTitle.textContent = '';
+            const span = document.createElement('span');
+            span.textContent = 'New Code Block';
+            codeTitle.appendChild(span);
             this.newCodeBlockTitle = 'New Code Block';
             codeEditor?.focus();
           } catch (error) {

@@ -92,7 +92,8 @@ class DebugLogManager {
 
   async initializeLastLogTime(orgId, session) {
     try {
-      const query = `SELECT Id, LogUserId, StartTime FROM ApexLog ORDER BY StartTime DESC LIMIT 1`;
+      const logType = session.options?.logTypeFilter || 'SystemLog';
+      const query = `SELECT Id, LogUserId, StartTime, Location FROM ApexLog WHERE Location = '${logType}' ORDER BY StartTime DESC LIMIT 1`;
       const result = await this.executeToolingQuery(session, query);
       
       if (result.records && result.records.length > 0) {
@@ -134,9 +135,10 @@ class DebugLogManager {
 
     try {
       const logLimit = session.options.logLimit || 15;
-      const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
+      const logType = session.options?.logTypeFilter || 'SystemLog';
+      const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                      FROM ApexLog 
-                     WHERE StartTime > ${lastLogInfo.lastLogTime}
+                     WHERE StartTime > ${lastLogInfo.lastLogTime} AND Location = '${logType}'
                      ORDER BY StartTime DESC 
                      LIMIT ${logLimit}`;
 

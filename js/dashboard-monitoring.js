@@ -45,9 +45,11 @@ async function startMonitoring() {
   // Use background service worker for monitoring
   try {
     const orgId = currentSession.orgId || sfHost;
+    const logTypeFilter = document.getElementById('logTypeFilter');
     const options = {
       pollInterval: parseInt(elements.pollInterval.value),
       logLimit: parseInt(elements.logLimit.value),
+      logTypeFilter: logTypeFilter ? logTypeFilter.value : 'SystemLog',
       notifyOnNew: true,
       autoDownload: false
     };
@@ -125,7 +127,7 @@ async function ensureAutoRefreshDefault() {
 // Preference management
 async function loadPreferences() {
   try {
-    const result = await chrome.storage.local.get(['pollInterval', 'logLimit', 'autoRefresh']);
+    const result = await chrome.storage.local.get(['pollInterval', 'logLimit', 'autoRefresh', 'logTypeFilter']);
     
     if (result.pollInterval && elements.pollInterval) {
       elements.pollInterval.value = result.pollInterval;
@@ -140,6 +142,13 @@ async function loadPreferences() {
     if (autoRefreshToggle) {
       const autoRefreshValue = result.autoRefresh !== undefined ? result.autoRefresh : true;
       autoRefreshToggle.checked = autoRefreshValue;
+    }
+    
+    // Load log type filter preference (default to 'SystemLog')
+    const logTypeFilter = document.getElementById('logTypeFilter');
+    if (logTypeFilter) {
+      const logTypeValue = result.logTypeFilter || 'SystemLog';
+      logTypeFilter.value = logTypeValue;
     }
   } catch (error) {
     // Silent error handling
@@ -161,6 +170,11 @@ async function savePreferences() {
     const autoRefreshToggle = document.getElementById('autoRefreshToggle');
     if (autoRefreshToggle) {
       preferences.autoRefresh = autoRefreshToggle.checked;
+    }
+    
+    const logTypeFilter = document.getElementById('logTypeFilter');
+    if (logTypeFilter) {
+      preferences.logTypeFilter = logTypeFilter.value;
     }
     
     await chrome.storage.local.set(preferences);

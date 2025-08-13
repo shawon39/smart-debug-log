@@ -96,6 +96,8 @@ function cacheElements() {
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     errorAndLimitsContent: document.getElementById('errorAndLimitsContent'),
     errorContent: document.getElementById('errorContent'),
+    manageDebugLogsBtn: document.getElementById('manageDebugLogsBtn'),
+    logTypeFilter: document.getElementById('logTypeFilter'),
     // Apex Manager elements
     runApexBtn: document.getElementById('runApexBtn'),
     saveApexBtn: document.getElementById('saveApexBtn'),
@@ -108,7 +110,8 @@ function cacheElements() {
 // Setup event listeners
 function setupEventListeners() {
   const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
-          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, toggleViewBtn, copyRawBtn } = elements;
+          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, toggleViewBtn, copyRawBtn,
+          manageDebugLogsBtn, logTypeFilter } = elements;
   
   // Setup theme toggle
   const themeToggle = document.getElementById('themeToggleDashboard');
@@ -132,6 +135,9 @@ function setupEventListeners() {
   toggleViewBtn?.addEventListener('click', toggleDebugView);
   copyRawBtn?.addEventListener('click', copyRawResponse);
   
+  // New elements event listeners
+  manageDebugLogsBtn?.addEventListener('click', openManageDebugLogs);
+  
   pollInterval?.addEventListener('change', async () => {
     updatePollIntervalStat();
     savePreferences();
@@ -144,6 +150,15 @@ function setupEventListeners() {
     await loadDebugLogs();
   });
   
+  logTypeFilter?.addEventListener('change', async () => {
+    savePreferences();
+    // Clear cache when log type changes to prevent mixing logs
+    if (typeof logLoader?.clearCache === 'function') {
+      logLoader.clearCache();
+    }
+    if (isMonitoring) await restartMonitoring();
+    await loadDebugLogs();
+  });
   
   // Auto refresh toggle event listener
   const autoRefreshToggle = document.getElementById('autoRefreshToggle');

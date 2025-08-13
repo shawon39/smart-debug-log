@@ -241,3 +241,28 @@ async function copyRawResponse() {
     alert('Raw Response:\n\n' + currentRawResponse);
   }
 }
+
+// Manage Debug Logs navigation
+async function openManageDebugLogs() {
+  if (!currentSession || !sfHost) {
+    alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');
+    return;
+  }
+  
+  const debugLogsUrl = `https://${sfHost}/lightning/setup/ApexDebugLogs/home`;
+  
+  try {
+    await chrome.tabs.create({
+      url: debugLogsUrl,
+      active: true
+    });
+  } catch (error) {
+    // Fallback: copy URL to clipboard
+    try {
+      await navigator.clipboard.writeText(debugLogsUrl);
+      alert(`Debug Logs URL copied to clipboard:\n${debugLogsUrl}`);
+    } catch (clipboardError) {
+      alert(`Please navigate to:\n${debugLogsUrl}`);
+    }
+  }
+}

@@ -40,6 +40,14 @@
         <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>
         <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;" title="Deploy Prettier Class">Deploy Prettier Class</button>
         <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Anonymous Code Manager">Anonymous Execution</button>
+        <button class="button secondary" id="manageDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Salesforce Debug Logs Setup">Manage Debug Logs</button>
+        <div class="control-group">
+          <label>Log Type:</label>
+          <select id="logTypeFilter">
+            <option value="SystemLog" selected>SystemLog</option>
+            <option value="Monitoring">Monitoring</option>
+          </select>
+        </div>
         <div class="auto-refresh-toggle">
           <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
           <div class="toggle-switch">
@@ -109,7 +117,7 @@
       <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          Recent Debug Logs
+          Recent Logs
         </div>
         <div style="display: flex; gap: 6px;">
           <button class="button secondary" id="clearLogsBtn" style="font-size: 10px; padding: 3px 8px;">Clear Logs</button>
@@ -155,10 +163,16 @@
         </div>
       </div>
       <div class="panel-content">
-        <div class="welcome-state" id="welcomeState">
+        <div class="welcome-state" id="welcomeState" style="margin-top: 35px;">
           <div class="welcome-icon">📋</div>
           <h4>Select a Debug Log</h4>
           <p>Click any log to view debug messages</p>
+          <p style="color: #6c757d; font-size: 13px; margin-top: 16px; font-style: italic; line-height: 1.4;">
+            💡 Not seeing new logs? The Developer Console goes idle after 20 minutes.<br>
+            <span style="font-size: 11px; opacity: 0.8; margin-top: 4px; display: inline-block;">
+              Solution: Open the Developer Console and click <strong>Resume</strong> to reactivate it.
+            </span>
+          </p>
         </div>
         <div class="debug-content hidden" id="debugContentPanel">
           <div id="debugContent"></div>

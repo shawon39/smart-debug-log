@@ -21,12 +21,14 @@ class LogLoader {
 
   _getLastFetchTimeKey() {
     const orgId = this._getOrgId();
-    return orgId ? `lastFetchTime_${orgId}` : null;
+    const logType = this._getLogTypeFilter();
+    return orgId ? `lastFetchTime_${orgId}_${logType}` : null;
   }
 
   _getCachedLogsKey() {
     const orgId = this._getOrgId();
-    return orgId ? `cachedLogs_${orgId}` : null;
+    const logType = this._getLogTypeFilter();
+    return orgId ? `cachedLogs_${orgId}_${logType}` : null;
   }
 
   /**
@@ -117,6 +119,22 @@ class LogLoader {
   }
 
   /**
+   * Clear cache for current org and all log types (used when log type changes)
+   */
+  clearAllLogTypeCaches() {
+    const orgId = this._getOrgId();
+    if (!orgId) return;
+    
+    const logTypes = ['SystemLog', 'Monitoring'];
+    logTypes.forEach(logType => {
+      const cacheKey = `cachedLogs_${orgId}_${logType}`;
+      const timeKey = `lastFetchTime_${orgId}_${logType}`;
+      localStorage.removeItem(cacheKey);
+      localStorage.removeItem(timeKey);
+    });
+  }
+
+  /**
    * Force refresh - clear cache and reload from server
    */
   async forceRefresh() {
@@ -179,6 +197,14 @@ class LogLoader {
   }
 
   /**
+   * Get current log type filter value
+   */
+  _getLogTypeFilter() {
+    const logTypeFilter = document.getElementById('logTypeFilter');
+    return logTypeFilter ? logTypeFilter.value : 'SystemLog';
+  }
+
+  /**
    * Cache management helper methods
    */
   _getCachedLogs() {
@@ -234,25 +260,30 @@ class LogLoader {
 
     // Format timestamp for SOQL query (Salesforce format)
     const isoString = lastFetchTime.toISOString();
-    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
+    const logType = this._getLogTypeFilter();
+    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
-                   WHERE StartTime > ${isoString}
+                   WHERE StartTime > ${isoString} AND Location = '${logType}'
                    ORDER BY StartTime DESC`;
 
     return await this._executeQuery(query);
   }
 
   async _fetchAllLogs() {
-    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
+    const logType = this._getLogTypeFilter();
+    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
+                   WHERE Location = '${logType}'
                    ORDER BY StartTime DESC`;
 
     return await this._executeQuery(query);
   }
 
   async _fetchRecentLogs(limit = 50) {
-    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds 
+    const logType = this._getLogTypeFilter();
+    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
+                   WHERE Location = '${logType}'
                    ORDER BY StartTime DESC 
                    LIMIT ${limit}`;
 

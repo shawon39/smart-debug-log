@@ -1,6 +1,23 @@
 // Log Content Parsing and Error Extraction
 // This file handles parsing debug log content, extracting errors, and formatting limits
 
+function addLineNumbers(messageContent) {
+  if (!messageContent || typeof messageContent !== 'string') {
+    return messageContent;
+  }
+  
+  const lines = messageContent.split('\n');
+  const maxLineLength = String(lines.length).length;
+  
+  const numberedLines = lines.map((line, index) => {
+    const lineNumber = String(index + 1).padStart(maxLineLength, ' ');
+    // Handle empty lines gracefully - preserve them but add line numbers
+    return `<span class="line-number">${lineNumber}</span><span class="line-content">${line || ''}</span>`;
+  });
+  
+  return numberedLines.join('\n');
+}
+
 function parseDebugLogContent(content) {
   try {
     const debugMessages = extractUserDebugBlocks(content);
@@ -93,7 +110,10 @@ function displayDebugContent(parsedContent) {
         formattedMessage = escapeHtml(formattedMessage);
       }
       
-      return `<div class="debug-message-block" data-message-index="${index}"><pre class="debug-message-pre">${formattedMessage}</pre></div>`;
+      // Add line numbers to the formatted message
+      const messageWithLineNumbers = addLineNumbers(formattedMessage);
+      
+      return `<div class="debug-message-block" data-message-index="${index}"><pre class="debug-message-pre">${messageWithLineNumbers}</pre></div>`;
     }).join('');
     debugContent.innerHTML = messageBlocks;
   } else {

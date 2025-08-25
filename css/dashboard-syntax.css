@@ -60,6 +60,35 @@
   margin-bottom: 0;
 }
 
+/* Line Numbers for Debug Messages */
+.line-number {
+  display: inline-block;
+  color: var(--text-line-number);
+  font-size: 9px;
+  font-weight: 500;
+  font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
+  text-align: right;
+  margin-right: 12px;
+  padding-right: 8px;
+  border-right: 1px solid var(--border-line-number);
+  opacity: 0.7;
+  user-select: none;
+  min-width: 2.5ch;
+  vertical-align: top;
+  transition: all 0.3s ease;
+}
+
+.line-content {
+  display: inline;
+  margin-left: 0;
+}
+
+/* Hover effect for debug message blocks - highlight line numbers */
+.debug-message-block:hover .line-number {
+  opacity: 0.9;
+  color: var(--text-line-number-hover);
+}
+
 /* Governor Limits Panel */
 .limits-content {
   padding: 10px 18px;

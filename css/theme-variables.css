@@ -75,6 +75,8 @@
   --text-modal: #333;
   --text-modal-title: #2c3e50;
   --text-deploy-info: #006B9A;
+  --text-line-number: #9ca3af;
+  --text-line-number-hover: #6b7280;
   --syntax-json-key: #d73a49;
   --syntax-json-string: #032f62;
   --syntax-json-number: #005B85;
@@ -105,6 +107,7 @@
   --border-dismiss-btn: #fed7aa;
   --border-dismiss-btn-hover: #f59e0b;
   --border-error-message: #fecaca;
+  --border-line-number: #e5e7eb;
   
   --shadow-panel: 0 1px 8px rgba(0,0,0,0.1);
   --shadow-debug-message: 0 1px 3px rgba(0,0,0,0.05);
@@ -199,6 +202,8 @@
   --text-modal: #e2e8f0;
   --text-modal-title: #f7fafc;
   --text-deploy-info: #B3E5F5;
+  --text-line-number: #6b7280;
+  --text-line-number-hover: #9ca3af;
   --syntax-json-key: #f687b3;
   --syntax-json-string: #81e6d9;
   --syntax-json-number: #7DD3FC;
@@ -229,6 +234,7 @@
   --border-dismiss-btn: #d69e2e;
   --border-dismiss-btn-hover: #ed8936;
   --border-error-message: #5a2e2e;
+  --border-line-number: #4b5563;
   
   --shadow-panel: 0 1px 8px rgba(0,0,0,0.3);
   --shadow-debug-message: 0 1px 3px rgba(0,0,0,0.2);

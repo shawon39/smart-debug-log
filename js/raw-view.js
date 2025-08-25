@@ -87,7 +87,7 @@ async function toggleDebugView() {
 }
 
 function showRawResponse() {
-  const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer } = elements;
+  const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer, errorContent, limitsContent } = elements;
   
   // Update button state and text
   toggleViewBtn.textContent = 'Show Debug Messages';
@@ -99,6 +99,27 @@ function showRawResponse() {
   copyRawBtn?.classList.remove('hidden');
   rawSearchContainer?.classList.remove('hidden');
   
+  // Parse and display Error Analysis & Governor Limits even in raw view
+  if (currentRawResponse && (errorContent || limitsContent)) {
+    const parsedContent = parseDebugLogContent(currentRawResponse);
+    
+    // Display error analysis
+    if (errorContent && parsedContent.errors) {
+      const formattedErrors = formatErrorsForDisplay(parsedContent.errors);
+      errorContent.innerHTML = formattedErrors;
+    }
+    
+    // Display limits
+    if (limitsContent) {
+      if (parsedContent.limits) {
+        const formattedLimits = formatGovernorLimits(parsedContent.limits);
+        limitsContent.innerHTML = formattedLimits;
+      } else {
+        limitsContent.innerHTML = '<div class="info-message">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
+      }
+    }
+  }
+  
   // Display raw response with syntax highlighting
   displayRawResponse();
   
@@ -107,7 +128,7 @@ function showRawResponse() {
 }
 
 function showDebugMessages() {
-  const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer } = elements;
+  const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer, errorContent, limitsContent } = elements;
   
   // Update button state and text
   toggleViewBtn.textContent = 'Show Raw Response';
@@ -122,7 +143,7 @@ function showDebugMessages() {
   // Clear search state
   clearSearch();
   
-  // Re-display debug messages (trigger original parsing)
+  // Re-display debug messages and error analysis/limits (trigger original parsing)
   if (currentRawResponse) {
     const parsedContent = parseDebugLogContent(currentRawResponse);
     displayDebugContent(parsedContent);

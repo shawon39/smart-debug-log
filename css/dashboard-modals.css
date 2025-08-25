@@ -346,12 +346,4 @@
   user-select: none;
 }
 
-/* Toggle button states */
-#toggleViewBtn.raw-mode {
-  background: var(--bg-button);
-  color: var(--text-button);
-}
-
-#toggleViewBtn.raw-mode:hover {
-  background: var(--bg-button-hover);
-}
+/* Toggle button states - using standard primary/secondary classes */

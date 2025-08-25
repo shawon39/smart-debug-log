@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Salesforce Debug Log Beautifier",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Beautify Salesforce debug logs with syntax highlighting, clear JSON formatting, and smart real-time polling.",
   
   "permissions": [

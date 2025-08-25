@@ -7,6 +7,33 @@ let searchMatches = [];
 let currentMatchIndex = -1;
 let searchTerm = '';
 
+// Initialize view preference from storage
+async function initializeViewPreference() {
+  try {
+    const savedViewPreference = await getViewPreferenceFromStorage();
+    isRawView = savedViewPreference === VIEW_RAW_RESPONSE;
+    
+    // Update button appearance based on saved preference
+    const { toggleViewBtn } = elements;
+    if (toggleViewBtn) {
+      if (isRawView) {
+        toggleViewBtn.textContent = 'Show Debug Messages';
+        toggleViewBtn.classList.remove('primary');
+        toggleViewBtn.classList.add('secondary');
+        toggleViewBtn.title = 'Switch back to debug messages view';
+      } else {
+        toggleViewBtn.textContent = 'Show Raw Response';
+        toggleViewBtn.classList.remove('secondary');
+        toggleViewBtn.classList.add('primary');
+        toggleViewBtn.title = 'Switch to raw response view';
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to initialize view preference:', error);
+    isRawView = false;
+  }
+}
+
 function detectContentType(content) {
   if (!content || typeof content !== 'string') {
     return 'plain';
@@ -43,10 +70,14 @@ function detectContentType(content) {
   return 'plain';
 }
 
-function toggleDebugView() {
+async function toggleDebugView() {
   if (!currentRawResponse) return;
   
   isRawView = !isRawView;
+  
+  // Save user preference to storage
+  const viewPreference = isRawView ? VIEW_RAW_RESPONSE : VIEW_DEBUG_MESSAGES;
+  await saveViewPreferenceToStorage(viewPreference);
   
   if (isRawView) {
     showRawResponse();
@@ -60,7 +91,8 @@ function showRawResponse() {
   
   // Update button state and text
   toggleViewBtn.textContent = 'Show Debug Messages';
-  toggleViewBtn.classList.add('raw-mode');
+  toggleViewBtn.classList.remove('primary');
+  toggleViewBtn.classList.add('secondary');
   toggleViewBtn.title = 'Switch back to debug messages view';
   
   // Show copy button and search container
@@ -79,7 +111,8 @@ function showDebugMessages() {
   
   // Update button state and text
   toggleViewBtn.textContent = 'Show Raw Response';
-  toggleViewBtn.classList.remove('raw-mode');
+  toggleViewBtn.classList.remove('secondary');
+  toggleViewBtn.classList.add('primary');
   toggleViewBtn.title = 'Switch to raw response view';
   
   // Hide copy button and search container
@@ -101,6 +134,7 @@ function resetToDebugView() {
   clearSearch();
   showDebugMessages();
 }
+
 
 function displayRawResponse() {
   const { debugContent } = elements;

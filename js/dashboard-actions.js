@@ -213,10 +213,7 @@ function clearRawResponse() {
   toggleViewBtn?.classList.add('hidden');
   copyRawBtn?.classList.add('hidden');
   rawSearchContainer?.classList.add('hidden');
-  // Reset view to debug mode
-  if (typeof resetToDebugView === 'function') {
-    resetToDebugView();
-  }
+  // Don't reset the view preference - keep user's choice
 }
 
 // Copy raw response function (legacy - now handled in raw-view.js)

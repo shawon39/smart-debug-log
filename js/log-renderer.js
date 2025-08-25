@@ -176,13 +176,12 @@ class LogRenderer {
       const { toggleViewBtn } = elements;
       toggleViewBtn?.classList.remove('hidden');
       
-      // Reset to debug view when new log is loaded
-      resetToDebugView();
-      
-      const parsedContent = parseDebugLogContent(content);
-      
-      // Display debug content using the unified function
-      displayDebugContent(parsedContent);
+      // Apply the view based on current state (isRawView)
+      if (isRawView) {
+        showRawResponse();
+      } else {
+        showDebugMessages();
+      }
 
     } catch (error) {
       this._handleLogDetailsError(error, logId);

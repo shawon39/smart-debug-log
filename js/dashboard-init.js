@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Initialize theme first
   await initializeTheme();
   
+  // Initialize view preference
+  await initializeViewPreference();
+  
   const targetHost = getHostFromUrl();
   const headerHost = document.getElementById('headerHost');
   if (headerHost && targetHost) {

@@ -435,6 +435,41 @@ function setupThemeToggle(toggleElement) {
   });
 }
 
+// View preference management utilities
+const VIEW_PREFERENCE_STORAGE_KEY = 'debug-view-preference';
+const VIEW_DEBUG_MESSAGES = 'debug_messages';
+const VIEW_RAW_RESPONSE = 'raw_response';
+
+// Get current view preference from storage
+async function getViewPreferenceFromStorage() {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      const result = await chrome.storage.local.get([VIEW_PREFERENCE_STORAGE_KEY]);
+      return result[VIEW_PREFERENCE_STORAGE_KEY] || VIEW_DEBUG_MESSAGES;
+    } else {
+      // Fallback to localStorage for testing
+      return localStorage.getItem(VIEW_PREFERENCE_STORAGE_KEY) || VIEW_DEBUG_MESSAGES;
+    }
+  } catch (error) {
+    console.warn('Failed to get view preference from storage, using default debug messages view:', error);
+    return VIEW_DEBUG_MESSAGES;
+  }
+}
+
+// Save view preference to storage
+async function saveViewPreferenceToStorage(viewPreference) {
+  try {
+    if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+      await chrome.storage.local.set({ [VIEW_PREFERENCE_STORAGE_KEY]: viewPreference });
+    } else {
+      // Fallback to localStorage for testing
+      localStorage.setItem(VIEW_PREFERENCE_STORAGE_KEY, viewPreference);
+    }
+  } catch (error) {
+    console.warn('Failed to save view preference to storage:', error);
+  }
+}
+
 // Sync theme toggles across multiple elements
 function syncThemeToggles(theme, excludeElement) {
   const themeToggles = document.querySelectorAll('input[type="checkbox"][id*="theme"], input[type="checkbox"][id*="Theme"]');

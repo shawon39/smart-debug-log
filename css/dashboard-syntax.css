@@ -510,9 +510,19 @@
   font-weight: 600;
 }
 
+.debug-execution-started {
+  color: #16a34a !important;
+  font-weight: 700 !important;
+}
+
+.debug-execution-finished {
+  color: #dc2626 !important;
+  font-weight: 700 !important;
+}
+
 .debug-level {
-  color: var(--text-error);
-  font-weight: 600;
+  color: #FF8A8A !important;
+  font-weight: 700;
 }
 
 .debug-number {

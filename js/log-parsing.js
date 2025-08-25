@@ -83,6 +83,30 @@ function parseDebugLogContent(content) {
   }
 }
 
+function extractUserEmailFromLog(content) {
+  try {
+    if (!content || typeof content !== 'string') {
+      return null;
+    }
+    
+    const lines = content.split('\n');
+    for (const line of lines) {
+      if (line.includes('|USER_INFO|')) {
+        const parts = line.split('|');
+        if (parts.length >= 5) {
+          const email = parts[4];
+          if (email && email.includes('@')) {
+            return email;
+          }
+        }
+      }
+    }
+    return null;
+  } catch (error) {
+    return null;
+  }
+}
+
 function displayDebugContent(parsedContent) {
   const { debugContent, errorContent, limitsContent } = elements;
   
@@ -102,12 +126,12 @@ function displayDebugContent(parsedContent) {
           const result = extractAndParseSalesforceObjects(formattedMessage);
           formattedMessage = result;
         } catch (e) {
-          // If parsing fails, just decode HTML entities and escape
-          formattedMessage = escapeHtml(formattedMessage);
+          // If parsing fails, apply debug log highlighting
+          formattedMessage = applyDebugLogHighlighting(formattedMessage);
         }
       } else {
-        // For simple text messages, decode HTML entities and escape
-        formattedMessage = escapeHtml(formattedMessage);
+        // For simple text messages, apply debug log highlighting
+        formattedMessage = applyDebugLogHighlighting(formattedMessage);
       }
       
       // Add line numbers to the formatted message

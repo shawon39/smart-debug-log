@@ -133,7 +133,7 @@ class LogRenderer {
             debugContent, limitsContent, errorAndLimitsContent, errorContent } = elements;
     
     if (selectedLogIdElement) {
-      selectedLogIdElement.textContent = `Log ID: ${logId}`;
+      selectedLogIdElement.textContent = `Loading user info...`;
     }
 
     welcomeState.classList.add('hidden');
@@ -158,6 +158,12 @@ class LogRenderer {
     try {
       // Get log content
       const content = await logLoader.getLogContent(logId);
+      
+      // Extract and display user email
+      if (selectedLogIdElement) {
+        const userEmail = extractUserEmailFromLog(content);
+        selectedLogIdElement.textContent = userEmail ? `Log User: ${userEmail}` : `Log ID: ${logId}`;
+      }
       
       // Store raw response data
       currentRawResponse = content;
@@ -184,6 +190,10 @@ class LogRenderer {
       }
 
     } catch (error) {
+      // Fallback to Log ID on error
+      if (selectedLogIdElement) {
+        selectedLogIdElement.textContent = `Log ID: ${logId}`;
+      }
       this._handleLogDetailsError(error, logId);
     }
   }

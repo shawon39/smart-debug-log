@@ -75,7 +75,7 @@
   --text-modal: #333;
   --text-modal-title: #2c3e50;
   --text-deploy-info: #006B9A;
-  --text-line-number: #9ca3af;
+  --text-line-number: #6b7280;
   --text-line-number-hover: #6b7280;
   --syntax-json-key: #d73a49;
   --syntax-json-string: #032f62;
@@ -202,8 +202,8 @@
   --text-modal: #e2e8f0;
   --text-modal-title: #f7fafc;
   --text-deploy-info: #B3E5F5;
-  --text-line-number: #6b7280;
-  --text-line-number-hover: #9ca3af;
+  --text-line-number: #d1d5db;
+  --text-line-number-hover: #d1d5db;
   --syntax-json-key: #f687b3;
   --syntax-json-string: #81e6d9;
   --syntax-json-number: #7DD3FC;

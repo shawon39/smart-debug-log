@@ -488,6 +488,7 @@ class ApexCodeManager {
     if (!code.trim()) {
       highlightOverlay.innerHTML = '';
       codeEditor.style.opacity = '1';
+      this.updateLineNumbers();
       return;
     }
     
@@ -514,11 +515,43 @@ class ApexCodeManager {
       codeEditor.style.opacity = '0.8';
     }
     
+    // Update line numbers
+    this.updateLineNumbers();
+    
     // Sync scroll position after DOM update
     requestAnimationFrame(() => {
       highlightOverlay.scrollTop = codeEditor.scrollTop;
       highlightOverlay.scrollLeft = codeEditor.scrollLeft;
+      this.syncLineNumberScroll();
     });
+  }
+
+  updateLineNumbers() {
+    const codeEditor = document.getElementById('apexCodeEditor');
+    const lineNumbers = document.getElementById('lineNumbers');
+    
+    if (!codeEditor || !lineNumbers) return;
+    
+    const code = codeEditor.value;
+    const lines = code.split('\n');
+    const lineCount = lines.length;
+    
+    // Generate line numbers
+    let lineNumbersHTML = '';
+    for (let i = 1; i <= lineCount; i++) {
+      lineNumbersHTML += `<div class="line-number">${i}</div>`;
+    }
+    
+    lineNumbers.innerHTML = lineNumbersHTML;
+  }
+
+  syncLineNumberScroll() {
+    const codeEditor = document.getElementById('apexCodeEditor');
+    const lineNumbers = document.getElementById('lineNumbers');
+    
+    if (!codeEditor || !lineNumbers) return;
+    
+    lineNumbers.scrollTop = codeEditor.scrollTop;
   }
 
   escapeHtml(text) {
@@ -562,6 +595,7 @@ class ApexCodeManager {
     codeEditor.addEventListener('scroll', () => {
       highlightOverlay.scrollTop = codeEditor.scrollTop;
       highlightOverlay.scrollLeft = codeEditor.scrollLeft;
+      this.syncLineNumberScroll();
     }, { passive: true });
     
     // Update highlighting immediately on focus
@@ -595,6 +629,7 @@ class ApexCodeManager {
     
     if (codeEditor) {
       codeEditor.value = '';
+      this.updateLineNumbers();
     }
     
     // Set editor to edit mode when clearing

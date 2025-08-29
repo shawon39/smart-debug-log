@@ -48,10 +48,6 @@
             sendResponse({ success: true, message: 'Content script is active' });
             break;
 
-          case 'EXTRACT_USER_ID':
-            const userIdResult = await this.extractUserIdFromPage();
-            sendResponse({ success: true, userId: userIdResult });
-            break;
 
           case 'EXECUTE_ANONYMOUS':
             const executeResult = await this.executeAnonymous(message.code, message.session);

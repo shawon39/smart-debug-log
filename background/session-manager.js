@@ -86,26 +86,6 @@ class SessionManager {
         return null;
       }
 
-      // Try to get userId by querying a Salesforce tab if available
-      let userId = null;
-      try {
-        if (tabId) {
-          const tab = await chrome.tabs.get(tabId);
-          if (tab && tab.url) {
-            // Try to extract user ID from the page
-            try {
-              const response = await chrome.tabs.sendMessage(tabId, { action: 'EXTRACT_USER_ID' });
-              if (response && response.success && response.userId) {
-                userId = response.userId;
-              }
-            } catch (e) {
-              // Continue without user ID
-            }
-          }
-        }
-      } catch (e) {
-        // Continue without user ID
-      }
 
       const sessionData = {
         key: sessionCookie.value,
@@ -113,7 +93,6 @@ class SessionManager {
         orgId: orgId,
         sessionId: sessionCookie.value,
         sessionToken: sessionParts[0],
-        userId: userId, // Add userId to session data
         created: Date.now(),
         lastUsed: Date.now(),
         isValid: true,

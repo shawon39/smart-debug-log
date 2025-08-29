@@ -397,6 +397,11 @@ input:checked + .toggle-slider:hover {
   font-weight: 600;
 }
 
+/* Dark mode styling for selectedLogId element (Log User display) */
+[data-theme="dark"] #selectedLogId {
+  color: #d1d5db !important;
+}
+
 .unread-indicator {
   position: absolute;
   top: 3px;

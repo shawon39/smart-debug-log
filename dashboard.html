@@ -48,6 +48,16 @@
             <option value="Monitoring">Monitoring</option>
           </select>
         </div>
+        <div class="control-group">
+          <label>Items:</label>
+          <select id="logLimit">
+            <option value="10">10</option>
+            <option value="15" selected>15</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
         <div class="auto-refresh-toggle">
           <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
           <div class="toggle-switch">
@@ -76,16 +86,6 @@
           <option value="30">30s</option>
           <option value="60">1m</option>
           <option value="120">2m</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label>Limit:</label>
-        <select id="logLimit">
-          <option value="10">10</option>
-          <option value="15" selected>15</option>
-          <option value="20">20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
         </select>
       </div>
       <button class="button" id="startMonitoringBtn">Start Polling</button>

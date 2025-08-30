@@ -510,11 +510,12 @@ class ApexCodeManager {
     if (!codeTitle) return;
     if (codeTitle.querySelector('input')) return; // already editing
 
-    // Only allow rename when we have a selected code
-    const original = this.currentSelectedCode?.name;
-    if (!original || !this.currentSelectedCode?.id) {
-      return;
-    }
+    // Allow rename for both existing and new (unsaved) code blocks
+    const hasSelection = !!(this.currentSelectedCode && this.currentSelectedCode.id);
+    const currentTitle = this.getCurrentTitle();
+    const original = hasSelection
+      ? (this.currentSelectedCode.name || 'New Code Block')
+      : ((currentTitle && currentTitle !== 'Select Apex Code') ? currentTitle : (this.newCodeBlockTitle || 'New Code Block'));
 
     codeTitle.textContent = '';
     const input = document.createElement('input');
@@ -533,21 +534,27 @@ class ApexCodeManager {
       const newName = (input.value || '').trim() || original;
       // Restore UI first
       codeTitle.textContent = newName;
-      try {
-        const updated = await this.updateApexCode(
-          this.currentSelectedCode.id,
-          newName,
-          this.getCurrentCode()
-        );
-        if (updated) {
-          this.currentSelectedCode = updated;
-          // Re-select to refresh list highlight
-          this.selectApexCodeById(updated.id);
-        } else {
+      if (hasSelection) {
+        try {
+          const updated = await this.updateApexCode(
+            this.currentSelectedCode.id,
+            newName,
+            this.getCurrentCode()
+          );
+          if (updated) {
+            this.currentSelectedCode = updated;
+            // Re-select to refresh list highlight
+            this.selectApexCodeById(updated.id);
+          } else {
+            codeTitle.textContent = original;
+          }
+        } catch (e) {
           codeTitle.textContent = original;
         }
-      } catch (e) {
-        codeTitle.textContent = original;
+      } else {
+        // Unsaved/new code path: store for later save
+        this.isNewCodeBlock = true;
+        this.newCodeBlockTitle = newName;
       }
     };
 

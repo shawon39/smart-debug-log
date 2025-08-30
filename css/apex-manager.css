@@ -282,7 +282,7 @@
   background: var(--bg-code);
   border-right: 1px solid var(--border-line-number);
   font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-  font-size: 13px !important;
+  font-size: 12px !important; /* 1px smaller than editor for subtlety */
   line-height: 1.6 !important;
   color: var(--text-line-number);
   white-space: pre;
@@ -292,6 +292,11 @@
   z-index: 3;
   text-align: right;
   box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
 }
 
 .line-numbers .line-number {
@@ -299,8 +304,8 @@
   height: 20.8px;
   padding: 0 !important;
   margin: 0 !important;
-  font-size: 13px !important;
-  line-height: 1.6 !important;
+  font-size: 12px !important; /* match container */
+  line-height: 20.8px !important; /* align perfectly to editor line height */
   color: var(--text-line-number) !important;
   opacity: 1;
   border: none !important;
@@ -308,6 +313,7 @@
   margin-right: 0 !important;
   padding-right: 0 !important;
   min-width: auto !important;
+  letter-spacing: 0.2px;
 }
 
 /* Adjust editor and overlay to make space for line numbers */

@@ -77,38 +77,40 @@ class ApexCodeManager {
   }
 
   async saveApexCode(name, code) {
-    if (!code || !this.currentOrgId) return false;
+    if (!code || !this.currentOrgId) return null;
     
     // Require a name to be provided
     if (!name || !name.trim()) {
-      return false;
+      return null;
     }
     
     const response = await ApexStorageService.saveApexCode(name.trim(), code.trim(), this.currentOrgId);
     if (response.success) {
+      const saved = response.data || null;
       await this.loadApexCodes();
-      return true;
+      return saved;
     } else {
       console.error('Failed to save Apex code:', response.error);
-      return false;
+      return null;
     }
   }
 
   async updateApexCode(id, name, code) {
-    if (!id || !code || !this.currentOrgId) return false;
+    if (!id || !code || !this.currentOrgId) return null;
     
     // Require a name to be provided
     if (!name || !name.trim()) {
-      return false;
+      return null;
     }
     
     const response = await ApexStorageService.updateApexCode(id, name.trim(), code.trim(), this.currentOrgId);
     if (response.success) {
+      const updated = response.data || null;
       await this.loadApexCodes();
-      return true;
+      return updated;
     } else {
       console.error('Failed to update Apex code:', response.error);
-      return false;
+      return null;
     }
   }
 
@@ -121,32 +123,46 @@ class ApexCodeManager {
     let success = false;
     // Check if we're editing an existing code
     if (this.currentSelectedCode && this.currentSelectedCode.id) {
-      // Update existing code
-      success = await this.updateApexCode(
+      // Update existing code (respect inline-renamed title if changed)
+      const titleFromDom = this.getCurrentTitle();
+      const nameToUse = (titleFromDom && titleFromDom !== 'Select Apex Code')
+        ? titleFromDom
+        : this.currentSelectedCode.name;
+      const updated = await this.updateApexCode(
         this.currentSelectedCode.id,
-        this.currentSelectedCode.name, // Keep existing name
+        nameToUse,
         code.trim()
       );
-      if (success) {
-        // Update the current selected code with new content
-        this.currentSelectedCode.code = code.trim();
+      success = !!updated;
+      if (success && updated) {
+        this.currentSelectedCode = updated;
+        const codeTitle = document.getElementById('apexCodeTitle');
+        if (codeTitle) codeTitle.textContent = updated.name;
       }
     } else {
       // Create new code - use custom title if set
-      const titleToUse = this.isNewCodeBlock && this.newCodeBlockTitle ? this.newCodeBlockTitle : null;
-      success = await this.saveApexCode(titleToUse, code.trim());
+      const inferredTitle = this.isNewCodeBlock && this.newCodeBlockTitle
+        ? this.newCodeBlockTitle
+        : this.inferNewCodeTitle();
+      const saved = await this.saveApexCode(inferredTitle, code.trim());
+      success = !!saved;
       
-      if (success) {
+      if (success && saved) {
         // Reset new code block flags
         this.isNewCodeBlock = false;
         this.newCodeBlockTitle = null;
         
         // Update title display
         const codeTitle = document.getElementById('apexCodeTitle');
-      if (codeTitle && titleToUse) {
-        // Avoid unsafe HTML injection
-        codeTitle.textContent = titleToUse;
-      }
+        if (codeTitle && saved.name) {
+          // Avoid unsafe HTML injection
+          codeTitle.textContent = saved.name;
+        }
+
+        // Auto-select the newly saved item
+        if (saved.id) {
+          this.selectApexCodeById(saved.id);
+        }
       }
     }
 
@@ -157,6 +173,18 @@ class ApexCodeManager {
     }
 
     return success;
+  }
+
+  getCurrentTitle() {
+    const codeTitle = document.getElementById('apexCodeTitle');
+    return codeTitle ? codeTitle.textContent.trim() : '';
+  }
+
+  inferNewCodeTitle() {
+    const codeTitle = document.getElementById('apexCodeTitle');
+    const text = (this.newCodeBlockTitle || codeTitle?.textContent || '').trim();
+    if (!text || text === 'Select Apex Code') return 'New Code Block';
+    return text;
   }
 
   // Clear current selection when editor is manually cleared
@@ -476,6 +504,76 @@ class ApexCodeManager {
     this.setEditorReadOnly(false);
   }
 
+  // Begin inline title edit via pencil button
+  beginInlineTitleEdit() {
+    const codeTitle = document.getElementById('apexCodeTitle');
+    if (!codeTitle) return;
+    if (codeTitle.querySelector('input')) return; // already editing
+
+    // Only allow rename when we have a selected code
+    const original = this.currentSelectedCode?.name;
+    if (!original || !this.currentSelectedCode?.id) {
+      return;
+    }
+
+    codeTitle.textContent = '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'new-code-title-input';
+    input.value = original;
+    input.placeholder = 'Enter code name...';
+    codeTitle.appendChild(input);
+    input.focus();
+    input.select();
+
+    let handled = false;
+    const applyRename = async () => {
+      if (handled) return;
+      handled = true;
+      const newName = (input.value || '').trim() || original;
+      // Restore UI first
+      codeTitle.textContent = newName;
+      try {
+        const updated = await this.updateApexCode(
+          this.currentSelectedCode.id,
+          newName,
+          this.getCurrentCode()
+        );
+        if (updated) {
+          this.currentSelectedCode = updated;
+          // Re-select to refresh list highlight
+          this.selectApexCodeById(updated.id);
+        } else {
+          codeTitle.textContent = original;
+        }
+      } catch (e) {
+        codeTitle.textContent = original;
+      }
+    };
+
+    const cancelRename = () => {
+      if (handled) return;
+      handled = true;
+      codeTitle.textContent = original;
+    };
+
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        applyRename();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        cancelRename();
+      }
+    });
+    input.addEventListener('blur', applyRename);
+  }
+
+  selectApexCodeById(id) {
+    const found = this.apexCodes.find(c => c.id === id);
+    if (found) this.selectApexCode(found);
+  }
+
   updateSyntaxHighlighting() {
     const codeEditor = document.getElementById('apexCodeEditor');
     const highlightOverlay = document.getElementById('syntaxHighlightOverlay');
@@ -769,6 +867,12 @@ class ApexCodeManager {
       setTimeout(() => {
         this.setupSyntaxHighlighting();
         this.setupSearchEventListeners();
+        // Setup title edit button
+        const editBtn = document.getElementById('editApexTitleBtn');
+        if (editBtn && !editBtn.dataset.bound) {
+          editBtn.dataset.bound = '1';
+          editBtn.addEventListener('click', () => this.beginInlineTitleEdit());
+        }
       }, 100);
     }
   }

@@ -686,6 +686,28 @@
   letter-spacing: 0.5px;
 }
 
+/* Small pencil button for inline rename */
+.title-edit-btn {
+  margin-left: 8px;
+  background: none;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.title-edit-btn:hover {
+  background: var(--bg-secondary);
+  border-color: var(--border-secondary);
+  color: var(--text-primary);
+}
+
 .panel-actions {
   display: flex;
   gap: 6px;

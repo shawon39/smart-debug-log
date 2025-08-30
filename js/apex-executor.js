@@ -70,6 +70,9 @@ class ApexExecutor {
     let content = '';
     
     if (result.success) {
+      const compileProblemEsc = result.compileProblem ? this.escapeHtml(result.compileProblem) : '';
+      const exceptionMessageEsc = result.exceptionMessage ? this.escapeHtml(result.exceptionMessage) : '';
+      const stackEsc = result.exceptionStackTrace ? this.escapeHtml(result.exceptionStackTrace) : '';
       content = `
         <div class="execution-success">
           <div class="result-header success">
@@ -83,22 +86,22 @@ class ApexExecutor {
                 ${result.compiled ? 'Compiled Successfully' : 'Compilation Failed'}
               </div>
             </div>
-            ${result.compileProblem ? `
+            ${compileProblemEsc ? `
               <div class="result-section">
                 <h4>Compilation Problem</h4>
-                <div class="result-value error">${result.compileProblem}</div>
+                <div class="result-value error">${compileProblemEsc}</div>
               </div>
             ` : ''}
-            ${result.exceptionMessage ? `
+            ${exceptionMessageEsc ? `
               <div class="result-section">
                 <h4>Exception Message</h4>
-                <div class="result-value error">${result.exceptionMessage}</div>
+                <div class="result-value error">${exceptionMessageEsc}</div>
               </div>
             ` : ''}
-            ${result.exceptionStackTrace ? `
+            ${stackEsc ? `
               <div class="result-section">
                 <h4>Stack Trace</h4>
-                <div class="result-value error stack-trace">${result.exceptionStackTrace}</div>
+                <div class="result-value error stack-trace">${stackEsc}</div>
               </div>
             ` : ''}
             <div class="result-section">
@@ -111,6 +114,7 @@ class ApexExecutor {
         </div>
       `;
     } else {
+      const errorDetailsEsc = this.escapeHtml(result.compileProblem || result.exceptionMessage || 'Unknown error');
       content = `
         <div class="execution-error">
           <div class="result-header error">
@@ -120,14 +124,12 @@ class ApexExecutor {
           <div class="result-details">
             <div class="result-section">
               <h4>Error Details</h4>
-              <div class="result-value error">
-                ${result.compileProblem || result.exceptionMessage || 'Unknown error'}
-              </div>
+              <div class="result-value error">${errorDetailsEsc}</div>
             </div>
             ${result.exceptionStackTrace ? `
               <div class="result-section">
                 <h4>Stack Trace</h4>
-                <div class="result-value error stack-trace">${result.exceptionStackTrace}</div>
+                <div class="result-value error stack-trace">${this.escapeHtml(result.exceptionStackTrace)}</div>
               </div>
             ` : ''}
           </div>
@@ -151,11 +153,17 @@ class ApexExecutor {
         <div class="result-details">
           <div class="result-section">
             <h4>Error Message</h4>
-            <div class="result-value error">${error.message}</div>
+            <div class="result-value error">${this.escapeHtml(error.message)}</div>
           </div>
         </div>
       </div>
     `;
+  }
+
+  escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text == null ? '' : String(text);
+    return div.innerHTML;
   }
 
   clearResults() {

@@ -457,14 +457,14 @@ async function handleSaveApexCode(request, sender) {
       return { success: false, message: 'Name and code are required' };
     }
 
-    await saveApexCodeToStorage({
+    const saved = await saveApexCodeToStorage({
       name,
       code,
       orgId: orgId || 'unknown',
       timestamp: Date.now()
     });
 
-    return { success: true, message: 'Apex code saved successfully' };
+    return { success: true, message: 'Apex code saved successfully', data: saved };
   } catch (error) {
     return {
       success: false,
@@ -494,7 +494,7 @@ async function handleUpdateApexCode(request, sender) {
       return { success: false, message: 'ID, name and code are required' };
     }
 
-    await updateApexCodeInStorage({
+    const updated = await updateApexCodeInStorage({
       id,
       name,
       code,
@@ -502,7 +502,7 @@ async function handleUpdateApexCode(request, sender) {
       timestamp: Date.now()
     });
 
-    return { success: true, message: 'Apex code updated successfully' };
+    return { success: true, message: 'Apex code updated successfully', data: updated };
   } catch (error) {
     return {
       success: false,
@@ -550,12 +550,14 @@ async function saveApexCodeToStorage(apexData) {
   const result = await chrome.storage.local.get(storageKey);
   const codes = result[storageKey] || [];
   
-  codes.push({
+  const record = {
     id,
     ...apexData
-  });
+  };
+  codes.push(record);
   
   await chrome.storage.local.set({ [storageKey]: codes });
+  return record;
 }
 
 async function getApexCodesFromStorage(orgId) {
@@ -574,13 +576,14 @@ async function updateApexCodeInStorage(apexData) {
       
       if (codeIndex !== -1) {
         // Update existing code
-        codes[codeIndex] = {
+        const updated = {
           ...codes[codeIndex],
           ...apexData,
           timestamp: Date.now() // Update timestamp
         };
+        codes[codeIndex] = updated;
         await chrome.storage.local.set({ [key]: codes });
-        return;
+        return updated;
       }
     }
   }
@@ -707,5 +710,4 @@ async function executeAnonymousApex(session, apexCode) {
     throw error;
   }
 }
-
 

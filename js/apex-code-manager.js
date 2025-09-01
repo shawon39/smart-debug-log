@@ -138,6 +138,8 @@ class ApexCodeManager {
         this.currentSelectedCode = updated;
         const codeTitle = document.getElementById('apexCodeTitle');
         if (codeTitle) codeTitle.textContent = updated.name;
+        // Reselect to ensure left list maintains selected style
+        this.selectApexCodeById(updated.id);
       }
     } else {
       // Create new code - use custom title if set
@@ -441,6 +443,11 @@ class ApexCodeManager {
       item.appendChild(header);
       item.appendChild(meta);
       
+      // Preserve selected state if this is the current selection
+      if (this.currentSelectedCode && this.currentSelectedCode.id === apexCode.id) {
+        item.classList.add('selected');
+      }
+
       // Add click handler to select the code
       item.addEventListener('click', (e) => {
         if (e.target.classList.contains('delete-btn')) {

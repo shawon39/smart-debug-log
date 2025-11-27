@@ -126,10 +126,14 @@ class ApexStorageService {
     }
     
     try {
+      // Get sfHost from URL for org-aware token selection
+      const sfHost = typeof getHostFromUrl === 'function' ? getHostFromUrl() : null;
+      
       const response = await chrome.runtime.sendMessage({
         type: 'EXECUTE_ANONYMOUS',
         code: code,
-        session: session
+        session: session,
+        sfHost: sfHost
       });
       
       return response;

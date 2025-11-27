@@ -34,6 +34,9 @@ class SmartDebugLogPopup {
     // Event listener for dashboard button
     document.getElementById('openDashboardBtn').addEventListener('click', () => this.openDashboard());
     
+    // Event listener for generate token button
+    document.getElementById('generateTokenBtn').addEventListener('click', () => this.generateAccessToken());
+    
     // Add simple hover effects for feature cards
     document.querySelectorAll('.feature-card').forEach(card => {
       card.addEventListener('mouseenter', () => {
@@ -132,7 +135,13 @@ class SmartDebugLogPopup {
   }
 
   async openDashboard() {
+    const btn = document.getElementById('openDashboardBtn');
+    const originalText = btn.textContent;
+    
     try {
+      btn.textContent = 'Opening...';
+      btn.disabled = true;
+      
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let sfHost = null;
       
@@ -147,26 +156,15 @@ class SmartDebugLogPopup {
         }
       }
       
-      if (sfHost) {
-        try {
-          const debugLogUrl = `https://${sfHost}/_ui/common/apex/debug/ApexCSIPage`;
-          
-          // Check if developer console is already open
-          const tabs = await chrome.tabs.query({});
-          const existingDebugTab = tabs.find(tab => 
-            tab.url && tab.url.includes('/_ui/common/apex/debug/ApexCSIPage')
-          );
-          
-          if (!existingDebugTab) {
-            // Create new developer console tab only if it doesn't exist
-            await chrome.tabs.create({
-              url: debugLogUrl,
-              active: false
-            });
-          }
-        } catch (debugError) {
-          // Continue if developer console creation fails
-        }
+      // Auto-enable debug logging (60 min) if not already active
+      try {
+        await chrome.runtime.sendMessage({ 
+          type: 'ENSURE_TRACE_FLAG',
+          sfHost: sfHost // For org-aware token selection
+        });
+      } catch (traceFlagError) {
+        // Continue even if trace flag creation fails - user can enable manually
+        console.warn('Could not auto-enable debug:', traceFlagError);
       }
       
       const baseUrl = chrome.runtime.getURL('dashboard.html');
@@ -208,7 +206,65 @@ class SmartDebugLogPopup {
         console.error('Dashboard launch failed:', fallbackError);
       }
     } finally {
+      btn.textContent = originalText;
+      btn.disabled = false;
       setTimeout(() => window.close(), 100);
+    }
+  }
+
+  async generateAccessToken() {
+    const tokenBtn = document.getElementById('generateTokenBtn');
+    const originalText = tokenBtn.textContent;
+    
+    try {
+      tokenBtn.disabled = true;
+      tokenBtn.textContent = 'Authenticating...';
+      
+      // Get the current Salesforce org URL
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let orgUrl = null;
+      
+      if (tab && tab.url) {
+        const hostResponse = await chrome.runtime.sendMessage({
+          type: 'GET_SALESFORCE_HOST',
+          url: tab.url,
+        });
+        
+        if (hostResponse && hostResponse.success) {
+          orgUrl = hostResponse.data.salesforceHost;
+        }
+      }
+      
+      // Send message to background script to start OAuth flow
+      const response = await chrome.runtime.sendMessage({
+        type: 'SF_GENERATE_TOKEN',
+        orgUrl: orgUrl
+      });
+      
+      if (response && response.success) {
+        tokenBtn.textContent = 'Token Generated!';
+        tokenBtn.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+        
+        // Reset after a short delay
+        setTimeout(() => {
+          tokenBtn.textContent = originalText;
+          tokenBtn.style.background = '';
+          tokenBtn.disabled = false;
+        }, 2000);
+      } else {
+        throw new Error(response?.error || 'Failed to generate token');
+      }
+      
+    } catch (error) {
+      console.error('Token generation failed:', error);
+      tokenBtn.textContent = 'Failed - Try Again';
+      tokenBtn.style.background = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+      
+      setTimeout(() => {
+        tokenBtn.textContent = originalText;
+        tokenBtn.style.background = '';
+        tokenBtn.disabled = false;
+      }, 2000);
     }
   }
 

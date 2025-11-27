@@ -175,7 +175,8 @@ Deploy to org: ${sfHost}`;
       type: 'TOOLING_CREATE',
       sobjectType: 'ApexClass',
       data: classData,
-      session: currentSession
+      session: currentSession,
+      sfHost: getHostFromUrl() // For org-aware token selection
     });
 
     if (result.success) {
@@ -216,31 +217,10 @@ function clearRawResponse() {
   // Don't reset the view preference - keep user's choice
 }
 
-// Copy raw response function (legacy - now handled in raw-view.js)
-async function copyRawResponse() {
-  if (!currentRawResponse) return;
-  
-  try {
-    await navigator.clipboard.writeText(currentRawResponse);
-    
-    const { copyRawBtn } = elements;
-    const originalText = copyRawBtn.innerHTML;
-    copyRawBtn.innerHTML = '✓';
-    copyRawBtn.disabled = true;
-    
-    setTimeout(() => {
-      copyRawBtn.innerHTML = originalText;
-      copyRawBtn.disabled = false;
-    }, 2000);
-    
-  } catch (error) {
-    // Fallback: show alert with the content
-    alert('Raw Response:\n\n' + currentRawResponse);
-  }
-}
+// Note: copyRawResponse() is defined in raw-view.js
 
-// Manage Debug Logs navigation
-async function openManageDebugLogs() {
+// Open Debug Logs Setup page navigation
+async function openDebugLogsSetup() {
   if (!currentSession || !sfHost) {
     alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');
     return;

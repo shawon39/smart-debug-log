@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="css/dashboard-modals.css">
   <link rel="stylesheet" href="css/dashboard-responsive.css">
   <link rel="stylesheet" href="css/apex-manager.css">
+  <link rel="stylesheet" href="css/debug-log-manager.css">
   <!-- Use local highlight.js - CDN removed for CSP compliance -->
 </head>
 <body>
@@ -32,6 +33,13 @@
     </div>
   </div>
 
+  <!-- No Token Warning Banner -->
+  <div id="noTokenWarning" class="token-warning" style="display: none;">
+    <span class="warning-icon">⚠️</span>
+    <span class="warning-text">No access token for this org. Please generate an access token to use all features.</span>
+    <button id="generateTokenFromWarning" class="button primary small">Generate Token</button>
+  </div>
+
   <!-- Compact Controls Bar -->
   <div class="controls-bar">
     <div class="status-section">
@@ -40,12 +48,13 @@
         <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>
         <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;" title="Deploy Prettier Class">Deploy Prettier Class</button>
         <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Anonymous Code Manager">Anonymous Execution</button>
-        <button class="button secondary" id="manageDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Salesforce Debug Logs Setup">Manage Debug Logs</button>
+        <button class="button secondary" id="openDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Salesforce Debug Logs Setup">Open Debug Logs</button>
+        <button class="button primary" id="debugLogManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Manage Debug Logs">Manage Debug Logs</button>
         <div class="control-group">
           <label>Log Type:</label>
           <select id="logTypeFilter">
-            <option value="SystemLog" selected>SystemLog</option>
-            <option value="Monitoring">Monitoring</option>
+            <option value="SystemLog">SystemLog</option>
+            <option value="Monitoring" selected>Monitoring</option>
           </select>
         </div>
         <div class="control-group">
@@ -93,18 +102,18 @@
     </div>
   </div>
 
-  <!-- Developer Console Warning Banner -->
+  <!-- Access Token Warning Banner -->
   <div class="dev-console-warning hidden" id="devConsoleWarning">
     <div class="warning-content">
-      <div class="warning-icon">💡</div>
+      <div class="warning-icon">🔑</div>
       <div class="warning-text">
-        <div class="warning-title">Developer Console Needed</div>
-        <div class="warning-subtitle">Keep Developer Console open to see debug logs properly</div>
+        <div class="warning-title">Access Token Required</div>
+        <div class="warning-subtitle">Generate an access token to view debug logs and execute Apex</div>
       </div>
     </div>
     <div class="warning-actions">
       <button class="dev-console-btn" id="openDevConsoleBtn">
-        ⚡ Open Console
+        🔐 Generate Token
       </button>
       <button class="dismiss-btn" id="dismissWarningBtn">×</button>
     </div>
@@ -168,9 +177,9 @@
           <h4>Select a Debug Log</h4>
           <p>Click any log to view debug messages</p>
           <p style="color: #6c757d; font-size: 13px; margin-top: 16px; font-style: italic; line-height: 1.4;">
-            💡 Not seeing new logs? The Developer Console goes idle after 20 minutes.<br>
+            💡 Not seeing logs? Make sure you have generated an access token.<br>
             <span style="font-size: 11px; opacity: 0.8; margin-top: 4px; display: inline-block;">
-              Solution: Open the Developer Console and click <strong>Resume</strong> to reactivate it.
+              Click the <strong>Generate Token</strong> button above if you haven't authenticated yet.
             </span>
           </p>
         </div>
@@ -204,7 +213,6 @@
             <div class="limits-content" id="limitsContent"></div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   </div>
@@ -272,6 +280,103 @@
   </div>
 </div>
 
+<!-- Debug Log Manager Modal -->
+<div class="modal-overlay" id="debugLogManagerModal" style="display: none;">
+  <div class="modal-content debug-log-manager-modal">
+    <div class="modal-header">
+      <div class="modal-title">Manage Debug Logs</div>
+      <button class="modal-close-btn" id="closeDebugLogManagerBtn">×</button>
+    </div>
+    
+    <div class="debug-log-manager-content">
+      <!-- User Selection Section -->
+      <div class="user-selection-section">
+        <div class="section-header">
+          <label>Enable Debug For:</label>
+        </div>
+        <div class="user-type-toggle">
+          <label class="radio-label">
+            <input type="radio" name="userType" id="currentUserRadio" value="current" checked>
+            <span>Current User</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="userType" id="otherUserRadio" value="other">
+            <span>Other User</span>
+          </label>
+        </div>
+        <div class="user-search-container hidden" id="userSearchContainer">
+          <div class="user-search-input-wrapper">
+            <input type="text" id="userSearchInput" class="user-search-input" placeholder="Search by name or username...">
+            <button class="button secondary" id="userSearchBtn" title="Search users">🔍</button>
+          </div>
+          <div class="user-search-results hidden" id="userSearchResults"></div>
+          <div class="selected-user hidden" id="selectedUserDisplay">
+            <span class="selected-user-label">Selected:</span>
+            <span class="selected-user-name" id="selectedUserName"></span>
+            <button class="clear-user-btn" id="clearSelectedUserBtn" title="Clear selection">×</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Debug Level Selection -->
+      <div class="debug-level-section">
+        <div class="section-header">
+          <label for="debugLevelSelect">Debug Level:</label>
+          <select id="debugLevelSelect" class="debug-level-dropdown">
+            <option value="">Loading...</option>
+          </select>
+          <button class="button secondary" id="refreshDebugLevelsBtn" title="Refresh debug levels">↻</button>
+        </div>
+      </div>
+      
+      <!-- Status and Timer Section -->
+      <div class="debug-status-section">
+        <div class="status-display">
+          <div class="status-indicator">
+            <span class="status-dot" id="debugStatusDot"></span>
+            <span class="status-text" id="debugStatusText">Inactive</span>
+          </div>
+          <div class="timer-display" id="timerDisplay">
+            <span class="timer-label">Expires in:</span>
+            <span class="timer-value" id="timerValue">--:--</span>
+          </div>
+        </div>
+        <div class="debug-actions" id="debugActions">
+          <!-- Inactive state: Enable button -->
+          <div class="actions-inactive" id="actionsInactive">
+            <button class="button primary" id="enableDebugBtn">Enable Debug (60min)</button>
+          </div>
+          <!-- Active state: -60, +60, Disable buttons -->
+          <div class="actions-active hidden" id="actionsActive">
+            <button class="button secondary" id="reduceDebugBtn">-60 min</button>
+            <button class="button secondary" id="extendDebugBtn">+60 min</button>
+            <button class="button danger" id="disableDebugBtn">Disable</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Trace Flags Section -->
+      <div class="trace-flags-section">
+        <div class="section-header">
+          <div class="section-title">Trace Flags</div>
+          <div class="section-actions">
+            <button class="button secondary" id="refreshTraceFlagsBtn" title="Refresh trace flags">↻ Refresh</button>
+          </div>
+        </div>
+        <div class="trace-flags-list" id="traceFlagsList">
+          <div class="loading-state">Loading trace flags...</div>
+        </div>
+      </div>
+      
+      <!-- Delete Logs Section -->
+      <div class="delete-logs-section">
+        <button class="button danger" id="deleteAllLogsBtn">Delete All Debug Logs</button>
+        <span class="delete-hint">This will delete all debug logs for your user</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Local Highlight.js JavaScript -->
 <script src="js/highlight.js"></script>
 
@@ -294,6 +399,7 @@
 <script src="js/apex-storage-service.js"></script>
 <script src="js/apex-code-manager.js"></script>
 <script src="js/apex-executor.js"></script>
+<script src="js/debug-log-manager-ui.js"></script>
 <script src="js/dashboard-connection.js"></script>
 <script src="js/dashboard-monitoring.js"></script>
 <script src="js/dashboard-actions.js"></script>

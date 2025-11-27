@@ -25,18 +25,35 @@ This project does not use npm/yarn or build tools. For development:
 - `debug-log-manager.js`: Manages polling intervals, log monitoring, and Chrome alarms
 
 **Content Layer (`content/`)**:
-- `salesforce-api.js`: Injected into Salesforce pages, handles Tooling API calls and log retrieval
+- `api-handler.js`: Core message handler, injected into Salesforce pages
+- `api-operations.js`: Extends handler with Tooling API operations (query, create, log retrieval)
+- `session-extraction.js`: Extracts session info from Salesforce pages
 
 **UI Layer**:
-- `dashboard.html` + `js/dashboard-core.js`: Main dashboard for log viewing and monitoring controls
+- `dashboard.html` + Dashboard modules: Main dashboard for log viewing and monitoring controls
+  - `js/dashboard-init.js`: Initialization and event setup
+  - `js/dashboard-actions.js`: Session actions and deploy functionality
+  - `js/dashboard-connection.js`: Salesforce connection management
+  - `js/dashboard-monitoring.js`: Polling controls and preferences
 - `popup/popup.html` + `popup/popup.js`: Extension popup interface
 
 ### Log Processing Pipeline (`js/`):
+- `log-loader.js`: LogLoader class for fetching and caching debug logs
+- `log-renderer.js`: LogRenderer class for displaying logs in UI
+- `log-display.js`: Coordinates log display modules
+- `log-cache.js`: LogCache class for caching debug/error status
+- `log-parsing.js`: Parses debug log content and extracts limits
 - `basic-parsing.js`: Parses Salesforce object notation and simple structures
 - `complex-parsing.js`: Handles nested collections and complex object parsing
 - `error-extraction.js`: Extracts and categorizes error messages from debug logs
-- `formatting-utilities.js`: Utilities for display formatting and syntax highlighting
-- `debug-log-manager.js`: Dashboard-specific log management functions
+- `formatting-utilities.js`: Utilities for display formatting
+- `syntax-highlighting.js`: Debug log and JSON syntax highlighting
+- `raw-view.js`: Raw response view and search functionality
+
+### Apex Execution (`js/`):
+- `apex-code-manager.js`: Manages saved Apex code snippets
+- `apex-storage-service.js`: Chrome storage operations for Apex code
+- `apex-executor.js`: Handles Apex code execution and results
 
 ## Key Architecture Patterns
 
@@ -51,6 +68,9 @@ The extension uses Chrome's message passing API extensively. All communication f
 - STOP_DEBUG_MONITORING: Stop log polling
 - GET_LOG_CONTENT: Fetch specific log content
 - EXECUTE_TOOLING_QUERY: Run Salesforce Tooling API queries
+- TOOLING_CREATE: Create records via Tooling API
+- SAVE_APEX_CODE / UPDATE_APEX_CODE / DELETE_APEX_CODE: Apex code storage
+- EXECUTE_ANONYMOUS: Execute anonymous Apex
 ```
 
 ### Session Management
@@ -76,13 +96,27 @@ API interactions use the Salesforce Tooling API v62.0 for:
 
 ```
 background/          # Service worker and background logic
-content/            # Content scripts for Salesforce pages  
-js/                 # Core functionality modules
-css/                # Styling (dashboard.css, popup.css)
-popup/              # Extension popup UI
-icons/              # Extension icons (16, 32, 48, 128px)
-manifest.json       # Extension configuration
-dashboard.html      # Main dashboard page
+  service-worker.js  # Main message router
+  session-manager.js # Session and domain management
+  debug-log-manager.js # Polling and monitoring
+content/             # Content scripts for Salesforce pages
+  api-handler.js     # Core message handler
+  api-operations.js  # API operations (query, create, etc.)
+  session-extraction.js # Session extraction methods
+js/                  # Core functionality modules
+  dashboard-*.js     # Dashboard initialization and controls
+  log-*.js           # Log loading, rendering, caching
+  apex-*.js          # Apex code management and execution
+  *-parsing.js       # Salesforce object parsing
+  *-utilities.js     # Utility functions
+css/                 # Styling
+  theme-variables.css # CSS variables for theming
+  dashboard-*.css    # Dashboard styles
+  popup-*.css        # Popup styles
+popup/               # Extension popup UI
+icons/               # Extension icons (16, 32, 48, 128px)
+manifest.json        # Extension configuration
+dashboard.html       # Main dashboard page
 ```
 
 ## Development Notes

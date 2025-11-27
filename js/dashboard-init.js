@@ -41,6 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   initializeStats();
   
   await checkConnectionStatus(targetHost);
+  
+  // Check OAuth token status and show warning if needed
+  await checkAndShowTokenWarning(targetHost);
+  
   await loadDebugLogs();
   setupEventListeners();
   
@@ -49,10 +53,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.apexCodeManager.setupModalEventListeners();
   }
   
+  // Setup Debug Log Manager modal
+  if (window.debugLogManagerUI) {
+    window.debugLogManagerUI.setupModalEventListeners();
+  }
+  
   updatePollIntervalStat();
   
   // Initialize Apex Manager
   await initializeApexManager();
+  
+  // Initialize Debug Log Manager
+  await initializeDebugLogManager();
 });
 
 // Cache DOM elements function
@@ -99,7 +111,8 @@ function cacheElements() {
     clearSearchBtn: document.getElementById('clearSearchBtn'),
     errorAndLimitsContent: document.getElementById('errorAndLimitsContent'),
     errorContent: document.getElementById('errorContent'),
-    manageDebugLogsBtn: document.getElementById('manageDebugLogsBtn'),
+    openDebugLogsBtn: document.getElementById('openDebugLogsBtn'),
+    debugLogManagerBtn: document.getElementById('debugLogManagerBtn'),
     logTypeFilter: document.getElementById('logTypeFilter'),
     // Apex Manager elements
     runApexBtn: document.getElementById('runApexBtn'),
@@ -114,7 +127,7 @@ function cacheElements() {
 function setupEventListeners() {
   const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
           openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, toggleViewBtn, copyRawBtn,
-          manageDebugLogsBtn, logTypeFilter } = elements;
+          openDebugLogsBtn, debugLogManagerBtn, logTypeFilter } = elements;
   
   // Setup theme toggle
   const themeToggle = document.getElementById('themeToggleDashboard');
@@ -138,8 +151,13 @@ function setupEventListeners() {
   toggleViewBtn?.addEventListener('click', toggleDebugView);
   copyRawBtn?.addEventListener('click', copyRawResponse);
   
-  // New elements event listeners
-  manageDebugLogsBtn?.addEventListener('click', openManageDebugLogs);
+  // Debug logs buttons event listeners
+  openDebugLogsBtn?.addEventListener('click', openDebugLogsSetup);
+  debugLogManagerBtn?.addEventListener('click', () => {
+    if (window.debugLogManagerUI) {
+      window.debugLogManagerUI.openModal();
+    }
+  });
   
   pollInterval?.addEventListener('change', async () => {
     updatePollIntervalStat();
@@ -192,6 +210,75 @@ async function initializeApexManager() {
   if (window.apexCodeManager && currentSession) {
     const orgId = currentSession.orgId || 'unknown';
     await window.apexCodeManager.initialize(orgId);
+  }
+}
+
+// Initialize Debug Log Manager
+async function initializeDebugLogManager() {
+  if (window.debugLogManagerUI && currentSession) {
+    await window.debugLogManagerUI.initialize(currentSession);
+  }
+}
+
+// Check OAuth token status and show warning if needed
+async function checkAndShowTokenWarning(targetHost) {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'CHECK_TOKEN_STATUS',
+      sfHost: targetHost
+    });
+    
+    const warningBanner = document.getElementById('noTokenWarning');
+    const generateBtn = document.getElementById('generateTokenFromWarning');
+    
+    if (!warningBanner) return;
+    
+    if (response && response.success && response.data) {
+      if (!response.data.hasToken || response.data.isExpired) {
+        // Show warning
+        warningBanner.style.display = 'flex';
+        
+        // Setup generate token button click handler
+        if (generateBtn) {
+          generateBtn.onclick = async () => {
+            generateBtn.disabled = true;
+            generateBtn.textContent = 'Generating...';
+            
+            try {
+              await generateAccessToken();
+              // Hide warning on success
+              warningBanner.style.display = 'none';
+            } catch (error) {
+              console.error('Failed to generate token:', error);
+              generateBtn.textContent = 'Retry';
+            } finally {
+              generateBtn.disabled = false;
+            }
+          };
+        }
+      } else {
+        // Token exists and is valid - hide warning
+        warningBanner.style.display = 'none';
+      }
+    }
+  } catch (error) {
+    console.warn('Could not check token status:', error);
+  }
+}
+
+// Show no-token warning banner (different from dev console warning)
+function showNoTokenWarning() {
+  const warningBanner = document.getElementById('noTokenWarning');
+  if (warningBanner) {
+    warningBanner.style.display = 'flex';
+  }
+}
+
+// Hide no-token warning banner
+function hideNoTokenWarning() {
+  const warningBanner = document.getElementById('noTokenWarning');
+  if (warningBanner) {
+    warningBanner.style.display = 'none';
   }
 }
 

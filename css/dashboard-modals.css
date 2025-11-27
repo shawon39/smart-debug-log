@@ -1,6 +1,6 @@
 /* Modal and Warning Components */
 
-/* Developer Console Warning Banner */
+/* Access Token Warning Banner */
 .dev-console-warning {
   background: var(--bg-dev-warning);
   border: 1px solid var(--border-dev-warning);

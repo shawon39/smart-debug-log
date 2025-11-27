@@ -616,13 +616,13 @@ class ApexCodeManager {
         codeEditor.style.opacity = '1';
       } catch (error) {
         console.warn('Highlight.js error, falling back to plain text:', error);
-        highlightOverlay.innerHTML = `<pre><code>${this.escapeHtml(code)}</code></pre>`;
+        highlightOverlay.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
         codeEditor.style.color = 'var(--text-primary)';
         codeEditor.style.opacity = '0.8';
       }
     } else {
       // Fallback to plain text if highlight.js is not available
-      highlightOverlay.innerHTML = `<pre><code>${this.escapeHtml(code)}</code></pre>`;
+      highlightOverlay.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
       codeEditor.style.color = 'var(--text-primary)';
       codeEditor.style.opacity = '0.8';
     }
@@ -666,11 +666,7 @@ class ApexCodeManager {
     lineNumbers.scrollTop = codeEditor.scrollTop;
   }
 
-  escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+  // Note: Uses global escapeHtml() from basic-utilities.js
 
   setupSyntaxHighlighting() {
     const codeEditor = document.getElementById('apexCodeEditor');

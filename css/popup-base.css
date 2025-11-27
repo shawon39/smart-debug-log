@@ -333,6 +333,37 @@ input:checked + .theme-slider:before {
   box-shadow: var(--shadow-button);
 }
 
+.secondary-action {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
+  border: none;
+  color: #ffffff;
+  padding: 14px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+  transition: all 0.2s ease;
+  margin-bottom: 18px;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.secondary-action:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(5, 150, 105, 0.4);
+}
+
+.secondary-action:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.secondary-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 .connection-status {
   background: var(--bg-connection-status);
   border-radius: 8px;

@@ -143,7 +143,7 @@ function updateConnectionStatus(connected, statusText = '', session = null) {
     const existingHelpPanel = controlsBar?.querySelector('.session-help-panel');
     existingHelpPanel?.remove();
     
-    setTimeout(checkDeveloperConsoleStatus, 500);
+    setTimeout(checkOAuthTokenStatus, 500);
   } else {
     connectionStatusText.textContent = statusText;
     
@@ -162,7 +162,7 @@ const refreshDashboard = async () => {
     // Incremental refresh to get latest logs without clearing cache
     await loadDebugLogs();
   }
-  setTimeout(checkDeveloperConsoleStatus, 300);
+  setTimeout(checkOAuthTokenStatus, 300);
 };
 
 // Helper function to get auto-refresh state
@@ -181,72 +181,101 @@ window.addEventListener('focus', () => {
   }
 });
 
-// Developer Console management
-async function checkDeveloperConsoleStatus() {
-  if (!sfHost || !currentSession) {
-    hideDevConsoleWarning();
-    return;
-  }
-
+// OAuth Token management
+async function checkOAuthTokenStatus() {
   try {
-    const isDismissed = sessionStorage.getItem(`devConsole_dismissed_${sfHost}`);
+    const isDismissed = sessionStorage.getItem('oauth_warning_dismissed');
     if (isDismissed) {
-      hideDevConsoleWarning();
+      hideTokenWarning();
       return;
     }
 
-    const tabs = await chrome.tabs.query({});
-    const devConsoleTabs = tabs.filter(tab => {
-      if (!tab.url) return false;
-      return tab.url.includes(sfHost) && 
-             (tab.url.includes('/_ui/common/apex/debug/ApexCSIPage') ||
-              tab.url.includes('/debug/debug.jsp') ||
-              tab.url.includes('/apexDebug') ||
-              tab.url.includes('debug') && tab.url.includes('apex'));
-    });
-
-    if (devConsoleTabs.length === 0) {
-      showDevConsoleWarning();
+    // Check if OAuth token exists
+    const result = await chrome.storage.local.get('sfOAuthToken');
+    const token = result.sfOAuthToken;
+    
+    if (!token || !token.accessToken) {
+      showTokenWarning();
     } else {
-      hideDevConsoleWarning();
+      hideTokenWarning();
     }
   } catch (error) {
-    hideDevConsoleWarning();
+    hideTokenWarning();
   }
 }
 
-function showDevConsoleWarning() {
+// Alias for backward compatibility
+const checkDeveloperConsoleStatus = checkOAuthTokenStatus;
+
+function showTokenWarning() {
   elements.devConsoleWarning?.classList.remove('hidden');
 }
 
-function hideDevConsoleWarning() {
+function hideTokenWarning() {
   elements.devConsoleWarning?.classList.add('hidden');
 }
 
-async function openDeveloperConsole() {
-  if (!sfHost) return;
+// Alias for backward compatibility
+const showDevConsoleWarning = showTokenWarning;
+const hideDevConsoleWarning = hideTokenWarning;
 
+async function generateAccessToken() {
+  const button = document.getElementById('openDevConsoleBtn');
+  const originalText = button?.textContent;
+  
   try {
-    const developerConsoleUrl = `https://${sfHost}/_ui/common/apex/debug/ApexCSIPage`;
+    if (button) {
+      button.disabled = true;
+      button.textContent = '🔄 Authenticating...';
+    }
     
-    await chrome.tabs.create({
-      url: developerConsoleUrl,
-      active: false
+    // Get the domain from URL parameter or use detected sfHost
+    const targetHost = getHostFromUrl() || sfHost;
+    
+    const response = await chrome.runtime.sendMessage({
+      type: 'SF_GENERATE_TOKEN',
+      orgUrl: targetHost
     });
-
-    setTimeout(checkDeveloperConsoleStatus, 1000);
     
+    if (response && response.success) {
+      if (button) {
+        button.textContent = '✅ Token Generated!';
+      }
+      hideTokenWarning();
+      
+      // Refresh the dashboard to use the new token
+      setTimeout(async () => {
+        await loadDebugLogs();
+        if (button) {
+          button.textContent = originalText;
+          button.disabled = false;
+        }
+      }, 1500);
+    } else {
+      throw new Error(response?.error || 'Failed to generate token');
+    }
   } catch (error) {
-    // Failed
+    console.error('Token generation failed:', error);
+    if (button) {
+      button.textContent = '❌ Failed - Try Again';
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+      }, 2000);
+    }
   }
 }
 
-function dismissDevConsoleWarning() {
-  if (sfHost) {
-    sessionStorage.setItem(`devConsole_dismissed_${sfHost}`, 'true');
-  }
-  hideDevConsoleWarning();
+// Alias for backward compatibility
+const openDeveloperConsole = generateAccessToken;
+
+function dismissTokenWarning() {
+  sessionStorage.setItem('oauth_warning_dismissed', 'true');
+  hideTokenWarning();
 }
+
+// Alias for backward compatibility
+const dismissDevConsoleWarning = dismissTokenWarning;
 
 function dismissSessionHelp() {
   const controlsBar = document.querySelector('.controls-bar');

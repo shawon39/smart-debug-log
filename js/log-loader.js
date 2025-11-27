@@ -346,11 +346,13 @@ class LogLoader {
    */
   async getLogContent(logId, targetHost = null) {
     try {
+      const sfHost = targetHost || getHostFromUrl();
       const response = await chrome.runtime.sendMessage({
         type: 'GET_LOG_CONTENT',
         logId: logId,
         orgId: currentSession.orgId,
-        targetHost: targetHost || getHostFromUrl()
+        targetHost: sfHost,
+        sfHost: sfHost // For org-aware token selection
       });
 
       if (!response.success) {
@@ -512,7 +514,8 @@ class LogLoader {
       const response = await chrome.runtime.sendMessage({
         type: 'EXECUTE_TOOLING_QUERY',
         query: query,
-        session: currentSession
+        session: currentSession,
+        sfHost: getHostFromUrl() // For org-aware token selection
       });
 
       if (response.success && response.data && response.data.records) {

@@ -29,15 +29,9 @@
           <span class="theme-slider-header"></span>
         </div>
       </div>
+      <button class="header-btn danger-btn" id="revokeTokenDashboardBtn" style="display: none;">Revoke Token</button>
       <button class="header-btn" id="closeDashboardBtn">Close Dashboard</button>
     </div>
-  </div>
-
-  <!-- No Token Warning Banner -->
-  <div id="noTokenWarning" class="token-warning" style="display: none;">
-    <span class="warning-icon">⚠️</span>
-    <span class="warning-text">No access token for this org. Please generate an access token to use all features.</span>
-    <button id="generateTokenFromWarning" class="button primary small">Generate Token</button>
   </div>
 
   <!-- Compact Controls Bar -->
@@ -50,55 +44,34 @@
         <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Anonymous Code Manager">Anonymous Execution</button>
         <button class="button secondary" id="openDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Salesforce Debug Logs Setup">Open Debug Logs</button>
         <button class="button primary" id="debugLogManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Manage Debug Logs">Manage Debug Logs</button>
-        <div class="control-group">
-          <label>Log Type:</label>
-          <select id="logTypeFilter">
-            <option value="SystemLog">SystemLog</option>
-            <option value="Monitoring" selected>Monitoring</option>
-          </select>
-        </div>
-        <div class="control-group">
-          <label>Items:</label>
-          <select id="logLimit">
-            <option value="10">10</option>
-            <option value="15" selected>15</option>
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100">100</option>
-          </select>
-        </div>
-        <div class="auto-refresh-toggle">
-          <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
-          <div class="toggle-switch">
-            <input type="checkbox" id="autoRefreshToggle" checked>
-            <span class="toggle-slider"></span>
-          </div>
-        </div>
       </div>
     </div>
 
-    <div class="polling-section">
-      <div class="stats hidden" id="monitoringStats">
-        <span class="stat"><span id="totalLogsCount">0</span> logs</span>
-        <span class="stat">Last: <span id="lastPollTime">Never</span></span>
-      </div>
-      <div class="status-item">
-        <div class="status-dot" id="monitoringStatusDot"></div>
-        <span id="monitoringStatusText">Stopped</span>
-      </div>
+    <div class="right-controls">
       <div class="control-group">
-        <label>Interval:</label>
-        <select id="pollInterval">
-          <option value="5">5s</option>
-          <option value="10" selected>10s</option>
-          <option value="15">15s</option>
-          <option value="30">30s</option>
-          <option value="60">1m</option>
-          <option value="120">2m</option>
+        <label>Log Type:</label>
+        <select id="logTypeFilter">
+          <option value="SystemLog">SystemLog</option>
+          <option value="Monitoring" selected>Monitoring</option>
         </select>
       </div>
-      <button class="button" id="startMonitoringBtn">Start Polling</button>
-      <button class="button danger hidden" id="stopMonitoringBtn">Stop</button>
+      <div class="control-group">
+        <label>Items:</label>
+        <select id="logLimit">
+          <option value="10">10</option>
+          <option value="15" selected>15</option>
+          <option value="20">20</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+      <div class="auto-refresh-toggle">
+        <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
+        <div class="toggle-switch">
+          <input type="checkbox" id="autoRefreshToggle" checked>
+          <span class="toggle-slider"></span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -342,15 +315,27 @@
           </div>
         </div>
         <div class="debug-actions" id="debugActions">
-          <!-- Inactive state: Enable button -->
+          <!-- Inactive state: Enable button with duration selector -->
           <div class="actions-inactive" id="actionsInactive">
-            <button class="button primary" id="enableDebugBtn">Enable Debug (60min)</button>
-          </div>
-          <!-- Active state: -60, +60, Disable buttons -->
-          <div class="actions-active hidden" id="actionsActive">
-            <button class="button secondary" id="reduceDebugBtn">-60 min</button>
-            <button class="button secondary" id="extendDebugBtn">+60 min</button>
-            <button class="button danger" id="disableDebugBtn">Disable</button>
+            <div class="debug-create-controls">
+              <select id="debugDurationSelect" class="duration-select">
+                <option value="60">1 Hour</option>
+                <option value="120">2 Hours</option>
+                <option value="180">3 Hours</option>
+                <option value="240">4 Hours</option>
+                <option value="300">5 Hours</option>
+                <option value="360">6 Hours</option>
+                <option value="420">7 Hours</option>
+                <option value="480">8 Hours</option>
+                <option value="540">9 Hours</option>
+                <option value="600">10 Hours</option>
+                <option value="720">12 Hours</option>
+                <option value="960">16 Hours</option>
+                <option value="1200">20 Hours</option>
+                <option value="1440">24 Hours</option>
+              </select>
+              <button class="button primary" id="enableDebugBtn">Create Debug Log</button>
+            </div>
           </div>
         </div>
       </div>

@@ -46,6 +46,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   await checkAndShowTokenWarning(targetHost);
   
   await loadDebugLogs();
+  
+  // Check if trace flag was just created (from popup)
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('traceFlagCreated') === 'true') {
+    const logTypeFilter = document.getElementById('logTypeFilter');
+    if (logTypeFilter) {
+      logTypeFilter.value = 'Monitoring';
+      await savePreferences();
+    }
+  }
+  
   setupEventListeners();
   
   // Setup Apex Manager modal
@@ -58,9 +69,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.debugLogManagerUI.setupModalEventListeners();
   }
   
-  updatePollIntervalStat();
+  setupEventListeners();
   
-  // Initialize Apex Manager
+  // Setup Apex Manager modal
   await initializeApexManager();
   
   // Initialize Debug Log Manager
@@ -71,8 +82,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 function cacheElements() {
   elements = {
     connectionStatusText: document.getElementById('connectionStatusText'),
-    monitoringStatusDot: document.getElementById('monitoringStatusDot'),
-    monitoringStatusText: document.getElementById('monitoringStatusText'),
     orgActions: document.getElementById('orgActions'),
     copySessionBtn: document.getElementById('copySessionBtn'),
     openIncognitoBtn: document.getElementById('openIncognitoBtn'),
@@ -81,17 +90,11 @@ function cacheElements() {
     devConsoleWarning: document.getElementById('devConsoleWarning'),
     openDevConsoleBtn: document.getElementById('openDevConsoleBtn'),
     dismissWarningBtn: document.getElementById('dismissWarningBtn'),
-    pollInterval: document.getElementById('pollInterval'),
+    revokeTokenDashboardBtn: document.getElementById('revokeTokenDashboardBtn'),
     logLimit: document.getElementById('logLimit'),
-    startMonitoringBtn: document.getElementById('startMonitoringBtn'),
-    stopMonitoringBtn: document.getElementById('stopMonitoringBtn'),
     refreshLogsBtn: document.getElementById('refreshLogsBtn'),
     clearLogsBtn: document.getElementById('clearLogsBtn'),
     markAllReadBtn: document.getElementById('markAllReadBtn'),
-    monitoringStats: document.getElementById('monitoringStats'),
-    totalLogsCount: document.getElementById('totalLogsCount'),
-    lastPollTime: document.getElementById('lastPollTime'),
-    pollIntervalStat: document.getElementById('pollIntervalStat'),
     logsLoading: document.getElementById('logsLoading'),
     emptyState: document.getElementById('emptyState'),
     logsList: document.getElementById('logsList'),
@@ -125,8 +128,8 @@ function cacheElements() {
 
 // Setup event listeners
 function setupEventListeners() {
-  const { startMonitoringBtn, stopMonitoringBtn, refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
-          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, pollInterval, logLimit, toggleViewBtn, copyRawBtn,
+  const { refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
+          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, revokeTokenDashboardBtn, logLimit, toggleViewBtn, copyRawBtn,
           openDebugLogsBtn, debugLogManagerBtn, logTypeFilter } = elements;
   
   // Setup theme toggle
@@ -135,8 +138,6 @@ function setupEventListeners() {
     setupThemeToggle(themeToggle);
   }
   
-  startMonitoringBtn?.addEventListener('click', startMonitoring);
-  stopMonitoringBtn?.addEventListener('click', stopMonitoring);
   refreshLogsBtn?.addEventListener('click', refreshDashboard);
   clearLogsBtn?.addEventListener('click', clearAllLogs);
   markAllReadBtn?.addEventListener('click', markAllLogsAsRead);
@@ -148,6 +149,7 @@ function setupEventListeners() {
   deployPrettierBtn?.addEventListener('click', deployPrettierClass);
   openDevConsoleBtn?.addEventListener('click', openDeveloperConsole);
   dismissWarningBtn?.addEventListener('click', dismissDevConsoleWarning);
+  revokeTokenDashboardBtn?.addEventListener('click', revokeAccessTokenDashboard);
   toggleViewBtn?.addEventListener('click', toggleDebugView);
   copyRawBtn?.addEventListener('click', copyRawResponse);
   
@@ -159,15 +161,8 @@ function setupEventListeners() {
     }
   });
   
-  pollInterval?.addEventListener('change', async () => {
-    updatePollIntervalStat();
-    savePreferences();
-    if (isMonitoring) await restartMonitoring();
-  });
-  
   logLimit?.addEventListener('change', async () => {
     savePreferences();
-    if (isMonitoring) await restartMonitoring();
     await loadDebugLogs();
   });
   
@@ -177,7 +172,6 @@ function setupEventListeners() {
     if (typeof logLoader?.clearCache === 'function') {
       logLoader.clearCache();
     }
-    if (isMonitoring) await restartMonitoring();
     await loadDebugLogs();
   });
   

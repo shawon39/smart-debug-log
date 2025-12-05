@@ -10,6 +10,7 @@ class SmartDebugLogPopup {
       
       this.setupEventListeners();
       await this.checkConnection();
+      await this.checkTokenStatus();
     } catch (error) {
       this.updateStatus('error', 'Initialization failed');
     }
@@ -36,6 +37,9 @@ class SmartDebugLogPopup {
     
     // Event listener for generate token button
     document.getElementById('generateTokenBtn').addEventListener('click', () => this.generateAccessToken());
+    
+    // Event listener for revoke token button
+    document.getElementById('revokeTokenBtn').addEventListener('click', () => this.revokeAccessToken());
     
     // Add simple hover effects for feature cards
     document.querySelectorAll('.feature-card').forEach(card => {
@@ -168,7 +172,7 @@ class SmartDebugLogPopup {
       }
       
       const baseUrl = chrome.runtime.getURL('dashboard.html');
-      const dashboardUrl = sfHost ? `${baseUrl}?host=${encodeURIComponent(sfHost)}` : baseUrl;
+      const dashboardUrl = sfHost ? `${baseUrl}?host=${encodeURIComponent(sfHost)}&traceFlagCreated=true` : `${baseUrl}?traceFlagCreated=true`;
       
       const tabs = await chrome.tabs.query({});
       const existingDashboard = tabs.find(tab => {
@@ -265,6 +269,111 @@ class SmartDebugLogPopup {
         tokenBtn.style.background = '';
         tokenBtn.disabled = false;
       }, 2000);
+    }
+  }
+
+  async revokeAccessToken() {
+    // Show confirmation dialog
+    const confirmed = confirm('Are you sure you want to revoke your access token? You\'ll need to re-authenticate to use features requiring an access token.');
+    
+    if (!confirmed) {
+      return;
+    }
+    
+    const revokeBtn = document.getElementById('revokeTokenBtn');
+    const originalText = revokeBtn.textContent;
+    
+    try {
+      revokeBtn.disabled = true;
+      revokeBtn.textContent = 'Revoking...';
+      
+      // Get the current Salesforce org URL
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let orgUrl = null;
+      
+      if (tab && tab.url) {
+        const hostResponse = await chrome.runtime.sendMessage({
+          type: 'GET_SALESFORCE_HOST',
+          url: tab.url,
+        });
+        
+        if (hostResponse && hostResponse.success) {
+          orgUrl = hostResponse.data.salesforceHost;
+        }
+      }
+      
+      // Send message to background script to revoke token
+      const response = await chrome.runtime.sendMessage({
+        type: 'REVOKE_OAUTH_TOKEN',
+        sfHost: orgUrl
+      });
+      
+      if (response && response.success) {
+        revokeBtn.textContent = 'Token Revoked!';
+        revokeBtn.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
+        
+        // Hide revoke button after short delay
+        setTimeout(() => {
+          revokeBtn.style.display = 'none';
+          revokeBtn.textContent = originalText;
+          revokeBtn.style.background = '';
+          revokeBtn.disabled = false;
+        }, 1500);
+      } else {
+        throw new Error(response?.error || 'Failed to revoke token');
+      }
+      
+    } catch (error) {
+      console.error('Token revocation failed:', error);
+      revokeBtn.textContent = 'Failed - Try Again';
+      
+      setTimeout(() => {
+        revokeBtn.textContent = originalText;
+        revokeBtn.disabled = false;
+      }, 2000);
+    }
+  }
+
+  async checkTokenStatus() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let sfHost = null;
+      
+      if (tab && tab.url) {
+        const hostResponse = await chrome.runtime.sendMessage({
+          type: 'GET_SALESFORCE_HOST',
+          url: tab.url,
+        });
+        
+        if (hostResponse && hostResponse.success) {
+          sfHost = hostResponse.data.salesforceHost;
+        }
+      }
+      
+      const response = await chrome.runtime.sendMessage({
+        type: 'CHECK_TOKEN_STATUS',
+        sfHost: sfHost
+      });
+      
+      const revokeBtn = document.getElementById('revokeTokenBtn');
+      
+      if (response && response.success && response.data && response.data.hasToken && !response.data.isExpired) {
+        // Token exists and is valid - show revoke button
+        if (revokeBtn) {
+          revokeBtn.style.display = 'block';
+        }
+      } else {
+        // No token or expired - hide revoke button
+        if (revokeBtn) {
+          revokeBtn.style.display = 'none';
+        }
+      }
+    } catch (error) {
+      // Hide button on error
+      const revokeBtn = document.getElementById('revokeTokenBtn');
+      if (revokeBtn) {
+        revokeBtn.style.display = 'none';
+      }
     }
   }
 

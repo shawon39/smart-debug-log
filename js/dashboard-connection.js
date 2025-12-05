@@ -191,16 +191,40 @@ async function checkOAuthTokenStatus() {
     }
 
     // Check if OAuth token exists
-    const result = await chrome.storage.local.get('sfOAuthToken');
-    const token = result.sfOAuthToken;
+    const targetHost = getHostFromUrl() || sfHost;
+    const response = await chrome.runtime.sendMessage({
+      type: 'CHECK_TOKEN_STATUS',
+      sfHost: targetHost
+    });
     
-    if (!token || !token.accessToken) {
-      showTokenWarning();
+    const revokeBtn = elements.revokeTokenDashboardBtn;
+    
+    if (response && response.success && response.data) {
+      if (!response.data.hasToken || response.data.isExpired) {
+        // No token or expired - show warning, hide revoke button
+        showTokenWarning();
+        if (revokeBtn) {
+          revokeBtn.style.display = 'none';
+        }
+      } else {
+        // Token exists and is valid - hide warning, show revoke button
+        hideTokenWarning();
+        if (revokeBtn) {
+          revokeBtn.style.display = 'inline-block';
+        }
+      }
     } else {
       hideTokenWarning();
+      if (revokeBtn) {
+        revokeBtn.style.display = 'none';
+      }
     }
   } catch (error) {
     hideTokenWarning();
+    const revokeBtn = elements.revokeTokenDashboardBtn;
+    if (revokeBtn) {
+      revokeBtn.style.display = 'none';
+    }
   }
 }
 
@@ -243,6 +267,25 @@ async function generateAccessToken() {
       }
       hideTokenWarning();
       
+      // Auto-enable debug logging (60 min) for current user
+      try {
+        await chrome.runtime.sendMessage({ 
+          type: 'ENSURE_TRACE_FLAG',
+          sfHost: targetHost
+        });
+        
+        // Set log type to Monitoring after trace flag creation
+        const logTypeFilter = document.getElementById('logTypeFilter');
+        if (logTypeFilter) {
+          logTypeFilter.value = 'Monitoring';
+          // Save the preference
+          await savePreferences();
+        }
+      } catch (traceFlagError) {
+        // Continue even if trace flag creation fails - user can enable manually
+        console.warn('Could not auto-enable debug:', traceFlagError);
+      }
+      
       // Refresh the dashboard to use the new token
       setTimeout(async () => {
         await loadDebugLogs();
@@ -276,6 +319,63 @@ function dismissTokenWarning() {
 
 // Alias for backward compatibility
 const dismissDevConsoleWarning = dismissTokenWarning;
+
+async function revokeAccessTokenDashboard() {
+  const confirmed = confirm('Are you sure you want to revoke your access token? You\'ll need to re-authenticate to use features requiring an access token.');
+  
+  if (!confirmed) {
+    return;
+  }
+  
+  const button = elements.revokeTokenDashboardBtn;
+  const originalText = button?.textContent;
+  
+  try {
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Revoking...';
+    }
+    
+    const targetHost = getHostFromUrl() || sfHost;
+    
+    const response = await chrome.runtime.sendMessage({
+      type: 'REVOKE_OAUTH_TOKEN',
+      sfHost: targetHost
+    });
+    
+    if (response && response.success) {
+      if (button) {
+        button.textContent = 'Token Revoked!';
+        button.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
+      }
+      
+      // Show warning banner and hide revoke button
+      showTokenWarning();
+      
+      setTimeout(() => {
+        if (button) {
+          button.style.display = 'none';
+          button.textContent = originalText;
+          button.style.background = '';
+          button.disabled = false;
+        }
+        // Refresh to clear any loaded logs
+        refreshDashboard();
+      }, 1500);
+    } else {
+      throw new Error(response?.error || 'Failed to revoke token');
+    }
+  } catch (error) {
+    console.error('Token revocation failed:', error);
+    if (button) {
+      button.textContent = 'Failed - Try Again';
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.disabled = false;
+      }, 2000);
+    }
+  }
+}
 
 function dismissSessionHelp() {
   const controlsBar = document.querySelector('.controls-bar');

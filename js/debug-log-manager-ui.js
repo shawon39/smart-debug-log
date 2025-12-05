@@ -445,7 +445,6 @@ class DebugLogManagerUI {
     const statusDot = document.getElementById('debugStatusDot');
     const statusText = document.getElementById('debugStatusText');
     const actionsInactive = document.getElementById('actionsInactive');
-    const actionsActive = document.getElementById('actionsActive');
     
     if (!this.currentTraceFlag) {
       timerValue.textContent = '--:--';
@@ -453,15 +452,13 @@ class DebugLogManagerUI {
       statusDot.classList.remove('active', 'expired');
       statusDot.classList.add('inactive');
       statusText.textContent = 'Inactive';
-      // Show enable button, hide active buttons
+      // Show enable button
       actionsInactive?.classList.remove('hidden');
-      actionsActive?.classList.add('hidden');
       return;
     }
     
-    // Show active buttons, hide enable button
+    // Hide enable button when trace flag is active
     actionsInactive?.classList.add('hidden');
-    actionsActive?.classList.remove('hidden');
     
     const now = new Date();
     const expiration = new Date(this.currentTraceFlag.ExpirationDate);
@@ -478,9 +475,23 @@ class DebugLogManagerUI {
     }
     
     // Calculate remaining time
-    const minutes = Math.floor(remainingMs / 60000);
+    const totalMinutes = Math.floor(remainingMs / 60000);
     const seconds = Math.floor((remainingMs % 60000) / 1000);
-    timerValue.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    
+    // Format display based on duration
+    if (totalMinutes >= 60) {
+      // Show hours and minutes format
+      const hours = Math.floor(totalMinutes / 60);
+      const minutes = totalMinutes % 60;
+      if (minutes === 0) {
+        timerValue.textContent = `${hours}h`;
+      } else {
+        timerValue.textContent = `${hours}h ${minutes}m`;
+      }
+    } else {
+      // Show MM:SS format for < 60 minutes
+      timerValue.textContent = `${totalMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
     
     // Update status
     statusDot.classList.remove('inactive', 'expired');
@@ -489,9 +500,9 @@ class DebugLogManagerUI {
     
     // Color coding for remaining time
     timerValue.classList.remove('warning', 'critical');
-    if (minutes < 5) {
+    if (totalMinutes < 5) {
       timerValue.classList.add('critical');
-    } else if (minutes < 15) {
+    } else if (totalMinutes < 15) {
       timerValue.classList.add('warning');
     }
   }
@@ -566,6 +577,18 @@ class DebugLogManagerUI {
       if (isExpired) {
         expiresClass = 'expired';
         expiresText = 'Expired';
+      } else if (expiresInMinutes >= 60) {
+        // Show hours and minutes format
+        const hours = Math.floor(expiresInMinutes / 60);
+        const minutes = expiresInMinutes % 60;
+        if (minutes === 0) {
+          expiresText = `${hours} hour${hours !== 1 ? 's' : ''} left`;
+        } else {
+          expiresText = `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} min left`;
+        }
+        if (expiresInMinutes < 300) { // Less than 5 hours
+          expiresClass = 'expiring-soon';
+        }
       } else if (expiresInMinutes < 5) {
         expiresClass = 'expiring-soon';
         expiresText = `${expiresInMinutes} min left`;
@@ -596,10 +619,9 @@ class DebugLogManagerUI {
           </div>
         </div>
         <div class="trace-flag-actions">
-          ${isSelectedUser ? `
-            <button class="button secondary extend-btn" data-id="${tf.Id}" title="Extend by 60 minutes">+60 min</button>
-            <button class="button danger delete-btn" data-id="${tf.Id}" title="Delete trace flag">Delete</button>
-          ` : ''}
+          <button class="button secondary extend-btn" data-id="${tf.Id}">Extend (+60min)</button>
+          <button class="button secondary reduce-btn" data-id="${tf.Id}">Reduce (-60min)</button>
+          <button class="button secondary delete-btn" data-id="${tf.Id}">Delete</button>
         </div>
       `;
       
@@ -609,6 +631,10 @@ class DebugLogManagerUI {
     // Add event listeners for action buttons
     container.querySelectorAll('.extend-btn').forEach(btn => {
       btn.addEventListener('click', (e) => this.handleExtendTraceFlag(e.target.dataset.id));
+    });
+    
+    container.querySelectorAll('.reduce-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.handleReduceTraceFlag(e.target.dataset.id));
     });
     
     container.querySelectorAll('.delete-btn').forEach(btn => {
@@ -625,31 +651,48 @@ class DebugLogManagerUI {
   // Event Handlers
   async handleEnableDebug() {
     const btn = document.getElementById('enableDebugBtn');
+    const durationSelect = document.getElementById('debugDurationSelect');
     const originalText = btn.textContent;
     
     try {
       btn.disabled = true;
-      btn.textContent = 'Enabling...';
+      btn.textContent = 'Creating...';
+      
+      // Get selected duration in minutes
+      const durationMinutes = parseInt(durationSelect?.value || '60', 10);
+      const durationHours = durationMinutes / 60;
       
       const debugLevelId = document.getElementById('debugLevelSelect').value;
       let result;
       
       if (!debugLevelId) {
         const defaultId = await this.getOrCreateDefaultDebugLevel();
-        result = await this.createOrExtendTraceFlag(defaultId, this.DEFAULT_DURATION_MINUTES);
+        result = await this.createOrExtendTraceFlag(defaultId, durationMinutes);
       } else {
-        result = await this.createOrExtendTraceFlag(debugLevelId, this.DEFAULT_DURATION_MINUTES);
+        result = await this.createOrExtendTraceFlag(debugLevelId, durationMinutes);
       }
       
       this.renderTraceFlags();
       this.startTimer();
       
-      // Show appropriate message with user name
+      // Set log type to Monitoring after trace flag creation
+      const logTypeFilter = document.getElementById('logTypeFilter');
+      if (logTypeFilter) {
+        logTypeFilter.value = 'Monitoring';
+        // Save the preference
+        if (typeof savePreferences === 'function') {
+          await savePreferences();
+        }
+      }
+      
+      // Show appropriate message with user name and duration
       const userName = this.useOtherUser && this.selectedUserName ? this.selectedUserName : 'you';
+      const durationText = durationHours === 1 ? '1 hour' : `${durationHours} hours`;
+      
       if (result && result.extended) {
-        this.showNotification(`Debug logging extended by 60 minutes for ${userName}`, 'success');
+        this.showNotification(`Debug logging extended by ${durationText} for ${userName}`, 'success');
       } else {
-        this.showNotification(`Debug logging enabled for 60 minutes for ${userName}`, 'success');
+        this.showNotification(`Debug logging enabled for ${durationText} for ${userName}`, 'success');
       }
       
     } catch (error) {
@@ -658,7 +701,7 @@ class DebugLogManagerUI {
       // User-friendly error messages
       let message = 'Failed to enable debug logging.';
       if (error.message.includes('already being traced')) {
-        message = 'Debug logging is already active. Use the +60 min button to extend.';
+        message = 'Debug logging is already active. Use the Extend button to extend.';
       } else if (error.message.includes('Access token required')) {
         message = 'Please generate an access token first.';
       }
@@ -704,11 +747,11 @@ class DebugLogManagerUI {
     }
   }
 
-  async handleReduceDebug() {
-    if (!this.currentTraceFlag) return;
+  async handleReduceTraceFlag(traceFlagId) {
+    if (!traceFlagId) return;
     
     try {
-      const result = await this.reduceTraceFlag(this.currentTraceFlag.Id, this.DEFAULT_DURATION_MINUTES);
+      const result = await this.reduceTraceFlag(traceFlagId, this.DEFAULT_DURATION_MINUTES);
       this.renderTraceFlags();
       this.updateTimerDisplay();
       
@@ -904,41 +947,21 @@ class DebugLogManagerUI {
       }
     });
 
-    // Action buttons
+    // Enable Debug button
     const enableBtn = document.getElementById('enableDebugBtn');
-    if (enableBtn) {
-      enableBtn.addEventListener('click', () => this.handleEnableDebug());
-    }
-
-    const reduceBtn = document.getElementById('reduceDebugBtn');
-    if (reduceBtn) {
-      reduceBtn.addEventListener('click', () => this.handleReduceDebug());
-    }
-
-    const extendBtn = document.getElementById('extendDebugBtn');
-    if (extendBtn) {
-      extendBtn.addEventListener('click', () => this.handleExtendTraceFlag());
-    }
-
-    const disableBtn = document.getElementById('disableDebugBtn');
-    if (disableBtn) {
-      disableBtn.addEventListener('click', () => this.handleDisableDebug());
-    }
-
+    enableBtn?.addEventListener('click', () => this.handleEnableDebug());
+    
+    // Delete All Logs button
     const deleteAllBtn = document.getElementById('deleteAllLogsBtn');
-    if (deleteAllBtn) {
-      deleteAllBtn.addEventListener('click', () => this.handleDeleteAllLogs());
-    }
+    deleteAllBtn?.addEventListener('click', () => this.handleDeleteAllLogs());
 
+    // Refresh Debug Levels button
     const refreshLevelsBtn = document.getElementById('refreshDebugLevelsBtn');
-    if (refreshLevelsBtn) {
-      refreshLevelsBtn.addEventListener('click', () => this.handleRefreshDebugLevels());
-    }
+    refreshLevelsBtn?.addEventListener('click', () => this.handleRefreshDebugLevels());
 
+    // Refresh Trace Flags button
     const refreshFlagsBtn = document.getElementById('refreshTraceFlagsBtn');
-    if (refreshFlagsBtn) {
-      refreshFlagsBtn.addEventListener('click', () => this.handleRefreshTraceFlags());
-    }
+    refreshFlagsBtn?.addEventListener('click', () => this.handleRefreshTraceFlags());
 
     // User selection event listeners
     const currentUserRadio = document.getElementById('currentUserRadio');

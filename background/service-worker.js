@@ -656,15 +656,6 @@ async function handleMessage(request, sender, sendResponse) {
       case 'GET_SESSION':
         result = await handleGetSession(request, sender);
         break;
-      case 'START_DEBUG_MONITORING':
-        result = await handleStartDebugMonitoring(request, sender);
-        break;
-      case 'STOP_DEBUG_MONITORING':
-        result = await handleStopDebugMonitoring(request, sender);
-        break;
-      case 'GET_MONITORING_STATUS':
-        result = await handleGetMonitoringStatus(request, sender);
-        break;
       case 'GET_RECENT_LOGS':
         result = await handleGetRecentLogs(request, sender);
         break;
@@ -716,6 +707,10 @@ async function handleMessage(request, sender, sendResponse) {
       
       case 'ENSURE_TRACE_FLAG':
         result = await handleEnsureTraceFlag(request, sender);
+        break;
+      
+      case 'REVOKE_OAUTH_TOKEN':
+        result = await handleRevokeOAuthToken(request, sender);
         break;
       
       case 'SEARCH_USERS':
@@ -847,44 +842,6 @@ async function handleGetSession(request, sender) {
     return {
       success: false,
       error: error.message || 'Failed to get session'
-    };
-  }
-}
-
-async function handleStartDebugMonitoring(request, sender) {
-  try {
-    const { orgId, session, options } = request;
-    const result = await debugLogManager.startMonitoring(orgId, session, options);
-    return result;
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Failed to start monitoring'
-    };
-  }
-}
-
-async function handleStopDebugMonitoring(request, sender) {
-  try {
-    const { orgId } = request;
-    const result = await debugLogManager.stopMonitoring(orgId);
-    return result;
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Failed to stop monitoring'
-    };
-  }
-}
-
-async function handleGetMonitoringStatus(request, sender) {
-  try {
-    const status = debugLogManager.getMonitoringStatus();
-    return { success: true, data: status };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Failed to get monitoring status'
     };
   }
 }
@@ -1287,6 +1244,37 @@ async function handleSearchUsers(request, sender) {
       return { success: false, error: 'Access token required. Please generate an access token first.' };
     }
     return { success: false, error: error.message || 'Failed to search users' };
+  }
+}
+
+async function handleRevokeOAuthToken(request, sender) {
+  try {
+    const { sfHost } = request;
+    
+    // Determine storage keys to remove
+    const keysToRemove = ['sfOAuthToken']; // Always remove default token
+    
+    if (sfHost) {
+      const orgDomain = extractOrgDomain(sfHost);
+      const storageKey = getTokenStorageKey(orgDomain);
+      // Add org-specific key if different from default
+      if (storageKey !== 'sfOAuthToken') {
+        keysToRemove.push(storageKey);
+      }
+    }
+    
+    // Remove all token keys
+    await chrome.storage.local.remove(keysToRemove);
+    
+    return { 
+      success: true, 
+      message: 'Access token revoked successfully'
+    };
+  } catch (error) {
+    return { 
+      success: false, 
+      error: error.message || 'Failed to revoke token' 
+    };
   }
 }
 

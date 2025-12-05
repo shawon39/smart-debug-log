@@ -109,10 +109,6 @@ input:checked + .theme-slider-header:before {
   background: var(--status-dot-connected);
 }
 
-.status-dot.monitoring {
-  background: var(--status-dot-monitoring);
-}
-
 .status-dot.error {
   background: var(--status-dot-error);
 }
@@ -528,6 +524,16 @@ input:checked + .toggle-slider:hover {
   color: var(--text-button);
 }
 
+.header-btn.danger-btn {
+  background: var(--bg-button-header);
+  border: none;
+  color: var(--text-header);
+}
+
+.header-btn.danger-btn:hover {
+  background: var(--bg-button-header-hover);
+}
+
 @keyframes pulse {
   0%, 100% {
     opacity: 1;
@@ -535,5 +541,4 @@ input:checked + .toggle-slider:hover {
   50% {
     opacity: 0.5;
   }
-}
 }

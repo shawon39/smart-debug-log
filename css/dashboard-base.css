@@ -132,7 +132,7 @@ body {
   gap: 15px;
 }
 
-.polling-section {
+.right-controls {
   display: flex;
   align-items: center;
   gap: 15px;
@@ -160,19 +160,6 @@ body {
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: all 0.3s ease;
-}
-
-.stats {
-  display: flex;
-  gap: 10px;
-  font-size: 11px;
-  min-width: 180px;
-}
-
-.stat {
-  color: var(--text-status);
-  font-weight: 500;
-  transition: color 0.3s ease;
 }
 
 /* Main Content - 3 Column Layout */
@@ -302,9 +289,4 @@ body {
 
 .hidden {
   display: none !important;
-}
-
-.polling-section .stats.hidden {
-  visibility: hidden;
-  display: flex !important;
 }

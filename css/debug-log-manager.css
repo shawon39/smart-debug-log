@@ -431,6 +431,40 @@
   cursor: not-allowed;
 }
 
+/* Debug Create Controls */
+.debug-create-controls {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  align-items: center;
+}
+
+.duration-select {
+  padding: 7px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 100px;
+}
+
+.duration-select:hover {
+  border-color: var(--bg-button);
+}
+
+.duration-select:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+}
+
+.debug-create-controls .button.primary {
+  flex: 1;
+}
+
 /* Trace Flags Section */
 .trace-flags-section {
   background: var(--bg-secondary);

@@ -296,47 +296,115 @@
         <div class="section-header">
           <label for="debugLevelSelect">Debug Level:</label>
           <select id="debugLevelSelect" class="debug-level-dropdown">
-            <option value="">Loading...</option>
+            <option value="">Select Debug Level...</option>
           </select>
-          <button class="button secondary" id="refreshDebugLevelsBtn" title="Refresh debug levels">↻</button>
+          <button class="button primary" id="createDebugLevelBtn" title="Create new debug level">New Debug Level</button>
+        </div>
+        
+        <!-- Create Debug Level Form (Initially Hidden) -->
+        <div class="create-debug-level-form hidden" id="createDebugLevelForm">
+          <div class="form-header">
+            <span class="form-title">Create New Debug Level</span>
+            <button class="form-close-btn" id="closeCreateFormBtn" title="Close form">×</button>
+          </div>
+          
+          <div class="form-row">
+            <label for="debugLevelLabel">Label: <span class="required">*</span></label>
+            <input type="text" id="debugLevelLabel" class="form-input" placeholder="My Debug Level" maxlength="40" />
+            <span class="input-hint">User-friendly name for this debug level</span>
+          </div>
+          
+          <div class="form-row">
+            <label for="debugLevelApiName">API Name: <span class="required">*</span></label>
+            <input type="text" id="debugLevelApiName" class="form-input" placeholder="My_Debug_Level" maxlength="40" pattern="^[A-Za-z][A-Za-z0-9_]*$" />
+            <span class="input-hint">Auto-generated from label. Must start with letter, only letters, numbers, and underscores.</span>
+          </div>
+          
+          <div class="form-grid">
+            <div class="form-field">
+              <label for="apexCodeLevel">ApexCode:</label>
+              <select id="apexCodeLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="apexProfilingLevel">ApexProfiling:</label>
+              <select id="apexProfilingLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="databaseLevel">Database:</label>
+              <select id="databaseLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="systemLevel">System:</label>
+              <select id="systemLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="workflowLevel">Workflow:</label>
+              <select id="workflowLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="validationLevel">Validation:</label>
+              <select id="validationLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="calloutLevel">Callout:</label>
+              <select id="calloutLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+            
+            <div class="form-field">
+              <label for="visualforceLevel">Visualforce:</label>
+              <select id="visualforceLevel" class="form-select">
+                <option value="">Loading...</option>
+              </select>
+            </div>
+          </div>
+          
+          <div class="form-actions">
+            <button class="button secondary" id="cancelCreateDebugLevelBtn">Cancel</button>
+            <button class="button primary" id="submitCreateDebugLevelBtn">Create Debug Level</button>
+          </div>
         </div>
       </div>
       
-      <!-- Status and Timer Section -->
-      <div class="debug-status-section">
-        <div class="status-display">
-          <div class="status-indicator">
-            <span class="status-dot" id="debugStatusDot"></span>
-            <span class="status-text" id="debugStatusText">Inactive</span>
-          </div>
-          <div class="timer-display" id="timerDisplay">
-            <span class="timer-label">Expires in:</span>
-            <span class="timer-value" id="timerValue">--:--</span>
-          </div>
-        </div>
-        <div class="debug-actions" id="debugActions">
-          <!-- Inactive state: Enable button with duration selector -->
-          <div class="actions-inactive" id="actionsInactive">
-            <div class="debug-create-controls">
-              <select id="debugDurationSelect" class="duration-select">
-                <option value="60">1 Hour</option>
-                <option value="120">2 Hours</option>
-                <option value="180">3 Hours</option>
-                <option value="240">4 Hours</option>
-                <option value="300">5 Hours</option>
-                <option value="360">6 Hours</option>
-                <option value="420">7 Hours</option>
-                <option value="480">8 Hours</option>
-                <option value="540">9 Hours</option>
-                <option value="600">10 Hours</option>
-                <option value="720">12 Hours</option>
-                <option value="960">16 Hours</option>
-                <option value="1200">20 Hours</option>
-                <option value="1440">24 Hours</option>
-              </select>
-              <button class="button primary" id="enableDebugBtn">Create Debug Log</button>
-            </div>
-          </div>
+      <!-- Create Debug Log Section -->
+      <div class="debug-create-section">
+        <div class="debug-create-controls">
+          <select id="debugDurationSelect" class="duration-select">
+            <option value="60">1 Hour</option>
+            <option value="120">2 Hours</option>
+            <option value="180">3 Hours</option>
+            <option value="240">4 Hours</option>
+            <option value="300">5 Hours</option>
+            <option value="360">6 Hours</option>
+            <option value="420">7 Hours</option>
+            <option value="480">8 Hours</option>
+            <option value="540">9 Hours</option>
+            <option value="600">10 Hours</option>
+            <option value="720">12 Hours</option>
+            <option value="960">16 Hours</option>
+            <option value="1200">20 Hours</option>
+            <option value="1440">24 Hours</option>
+          </select>
+          <button class="button primary" id="enableDebugBtn">Create Debug Log</button>
         </div>
       </div>
       
@@ -344,9 +412,6 @@
       <div class="trace-flags-section">
         <div class="section-header">
           <div class="section-title">Trace Flags</div>
-          <div class="section-actions">
-            <button class="button secondary" id="refreshTraceFlagsBtn" title="Refresh trace flags">↻ Refresh</button>
-          </div>
         </div>
         <div class="trace-flags-list" id="traceFlagsList">
           <div class="loading-state">Loading trace flags...</div>
@@ -384,6 +449,7 @@
 <script src="js/apex-storage-service.js"></script>
 <script src="js/apex-code-manager.js"></script>
 <script src="js/apex-executor.js"></script>
+<script src="js/debug-level-creator.js"></script>
 <script src="js/debug-log-manager-ui.js"></script>
 <script src="js/dashboard-connection.js"></script>
 <script src="js/dashboard-monitoring.js"></script>

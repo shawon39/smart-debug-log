@@ -4,7 +4,9 @@ import sessionManager from './session-manager.js';
 const debugLogManager = new DebugLogManager();
 
 // OAuth Configuration
-const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
+//const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
+const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2CKKjz0rft6yvoueOIdkjyYyOCS1zj3EzVIKrc5Y25ekBWEZ4omoLZ8T8t79';
+
 
 // Helper to extract org domain from instanceUrl or sfHost
 function extractOrgDomain(urlOrHost) {
@@ -433,6 +435,30 @@ async function directToolingDelete(sobjectType, recordId, sfHost = null) {
   return { success: true };
 }
 
+async function directToolingDescribe(sobjectType, sfHost = null) {
+  const token = await getStoredOAuthToken(sfHost);
+  if (!token) {
+    throw new Error('NO_OAUTH_TOKEN');
+  }
+  
+  const url = `${token.instanceUrl}/services/data/${API_VERSION}/tooling/sobjects/${sobjectType}/describe/`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token.accessToken}`,
+      'Accept': 'application/json'
+    }
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Tooling describe failed: ${response.status} - ${errorText}`);
+  }
+  
+  return response.json();
+}
+
 async function directGetLogBody(logId, sfHost = null) {
   const token = await getStoredOAuthToken(sfHost);
   if (!token) {
@@ -673,6 +699,9 @@ async function handleMessage(request, sender, sendResponse) {
         break;
       case 'TOOLING_DELETE':
         result = await handleToolingDelete(request, sender);
+        break;
+      case 'TOOLING_DESCRIBE':
+        result = await handleToolingDescribe(request, sender);
         break;
       case 'DOWNLOAD_LOG':
         result = await handleDownloadLog(request, sender);
@@ -962,6 +991,24 @@ async function handleToolingDelete(request, sender) {
       return { success: false, error: 'Access token required. Please generate an access token first.' };
     }
     return { success: false, error: error.message || 'Failed to delete record via Tooling API' };
+  }
+}
+
+async function handleToolingDescribe(request, sender) {
+  try {
+    const { sobjectType, sfHost } = request;
+    
+    if (!sobjectType) {
+      return { success: false, message: 'SObject type is required' };
+    }
+
+    const result = await directToolingDescribe(sobjectType, sfHost);
+    return { success: true, data: result };
+  } catch (error) {
+    if (error.message === 'NO_OAUTH_TOKEN') {
+      return { success: false, error: 'Access token required. Please generate an access token first.' };
+    }
+    return { success: false, error: error.message || 'Failed to describe SObject via Tooling API' };
   }
 }
 

@@ -16,6 +16,8 @@ class DebugLogManagerUI {
     this.selectedUserName = null;
     this.useOtherUser = false;
     this.searchTimeout = null;
+    // Debug Level Creator
+    this.debugLevelCreator = null;
   }
 
   async initialize(session) {
@@ -235,7 +237,6 @@ class DebugLogManagerUI {
     await this.listTraceFlags();
     this.currentTraceFlag = this.traceFlags.find(tf => tf.TracedEntityId === this.selectedUserId);
     this.renderTraceFlags();
-    this.updateTimerDisplay();
   }
 
   getTargetUserId() {
@@ -429,8 +430,7 @@ class DebugLogManagerUI {
   // Timer Methods
   startTimer() {
     this.stopTimer();
-    this.updateTimerDisplay();
-    this.timerInterval = setInterval(() => this.updateTimerDisplay(), 1000);
+    this.timerInterval = setInterval(() => this.renderTraceFlags(), 1000);
   }
 
   stopTimer() {
@@ -440,82 +440,15 @@ class DebugLogManagerUI {
     }
   }
 
-  updateTimerDisplay() {
-    const timerValue = document.getElementById('timerValue');
-    const statusDot = document.getElementById('debugStatusDot');
-    const statusText = document.getElementById('debugStatusText');
-    const actionsInactive = document.getElementById('actionsInactive');
-    
-    if (!this.currentTraceFlag) {
-      timerValue.textContent = '--:--';
-      timerValue.classList.remove('warning', 'critical');
-      statusDot.classList.remove('active', 'expired');
-      statusDot.classList.add('inactive');
-      statusText.textContent = 'Inactive';
-      // Show enable button
-      actionsInactive?.classList.remove('hidden');
-      return;
-    }
-    
-    // Hide enable button when trace flag is active
-    actionsInactive?.classList.add('hidden');
-    
-    const now = new Date();
-    const expiration = new Date(this.currentTraceFlag.ExpirationDate);
-    const remainingMs = expiration - now;
-    
-    if (remainingMs <= 0) {
-      timerValue.textContent = 'Expired';
-      timerValue.classList.remove('warning');
-      timerValue.classList.add('critical');
-      statusDot.classList.remove('active', 'inactive');
-      statusDot.classList.add('expired');
-      statusText.textContent = 'Expired';
-      return;
-    }
-    
-    // Calculate remaining time
-    const totalMinutes = Math.floor(remainingMs / 60000);
-    const seconds = Math.floor((remainingMs % 60000) / 1000);
-    
-    // Format display based on duration
-    if (totalMinutes >= 60) {
-      // Show hours and minutes format
-      const hours = Math.floor(totalMinutes / 60);
-      const minutes = totalMinutes % 60;
-      if (minutes === 0) {
-        timerValue.textContent = `${hours}h`;
-      } else {
-        timerValue.textContent = `${hours}h ${minutes}m`;
-      }
-    } else {
-      // Show MM:SS format for < 60 minutes
-      timerValue.textContent = `${totalMinutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-    }
-    
-    // Update status
-    statusDot.classList.remove('inactive', 'expired');
-    statusDot.classList.add('active');
-    statusText.textContent = 'Active';
-    
-    // Color coding for remaining time
-    timerValue.classList.remove('warning', 'critical');
-    if (totalMinutes < 5) {
-      timerValue.classList.add('critical');
-    } else if (totalMinutes < 15) {
-      timerValue.classList.add('warning');
-    }
-  }
-
   // UI Rendering Methods
   renderDebugLevels() {
     const select = document.getElementById('debugLevelSelect');
     if (!select) return;
     
-    select.innerHTML = '';
+    // Clear existing options except the placeholder
+    select.innerHTML = '<option value="">Select Debug Level...</option>';
     
     if (this.debugLevels.length === 0) {
-      select.innerHTML = '<option value="">No debug levels found</option>';
       return;
     }
     
@@ -523,16 +456,10 @@ class DebugLogManagerUI {
       const option = document.createElement('option');
       option.value = level.Id;
       option.textContent = level.MasterLabel || level.DeveloperName;
-      
-      // Pre-select SFDC_DevConsole or current trace flag's level
-      if (this.currentTraceFlag && level.Id === this.currentTraceFlag.DebugLevelId) {
-        option.selected = true;
-      } else if (!this.currentTraceFlag && level.DeveloperName === 'SFDC_DevConsole') {
-        option.selected = true;
-      }
-      
       select.appendChild(option);
     });
+    
+    // Do not auto-select anything - leave it empty
   }
 
   renderTraceFlags() {
@@ -573,10 +500,12 @@ class DebugLogManagerUI {
       
       let expiresClass = '';
       let expiresText = '';
+      let statusIndicator = '';
       
       if (isExpired) {
         expiresClass = 'expired';
         expiresText = 'Expired';
+        statusIndicator = '<span class="trace-status-dot expired" title="Expired"></span>';
       } else if (expiresInMinutes >= 60) {
         // Show hours and minutes format
         const hours = Math.floor(expiresInMinutes / 60);
@@ -589,11 +518,14 @@ class DebugLogManagerUI {
         if (expiresInMinutes < 300) { // Less than 5 hours
           expiresClass = 'expiring-soon';
         }
+        statusIndicator = '<span class="trace-status-dot active" title="Active"></span>';
       } else if (expiresInMinutes < 5) {
         expiresClass = 'expiring-soon';
         expiresText = `${expiresInMinutes} min left`;
+        statusIndicator = '<span class="trace-status-dot active" title="Active"></span>';
       } else {
         expiresText = `${expiresInMinutes} min left`;
+        statusIndicator = '<span class="trace-status-dot active" title="Active"></span>';
       }
       
       const userName = tf.TracedEntity?.Name || 'Unknown User';
@@ -610,6 +542,7 @@ class DebugLogManagerUI {
       item.innerHTML = `
         <div class="trace-flag-info">
           <div class="trace-flag-user">
+            ${statusIndicator}
             ${this.escapeHtml(userName)}
             ${badge}
           </div>
@@ -739,7 +672,6 @@ class DebugLogManagerUI {
     try {
       await this.extendTraceFlag(traceFlagId || this.currentTraceFlag?.Id, this.DEFAULT_DURATION_MINUTES);
       this.renderTraceFlags();
-      this.updateTimerDisplay();
       this.showNotification('Extended by 60 minutes', 'success');
     } catch (error) {
       console.error('Failed to extend trace flag:', error);
@@ -753,7 +685,6 @@ class DebugLogManagerUI {
     try {
       const result = await this.reduceTraceFlag(traceFlagId, this.DEFAULT_DURATION_MINUTES);
       this.renderTraceFlags();
-      this.updateTimerDisplay();
       
       if (result && result.disabled) {
         this.showNotification('Debug logging disabled (time reduced to 0)', 'info');
@@ -774,7 +705,6 @@ class DebugLogManagerUI {
     try {
       await this.deleteTraceFlag(traceFlagId);
       this.renderTraceFlags();
-      this.updateTimerDisplay();
     } catch (error) {
       console.error('Failed to delete trace flag:', error);
       alert('Failed to delete: ' + error.message);
@@ -791,7 +721,6 @@ class DebugLogManagerUI {
     try {
       await this.deleteTraceFlag(this.currentTraceFlag.Id);
       this.renderTraceFlags();
-      this.updateTimerDisplay();
     } catch (error) {
       console.error('Failed to disable debug:', error);
       alert('Failed to disable: ' + error.message);
@@ -855,38 +784,6 @@ class DebugLogManagerUI {
     }
   }
 
-  async handleRefreshDebugLevels() {
-    const btn = document.getElementById('refreshDebugLevelsBtn');
-    try {
-      btn.disabled = true;
-      await this.listDebugLevels();
-      this.renderDebugLevels();
-    } catch (error) {
-      console.error('Failed to refresh debug levels:', error);
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
-  async handleRefreshTraceFlags() {
-    const btn = document.getElementById('refreshTraceFlagsBtn');
-    const container = document.getElementById('traceFlagsList');
-    
-    try {
-      btn.disabled = true;
-      container.innerHTML = '<div class="loading-state">Loading trace flags...</div>';
-      
-      await this.listTraceFlags();
-      this.renderTraceFlags();
-      this.updateTimerDisplay();
-    } catch (error) {
-      console.error('Failed to refresh trace flags:', error);
-      container.innerHTML = '<div class="empty-state">Failed to load trace flags</div>';
-    } finally {
-      btn.disabled = false;
-    }
-  }
-
   // Modal Methods
   async openModal() {
     const modal = document.getElementById('debugLogManagerModal');
@@ -897,6 +794,12 @@ class DebugLogManagerUI {
     // Load user info if not already loaded
     if (!this.userId) {
       await this.loadUserInfo();
+    }
+    
+    // Initialize Debug Level Creator if not already initialized
+    if (!this.debugLevelCreator && window.DebugLevelCreator) {
+      this.debugLevelCreator = new window.DebugLevelCreator(this);
+      this.debugLevelCreator.setupEventListeners();
     }
     
     // Load data
@@ -954,14 +857,6 @@ class DebugLogManagerUI {
     // Delete All Logs button
     const deleteAllBtn = document.getElementById('deleteAllLogsBtn');
     deleteAllBtn?.addEventListener('click', () => this.handleDeleteAllLogs());
-
-    // Refresh Debug Levels button
-    const refreshLevelsBtn = document.getElementById('refreshDebugLevelsBtn');
-    refreshLevelsBtn?.addEventListener('click', () => this.handleRefreshDebugLevels());
-
-    // Refresh Trace Flags button
-    const refreshFlagsBtn = document.getElementById('refreshTraceFlagsBtn');
-    refreshFlagsBtn?.addEventListener('click', () => this.handleRefreshTraceFlags());
 
     // User selection event listeners
     const currentUserRadio = document.getElementById('currentUserRadio');

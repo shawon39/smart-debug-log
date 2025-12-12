@@ -278,168 +278,29 @@
   box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
 }
 
-#refreshDebugLevelsBtn {
-  padding: 5px 8px;
+#createDebugLevelBtn {
+  padding: 5px 12px;
   font-size: 11px;
   min-width: auto;
+  white-space: nowrap;
 }
 
-/* Status and Timer Section */
-.debug-status-section {
+/* Create Debug Log Section */
+.debug-create-section {
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
-  padding: 12px;
+  padding: 10px 12px;
 }
 
-.status-display {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.status-indicator {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.debug-status-section .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--text-secondary);
-  transition: all 0.3s ease;
-}
-
-.debug-status-section .status-dot.active {
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
-}
-
-.debug-status-section .status-dot.expired {
-  background: #ef4444;
-}
-
-.debug-status-section .status-dot.inactive {
-  background: var(--text-secondary);
-  opacity: 0.5;
-}
-
-.status-text {
-  font-weight: 600;
-  font-size: 12px;
-  color: var(--text-primary);
-}
-
-.timer-display {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: var(--bg-primary);
-  padding: 6px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border-primary);
-}
-
-.timer-label {
-  font-size: 10px;
-  color: var(--text-secondary);
-}
-
-.timer-value {
-  font-family: 'Monaco', 'Menlo', 'SF Mono', monospace;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-primary);
-  min-width: 50px;
-  text-align: center;
-}
-
-.timer-value.warning {
-  color: #f59e0b;
-}
-
-.timer-value.critical {
-  color: #ef4444;
-}
-
-/* Debug Action Buttons */
-.debug-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.actions-inactive,
-.actions-active {
-  display: flex;
-  gap: 8px;
-  width: 100%;
-}
-
-.actions-inactive.hidden,
-.actions-active.hidden {
-  display: none;
-}
-
-.debug-actions .button {
-  flex: 1;
-  padding: 7px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  min-height: auto;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.debug-actions .button.primary {
-  background: var(--bg-button);
-  color: var(--text-button);
-  border: none;
-}
-
-.debug-actions .button.primary:hover {
-  opacity: 0.9;
-}
-
-.debug-actions .button.secondary {
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  border: 1px solid var(--border-secondary);
-}
-
-.debug-actions .button.secondary:hover {
-  background: var(--bg-log-item-hover);
-  border-color: var(--bg-button);
-}
-
-.debug-actions .button.danger {
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.debug-actions .button.danger:hover {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: #ef4444;
-}
-
-.debug-actions .button:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* Debug Create Controls */
-.debug-create-controls {
+.debug-create-section .debug-create-controls {
   display: flex;
   gap: 8px;
   width: 100%;
   align-items: center;
 }
 
-.duration-select {
+.debug-create-section .duration-select {
   padding: 7px 10px;
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
@@ -451,18 +312,211 @@
   min-width: 100px;
 }
 
-.duration-select:hover {
+.debug-create-section .duration-select:hover {
   border-color: var(--bg-button);
 }
 
-.duration-select:focus {
+.debug-create-section .duration-select:focus {
   outline: none;
   border-color: var(--bg-button);
   box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
 }
 
-.debug-create-controls .button.primary {
+.debug-create-section .button.primary {
   flex: 1;
+  padding: 7px 12px;
+  font-size: 11px;
+}
+
+/* Create Debug Level Form */
+.create-debug-level-form {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-secondary);
+  border-radius: 6px;
+  animation: slideDown 0.2s ease;
+}
+
+.create-debug-level-form.hidden {
+  display: none;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.create-debug-level-form .form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.create-debug-level-form .form-title {
+  font-weight: 600;
+  font-size: 12px;
+  color: var(--text-primary);
+}
+
+.create-debug-level-form .form-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 3px;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.create-debug-level-form .form-close-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.create-debug-level-form .form-row {
+  margin-bottom: 12px;
+}
+
+.create-debug-level-form .form-row label {
+  display: block;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.create-debug-level-form .required {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+.create-debug-level-form .form-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.create-debug-level-form .form-input:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+}
+
+.create-debug-level-form .form-input.invalid {
+  border-color: #ef4444;
+}
+
+.create-debug-level-form .form-input.invalid:focus {
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.15);
+}
+
+.create-debug-level-form .input-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  opacity: 0.8;
+}
+
+.create-debug-level-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.create-debug-level-form .form-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.create-debug-level-form .form-field label {
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.create-debug-level-form .form-select {
+  padding: 6px 8px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.create-debug-level-form .form-select:hover {
+  border-color: var(--bg-button);
+}
+
+.create-debug-level-form .form-select:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+}
+
+.create-debug-level-form .form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
+}
+
+.create-debug-level-form .form-actions .button {
+  padding: 6px 16px;
+  font-size: 11px;
+  min-height: auto;
+}
+
+.create-debug-level-form .form-actions .button.primary {
+  background: var(--bg-button);
+  color: var(--text-button);
+  border: none;
+}
+
+.create-debug-level-form .form-actions .button.primary:hover {
+  opacity: 0.9;
+}
+
+.create-debug-level-form .form-actions .button.secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-secondary);
+}
+
+.create-debug-level-form .form-actions .button.secondary:hover {
+  background: var(--bg-log-item-hover);
+  border-color: var(--bg-button);
+}
+
+.create-debug-level-form .form-actions .button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Trace Flags Section */
@@ -557,6 +611,24 @@
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.trace-flag-user .trace-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.trace-flag-user .trace-status-dot.active {
+  background: #22c55e;
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.trace-flag-user .trace-status-dot.expired {
+  background: #ef4444;
+  opacity: 0.5;
 }
 
 .trace-flag-user .current-badge {
@@ -718,5 +790,20 @@
     flex-direction: column;
     gap: 8px;
     text-align: center;
+  }
+  
+  /* Create Debug Level Form Responsive */
+  .create-debug-level-form .form-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  
+  .debug-level-section .section-header {
+    flex-wrap: wrap;
+  }
+  
+  #createDebugLevelBtn {
+    width: 100%;
+    margin-top: 6px;
   }
 }

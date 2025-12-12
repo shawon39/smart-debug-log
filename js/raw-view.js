@@ -6,6 +6,10 @@ let isRawView = false;
 let searchMatches = [];
 let currentMatchIndex = -1;
 let searchTerm = '';
+let searchDebounceTimer = null;
+const SEARCH_DEBOUNCE_DELAY = 300; // milliseconds
+const SEARCH_MIN_CHARS = 2;
+const SEARCH_MAX_MATCHES = 500; // Maximum number of matches to prevent performance issues
 
 // Initialize view preference from storage
 async function initializeViewPreference() {
@@ -220,10 +224,38 @@ function setupSearchListeners() {
 
 function handleSearchInput(event) {
   const query = event.target.value.trim();
-  if (query !== searchTerm) {
-    searchTerm = query;
-    performSearch(query);
+  
+  // Clear any existing debounce timer
+  if (searchDebounceTimer) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = null;
   }
+  
+  // Check minimum character requirement
+  if (query.length > 0 && query.length < SEARCH_MIN_CHARS) {
+    // Show hint that minimum characters are required
+    updateSearchInfo(0, 0, `Type at least ${SEARCH_MIN_CHARS} characters to search`);
+    
+    // Clear any existing search highlights
+    if (searchTerm !== '') {
+      searchTerm = '';
+      searchMatches = [];
+      currentMatchIndex = -1;
+      const rawContainer = elements.debugContent?.querySelector('.raw-response-container');
+      if (rawContainer && isRawView && currentRawResponse) {
+        displayRawResponseWithoutSearch(rawContainer, currentRawResponse);
+      }
+    }
+    return;
+  }
+  
+  // Debounce the search to avoid performance issues with large logs
+  searchDebounceTimer = setTimeout(() => {
+    if (query !== searchTerm) {
+      searchTerm = query;
+      performSearch(query);
+    }
+  }, SEARCH_DEBOUNCE_DELAY);
 }
 
 function handleSearchKeydown(event) {
@@ -272,17 +304,29 @@ function performSearch(query) {
     const searchTerm = query.toLowerCase();
     const textToSearch = originalText.toLowerCase();
     const matches = [];
+    let totalMatchCount = 0;
+    let limitReached = false;
     
-    // Find all occurrences of the exact search term
+    // Find occurrences up to the maximum limit for performance
     let startIndex = 0;
     let foundIndex = textToSearch.indexOf(searchTerm, startIndex);
     
     while (foundIndex !== -1) {
-      matches.push({
-        index: foundIndex,
-        length: query.length,
-        text: originalText.substring(foundIndex, foundIndex + query.length)
-      });
+      totalMatchCount++;
+      
+      // Only store matches up to the limit to prevent performance issues
+      if (matches.length < SEARCH_MAX_MATCHES) {
+        matches.push({
+          index: foundIndex,
+          length: query.length,
+          text: originalText.substring(foundIndex, foundIndex + query.length)
+        });
+      } else if (!limitReached) {
+        limitReached = true;
+        // Stop searching after we've hit the limit to save time
+        break;
+      }
+      
       startIndex = foundIndex + 1;
       foundIndex = textToSearch.indexOf(searchTerm, startIndex);
     }
@@ -294,12 +338,18 @@ function performSearch(query) {
       currentMatchIndex = 0;
       highlightCurrentMatch();
       scrollToCurrentMatch();
+      
+      // Show info with limit warning if applicable
+      if (limitReached) {
+        updateSearchInfo(matches.length, 1, `1/${matches.length} (limited to first ${SEARCH_MAX_MATCHES} for performance)`);
+      } else {
+        updateSearchInfo(matches.length, 1);
+      }
     } else {
       // No matches found, re-display without highlights
       displayRawResponseWithoutSearch(rawContainer, originalText);
+      updateSearchInfo(0, 0);
     }
-    
-    updateSearchInfo(matches.length, matches.length > 0 ? 1 : 0);
     
   } catch (error) {
     console.error('Search error:', error);
@@ -308,22 +358,31 @@ function performSearch(query) {
 }
 
 function applyCleanSearchHighlighting(container, originalText, matches) {
-  // Simple approach: Build text with search highlights first, then apply syntax highlighting
+  // For very large texts, use a more efficient approach
+  const isLargeText = originalText.length > 100000; // 100KB threshold
+  
+  if (isLargeText) {
+    // For large texts, skip syntax highlighting and just add search highlights
+    applyFastSearchHighlighting(container, originalText, matches);
+    return;
+  }
+  
+  // For smaller texts, use the full highlighting approach
   let textWithHighlights = originalText;
   
   // Sort matches by index in reverse order to avoid index shifting during replacement
   const sortedMatches = [...matches].sort((a, b) => b.index - a.index);
   
-  // Insert search highlight markers (we'll use placeholder tokens that won't interfere with syntax highlighting)
+  // Insert search highlight markers using simpler, consistent markers
   sortedMatches.forEach((match, reverseIndex) => {
     const matchIndex = matches.length - 1 - reverseIndex;
     const beforeText = textWithHighlights.substring(0, match.index);
     const matchText = textWithHighlights.substring(match.index, match.index + match.length);
     const afterText = textWithHighlights.substring(match.index + match.length);
     
-    // Use unique markers that won't conflict with any possible debug content
-    const startMarker = `SEARCH_HIGHLIGHT_START_${matchIndex}_${Date.now()}_MARKER`;
-    const endMarker = `SEARCH_HIGHLIGHT_END_${matchIndex}_${Date.now()}_MARKER`;
+    // Use simpler markers without timestamp for better performance
+    const startMarker = `§§SEARCH_START_${matchIndex}§§`;
+    const endMarker = `§§SEARCH_END_${matchIndex}§§`;
     
     textWithHighlights = beforeText + startMarker + matchText + endMarker + afterText;
   });
@@ -340,34 +399,59 @@ function applyCleanSearchHighlighting(container, originalText, matches) {
     syntaxHighlightedContent = escapeHtml(textWithHighlights);
   }
   
-  // Replace markers with actual search highlight spans
+  // Replace markers with actual search highlight spans - use faster replaceAll
   let finalContent = syntaxHighlightedContent;
   
-  // Replace markers dynamically by extracting timestamp from each marker
   for (let i = 0; i < matches.length; i++) {
-    // Find the actual markers in the content (they may have different timestamps)
-    const startMarkerRegex = new RegExp(`SEARCH_HIGHLIGHT_START_${i}_(\\d+)_MARKER`);
-    const endMarkerRegex = new RegExp(`SEARCH_HIGHLIGHT_END_${i}_(\\d+)_MARKER`);
+    const startMarker = `§§SEARCH_START_${i}§§`;
+    const endMarker = `§§SEARCH_END_${i}§§`;
+    const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
+    const endSpan = `</span>`;
     
-    const startMatch = finalContent.match(startMarkerRegex);
-    const endMatch = finalContent.match(endMarkerRegex);
-    
-    if (startMatch && endMatch) {
-      const startMarker = startMatch[0];
-      const endMarker = endMatch[0];
-      const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
-      const endSpan = `</span>`;
-      
-      finalContent = finalContent.replace(startMarker, startSpan).replace(endMarker, endSpan);
-    }
+    finalContent = finalContent.replace(startMarker, startSpan).replace(endMarker, endSpan);
   }
   
-  // Fallback: Clean up any remaining search markers that weren't replaced
-  finalContent = finalContent.replace(/SEARCH_HIGHLIGHT_START_\d+_\d+_MARKER/g, '');
-  finalContent = finalContent.replace(/SEARCH_HIGHLIGHT_END_\d+_\d+_MARKER/g, '');
+  // Fallback: Clean up any remaining markers
+  finalContent = finalContent.replace(/§§SEARCH_(START|END)_\d+§§/g, '');
   
   // Update the container
   container.innerHTML = finalContent;
+}
+
+// Fast search highlighting for large texts (skips syntax highlighting)
+function applyFastSearchHighlighting(container, originalText, matches) {
+  // Escape HTML first
+  let escapedText = escapeHtml(originalText);
+  
+  // Build an array of text segments with highlights
+  const segments = [];
+  let lastIndex = 0;
+  
+  // Sort matches by index
+  const sortedMatches = [...matches].sort((a, b) => a.index - b.index);
+  
+  for (let i = 0; i < sortedMatches.length; i++) {
+    const match = sortedMatches[i];
+    
+    // Add text before this match
+    if (match.index > lastIndex) {
+      segments.push(originalText.substring(lastIndex, match.index));
+    }
+    
+    // Add the highlighted match
+    const matchText = originalText.substring(match.index, match.index + match.length);
+    segments.push(`<span class="search-highlight" data-match-index="${i}">${escapeHtml(matchText)}</span>`);
+    
+    lastIndex = match.index + match.length;
+  }
+  
+  // Add remaining text after last match
+  if (lastIndex < originalText.length) {
+    segments.push(originalText.substring(lastIndex));
+  }
+  
+  // Join segments and update container
+  container.innerHTML = segments.join('');
 }
 
 function displayRawResponseWithoutSearch(container, originalText) {
@@ -442,11 +526,13 @@ function clearSearch() {
   }
 }
 
-function updateSearchInfo(totalMatches, currentMatch) {
+function updateSearchInfo(totalMatches, currentMatch, customMessage = null) {
   const { searchResultsInfo, searchPrevBtn, searchNextBtn } = elements;
   
   if (searchResultsInfo) {
-    if (totalMatches === 0) {
+    if (customMessage) {
+      searchResultsInfo.textContent = customMessage;
+    } else if (totalMatches === 0) {
       searchResultsInfo.textContent = searchTerm ? 'No matches' : '0 matches';
     } else {
       searchResultsInfo.textContent = `${currentMatch}/${totalMatches}`;

@@ -313,6 +313,8 @@ function containsSalesforceObjects(text) {
     /\{\s*"[^"]*"\s*:/.test(decodedText) ||
     // Multi-line JSON starting with { or [
     /^\s*[\{\[][\s\S]*[\}\]]\s*$/.test(decodedText.trim()) ||
+    // JSON serialized string: "some text" (starts and ends with quotes, entire content)
+    /^"[^"]*"$/.test(decodedText.trim()) ||
     // Salesforce collections in parentheses: (Account:{...}, Contact:{...})
     /\([^)]*\w+:\{[^}]*=/.test(decodedText) ||
     // Complex nested collections: Bookmarks=(Bookmark:[...], Bookmark:[...])

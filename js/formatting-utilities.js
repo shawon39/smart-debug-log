@@ -178,32 +178,57 @@ function extractAndParseSalesforceObjects(text) {
     let parsed;
     let jsonString;
     
-    // Remove surrounding quotes if present
-    if (objectPart.startsWith('"') && objectPart.endsWith('"')) {
-      objectPart = objectPart.slice(1, -1);
+    // First, try to parse the entire objectPart as JSON (including potential quoted strings)
+    let tryJsonFirst = false;
+    let originalObjectPart = objectPart;
+    
+    // Check if it looks like JSON (starts with {, [, or ")
+    if (objectPart.trim().startsWith('{') || objectPart.trim().startsWith('[') || objectPart.trim().startsWith('"')) {
+      tryJsonFirst = true;
     }
     
-    // Check if it's already valid JSON (from JSON.serialize/serializePretty)
-    if (objectPart.trim().startsWith('{') || objectPart.trim().startsWith('[')) {
+    if (tryJsonFirst) {
       try {
         parsed = JSON.parse(objectPart);
+        
+        // Check if parsed result is a simple string (not object/array)
+        if (typeof parsed === 'string') {
+          // Return the plain string without JSON quotes
+          const escapedString = escapeHtml(parsed);
+          if (prefix.trim()) {
+            const escapedPrefix = escapeHtml(prefix.trim());
+            return `<span class="content-prefix">${escapedPrefix}</span>\n${escapedString}`;
+          } else {
+            return escapedString;
+          }
+        }
+        
+        // For objects and arrays, format as JSON
         jsonString = JSON.stringify(parsed, null, 2);
       } catch (jsonError) {
-        // If JSON parsing fails, try Salesforce notation parsing
-        if (objectPart.trim().startsWith('[') && objectPart.trim().endsWith(']')) {
-          // Handle quoted array content: [key=value, key=value]
-          const arrayContent = objectPart.slice(1, -1); // Remove [ and ]
-          parsed = parseComplexContent(arrayContent);
-          jsonString = JSON.stringify(parsed, null, 2);
-        } else {
-          parsed = parseSalesforceObjectNotation(objectPart);
-          jsonString = JSON.stringify(parsed, null, 2);
-        }
+        // JSON parsing failed, continue with other parsing methods
+        tryJsonFirst = false;
       }
-    } else {
-      // Try to parse as Salesforce object notation
-      parsed = parseSalesforceObjectNotation(objectPart);
-      jsonString = JSON.stringify(parsed, null, 2);
+    }
+    
+    // If we haven't successfully parsed as JSON yet, try other methods
+    if (!tryJsonFirst || !jsonString) {
+      // Remove surrounding quotes if present (for non-JSON quoted content)
+      if (objectPart.startsWith('"') && objectPart.endsWith('"')) {
+        objectPart = objectPart.slice(1, -1);
+      }
+      
+      // Check if it's Salesforce notation or array content
+      if (objectPart.trim().startsWith('[') && objectPart.trim().endsWith(']')) {
+        // Handle quoted array content: [key=value, key=value]
+        const arrayContent = objectPart.slice(1, -1); // Remove [ and ]
+        parsed = parseComplexContent(arrayContent);
+        jsonString = JSON.stringify(parsed, null, 2);
+      } else {
+        // Try to parse as Salesforce object notation
+        parsed = parseSalesforceObjectNotation(objectPart);
+        jsonString = JSON.stringify(parsed, null, 2);
+      }
     }
     
     const highlightedJson = highlightJsonKeys(jsonString);

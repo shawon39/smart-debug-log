@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Chrome extension (Manifest V3) called "Salesforce Debug Log Beautifier" that enhances Salesforce debug logs with syntax highlighting, JSON formatting, and real-time polling capabilities. The project uses vanilla JavaScript without build tools.
+This is a Chrome extension (Manifest V3) called "Salesforce Debug Log Beautifier" that enhances Salesforce debug logs with syntax highlighting, JSON formatting, and error analysis. The project uses vanilla JavaScript without build tools.
 
 ## Development Commands
 
@@ -22,7 +22,7 @@ This project does not use npm/yarn or build tools. For development:
 **Background Layer (`background/`)**:
 - `service-worker.js`: Main message router, coordinates all extension functionality
 - `session-manager.js`: Handles Salesforce authentication, session management, and domain mapping
-- `debug-log-manager.js`: Manages polling intervals, log monitoring, and Chrome alarms
+- `debug-log-manager.js`: Manages log downloading, Tooling API queries, and log caching
 
 **Content Layer (`content/`)**:
 - `api-handler.js`: Core message handler, injected into Salesforce pages
@@ -30,11 +30,11 @@ This project does not use npm/yarn or build tools. For development:
 - `session-extraction.js`: Extracts session info from Salesforce pages
 
 **UI Layer**:
-- `dashboard.html` + Dashboard modules: Main dashboard for log viewing and monitoring controls
+- `dashboard.html` + Dashboard modules: Main dashboard for log viewing and management controls
   - `js/dashboard-init.js`: Initialization and event setup
   - `js/dashboard-actions.js`: Session actions and deploy functionality
   - `js/dashboard-connection.js`: Salesforce connection management
-  - `js/dashboard-monitoring.js`: Polling controls and preferences
+  - `js/dashboard-monitoring.js`: Preference management and UI controls
 - `popup/popup.html` + `popup/popup.js`: Extension popup interface
 
 ### Log Processing Pipeline (`js/`):
@@ -64,8 +64,6 @@ The extension uses Chrome's message passing API extensively. All communication f
 // Background service worker handles these message types:
 - GET_SALESFORCE_HOST: Detect Salesforce org from URL
 - GET_SESSION: Retrieve session info for org
-- START_DEBUG_MONITORING: Begin log polling
-- STOP_DEBUG_MONITORING: Stop log polling
 - GET_LOG_CONTENT: Fetch specific log content
 - EXECUTE_TOOLING_QUERY: Run Salesforce Tooling API queries
 - TOOLING_CREATE: Create records via Tooling API
@@ -75,9 +73,6 @@ The extension uses Chrome's message passing API extensively. All communication f
 
 ### Session Management
 Salesforce sessions are managed per org and tab. The session manager handles domain mapping between different Salesforce URL patterns (lightning.force.com → my.salesforce.com for API access).
-
-### Polling Architecture
-Debug log monitoring uses Chrome alarms API for background polling. Each org gets its own polling interval, configurable from 10-300 seconds.
 
 ## Salesforce Integration
 
@@ -98,7 +93,7 @@ API interactions use the Salesforce Tooling API v62.0 for:
 background/          # Service worker and background logic
   service-worker.js  # Main message router
   session-manager.js # Session and domain management
-  debug-log-manager.js # Polling and monitoring
+  debug-log-manager.js # Log management and API operations
 content/             # Content scripts for Salesforce pages
   api-handler.js     # Core message handler
   api-operations.js  # API operations (query, create, etc.)

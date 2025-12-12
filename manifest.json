@@ -2,13 +2,12 @@
   "manifest_version": 3,
   "name": "Salesforce Debug Log Beautifier",
   "version": "2.1.0",
-  "description": "Beautify Salesforce debug logs with syntax highlighting, clear JSON formatting, and smart real-time polling.",
+  "description": "Transform Salesforce debug logs with syntax highlighting, error analysis, governor limits tracking, and Apex execution.",
   
   "permissions": [
     "cookies",
     "storage",
     "activeTab",
-    "alarms",
     "notifications",
     "windows",
     "scripting",

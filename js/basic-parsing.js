@@ -23,13 +23,27 @@ function parseSalesforceObjectNotation(text) {
       };
     }
     
-    // Pattern 3: Complex object with square brackets ObjectType:[...] 
+    // Pattern 3: Custom Apex class with square brackets ClassName:[...] 
     const complexObjectMatch = trimmedText.match(/^(\w+):\[(.+)\]$/);
     if (complexObjectMatch) {
       const [, objectType, content] = complexObjectMatch;
-      return {
-        [objectType]: parseComplexContent(content)
-      };
+      
+      // Check if this contains nested custom wrappers
+      if (hasNestedWrappers(content)) {
+        // Return raw content for nested wrappers
+        return trimmedText;
+      }
+      
+      // Simple wrapper without nesting - parse normally
+      const parsed = parseComplexContent(content);
+      return { _apexType: objectType, ...parsed };
+    }
+    
+    // Check for truncated custom class at top level
+    const truncatedClassMatch = trimmedText.match(/^(\w+):\[/);
+    if (truncatedClassMatch && !trimmedText.endsWith(']')) {
+      // Return raw string for any truncated custom class
+      return trimmedText;
     }
     
     // Pattern 4: Multiple objects in parentheses (Object:{...}, Object:{...})
@@ -38,26 +52,40 @@ function parseSalesforceObjectNotation(text) {
       return parseMultipleObjects(content);
     }
         
-    // Pattern 5: Single object Object:{...}
+    // Pattern 5: SObject Object:{...}
     const objectMatch = trimmedText.match(/^(\w+):\{(.+)\}$/);
     if (objectMatch) {
       const [, objectType, content] = objectMatch;
-      return {
-        [objectType]: parseKeyValuePairs(content)
-      };
+      const parsed = parseKeyValuePairs(content);
+      return { _apexType: objectType, ...parsed };
     }
     
-    // Pattern 6: Raw object content {key=value, key=value}
+    // Check for truncated SObject at top level
+    const truncatedSObjectMatch = trimmedText.match(/^(\w+):\{/);
+    if (truncatedSObjectMatch && !trimmedText.endsWith('}')) {
+      // Return raw string for truncated SObject
+      return trimmedText;
+    }
+    
+    // Pattern 6: Raw curly brace content - could be Set or Map
     if (trimmedText.startsWith('{') && trimmedText.endsWith('}')) {
       const content = trimmedText.slice(1, -1);
       
-      // Check if this looks like a map with Salesforce objects as values
-      if (content.includes('=') && content.includes(':{')) {
-        // This is likely a map with Salesforce objects, use map parsing
-        return parseMapContent(content);
+      // Check if there's an = at depth 0 to distinguish Set from Map
+      // Sets: {1, 2, 3} - no = at depth 0
+      // Maps: {key=val, key2=val2} - has = at depth 0
+      if (hasEqualsAtDepthZero(content)) {
+        // This is a Map
+        if (content.includes(':{')) {
+          // Map with Salesforce objects as values
+          return parseMapContent(content);
+        } else {
+          // Regular key=value pairs
+          return parseKeyValuePairs(content);
+        }
       } else {
-        // Regular key=value pairs
-        return parseKeyValuePairs(content);
+        // This is a Set - parse elements as array
+        return parseMultipleObjects(content);
       }
     }
     
@@ -151,22 +179,55 @@ function parseMultipleObjects(content) {
 }
 
 function parseSingleObject(content) {
-  // Handle wrapper pattern WrapperType:[...]
+  // Handle primitives first (for lists like (47, 52, null))
+  if (content === 'null') return null;
+  if (content === 'true') return true;
+  if (content === 'false') return false;
+  
+  // Handle numbers (including negative)
+  if (/^-?\d+$/.test(content)) {
+    return parseInt(content, 10);
+  }
+  if (/^-?\d+\.\d+$/.test(content)) {
+    return parseFloat(content);
+  }
+  
+  // Handle custom class pattern ClassName:[...]
   const wrapperMatch = content.match(/^(\w+):\[(.+)\]$/);
   if (wrapperMatch) {
     const [, wrapperType, innerContent] = wrapperMatch;
-    return {
-      [wrapperType]: parseStructure(`[${innerContent}]`)
-    };
+    
+    // Check if this contains nested custom wrappers
+    if (hasNestedWrappers(innerContent)) {
+      // Return raw content for nested wrappers
+      return content;
+    }
+    
+    // Simple wrapper without nesting - parse normally
+    const parsed = parseKeyValuePairs(innerContent);
+    return { _apexType: wrapperType, ...parsed };
   }
   
-  // Handle object pattern ObjectType:{...}
+  // Check for truncated custom class (starts with ClassName:[ but no closing ])
+  const truncatedWrapperMatch = content.match(/^(\w+):\[/);
+  if (truncatedWrapperMatch && !content.endsWith(']')) {
+    // Return raw string for any truncated custom class
+    return content;
+  }
+  
+  // Handle SObject pattern ObjectType:{...}
   const objectMatch = content.match(/^(\w+):\{(.+)\}$/);
   if (objectMatch) {
     const [, objectType, innerContent] = objectMatch;
-    return {
-      [objectType]: parseKeyValuePairs(innerContent)
-    };
+    const parsed = parseKeyValuePairs(innerContent);
+    return { _apexType: objectType, ...parsed };
+  }
+  
+  // Check for truncated SObject (starts with ObjectType:{ but no closing })
+  const truncatedObjectMatch = content.match(/^(\w+):\{/);
+  if (truncatedObjectMatch && !content.endsWith('}')) {
+    // Return raw string for truncated SObject
+    return content;
   }
   
   // Handle key=value assignments
@@ -295,35 +356,45 @@ function parseKeyValuePair(pair) {
 }
 
 function parseValue(value) {
+  // Strip leading/trailing quotes if present
+  let cleanValue = value;
+  if ((cleanValue.startsWith('"') && cleanValue.endsWith('"')) ||
+      (cleanValue.startsWith("'") && cleanValue.endsWith("'"))) {
+    cleanValue = cleanValue.slice(1, -1);
+  }
+  
   // Handle null
-  if (value === 'null') {
+  if (cleanValue === 'null') {
     return null;
   }
   
   // Handle boolean
-  if (value === 'true') return true;
-  if (value === 'false') return false;
+  if (cleanValue === 'true') return true;
+  if (cleanValue === 'false') return false;
   
-  // Handle numbers
-  if (/^\d+$/.test(value)) {
-    return parseInt(value, 10);
+  // Handle numbers (including negative)
+  if (/^-?\d+$/.test(cleanValue)) {
+    return parseInt(cleanValue, 10);
   }
-  if (/^\d+\.\d+$/.test(value)) {
-    return parseFloat(value);
+  if (/^-?\d+\.\d+$/.test(cleanValue)) {
+    return parseFloat(cleanValue);
   }
   
   // Handle nested structures
-  if (value.startsWith('(') && value.endsWith(')')) {
-    return parseStructure(value);
+  if (cleanValue.startsWith('(') && cleanValue.endsWith(')')) {
+    return parseStructure(cleanValue);
   }
   
   // Handle objects
-  if (value.includes(':{')) {
-    return parseSingleObject(value);
+  if (cleanValue.includes(':{')) {
+    return parseSingleObject(cleanValue);
   }
   
+  // Clean up datetime strings with extra spaces (00: 00: 00 -> 00:00:00)
+  cleanValue = cleanValue.replace(/(\d{2}):\s+(\d{2}):\s+(\d{2})/g, '$1:$2:$3');
+  
   // Return as string
-  return value;
+  return cleanValue;
 }
 
 // Function to parse map content like "key1=value1, key2=value2, ..."
@@ -413,4 +484,49 @@ function parseMapKeyValuePair(pair) {
   }
   
   return { [key]: parsedValue };
+}
+
+// Helper function to check if content has = at depth 0
+// Used to distinguish Sets {1, 2, 3} from Maps {key=val}
+function hasEqualsAtDepthZero(content) {
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = 0; i < content.length; i++) {
+    const char = content[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"' || char === "'") {
+      inString = !inString;
+      continue;
+    }
+    
+    if (!inString) {
+      if (char === '{' || char === '(' || char === '[') depth++;
+      if (char === '}' || char === ')' || char === ']') depth--;
+      
+      if (char === '=' && depth === 0) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
+}
+
+// Helper function to detect nested custom wrappers
+// Returns true if content contains another ClassName:[ pattern
+function hasNestedWrappers(content) {
+  // Look for ClassName:[ pattern indicating a custom wrapper
+  return /\w+:\[/.test(content);
 } 

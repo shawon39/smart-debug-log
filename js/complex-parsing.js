@@ -127,51 +127,60 @@ function parseComplexKeyValuePair(pair) {
 
 function parseComplexValue(value) {
   try {
+    // Strip leading/trailing quotes if present
+    let cleanValue = value;
+    if ((cleanValue.startsWith('"') && cleanValue.endsWith('"')) ||
+        (cleanValue.startsWith("'") && cleanValue.endsWith("'"))) {
+      cleanValue = cleanValue.slice(1, -1);
+    }
+    
     // Handle null
-    if (value === 'null') {
+    if (cleanValue === 'null') {
       return null;
     }
     
     // Handle boolean
-    if (value === 'true') return true;
-    if (value === 'false') return false;
+    if (cleanValue === 'true') return true;
+    if (cleanValue === 'false') return false;
     
-    // Handle numbers
-    if (/^\d+$/.test(value)) {
-      return parseInt(value, 10);
+    // Handle numbers (including negative)
+    if (/^-?\d+$/.test(cleanValue)) {
+      return parseInt(cleanValue, 10);
     }
-    if (/^\d+\.\d+$/.test(value)) {
-      return parseFloat(value);
+    if (/^-?\d+\.\d+$/.test(cleanValue)) {
+      return parseFloat(cleanValue);
     }
     
     // Handle collections in parentheses like (Bookmark:[...], Bookmark:[...])
-    if (value.startsWith('(') && value.endsWith(')')) {
-      const innerContent = value.slice(1, -1);
+    if (cleanValue.startsWith('(') && cleanValue.endsWith(')')) {
+      const innerContent = cleanValue.slice(1, -1);
       return parseCollectionContent(innerContent);
     }
     
     // Handle arrays in square brackets like [item1, item2]
-    if (value.startsWith('[') && value.endsWith(']')) {
-      const innerContent = value.slice(1, -1);
+    if (cleanValue.startsWith('[') && cleanValue.endsWith(']')) {
+      const innerContent = cleanValue.slice(1, -1);
       return parseCollectionContent(innerContent);
     }
     
     // Handle single object patterns like ObjectType:[...]
-    const singleObjectMatch = value.match(/^(\w+):\[(.+)\]$/);
+    const singleObjectMatch = cleanValue.match(/^(\w+):\[(.+)\]$/);
     if (singleObjectMatch) {
       const [, objectType, content] = singleObjectMatch;
-      return {
-        [objectType]: parseKeyValuePairs(content)
-      };
+      const parsed = parseKeyValuePairs(content);
+      return { _apexType: objectType, ...parsed };
     }
     
     // Handle objects in braces
-    if (value.startsWith('{') && value.endsWith('}')) {
-      return parseKeyValuePairs(value.slice(1, -1));
+    if (cleanValue.startsWith('{') && cleanValue.endsWith('}')) {
+      return parseKeyValuePairs(cleanValue.slice(1, -1));
     }
     
+    // Clean up datetime strings with extra spaces (00: 00: 00 -> 00:00:00)
+    cleanValue = cleanValue.replace(/(\d{2}):\s+(\d{2}):\s+(\d{2})/g, '$1:$2:$3');
+    
     // Return as string for simple values
-    return value;
+    return cleanValue;
   } catch (error) {
     return value;
   }

@@ -123,10 +123,21 @@ function extractErrorsFromDebugLog(content) {
   const additionalErrors = extractAdditionalErrors(lines);
   errors.push(...additionalErrors);
   
+  // Deduplicate errors by rawMessage (keep first occurrence)
+  const seenMessages = new Set();
+  const uniqueErrors = [];
+  for (const error of errors) {
+    const messageKey = error.rawMessage.trim();
+    if (!seenMessages.has(messageKey)) {
+      seenMessages.add(messageKey);
+      uniqueErrors.push(error);
+    }
+  }
+  
   return {
-    hasErrors: errors.length > 0,
-    errors: errors,
-    errorSummary: createErrorSummary(errors)
+    hasErrors: uniqueErrors.length > 0,
+    errors: uniqueErrors,
+    errorSummary: createErrorSummary(uniqueErrors)
   };
 }
 

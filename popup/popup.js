@@ -134,7 +134,7 @@ class SmartDebugLogPopup {
     const button = document.getElementById('openDashboardBtn');
     if (button) {
       button.style.display = 'block';
-      button.textContent = 'Open Debug Dashboard';
+      button.textContent = 'View Debug Logs';
     }
   }
 

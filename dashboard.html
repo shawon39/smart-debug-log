@@ -389,22 +389,24 @@
       <div class="debug-create-section">
         <div class="debug-create-controls">
           <select id="debugDurationSelect" class="duration-select">
+            <option value="15">15 Minutes</option>
+            <option value="30">30 Minutes</option>
+            <option value="45" selected>45 Minutes</option>
             <option value="60">1 Hour</option>
             <option value="120">2 Hours</option>
-            <option value="180">3 Hours</option>
             <option value="240">4 Hours</option>
-            <option value="300">5 Hours</option>
             <option value="360">6 Hours</option>
-            <option value="420">7 Hours</option>
             <option value="480">8 Hours</option>
-            <option value="540">9 Hours</option>
             <option value="600">10 Hours</option>
             <option value="720">12 Hours</option>
+            <option value="840">14 Hours</option>
             <option value="960">16 Hours</option>
+            <option value="1080">18 Hours</option>
             <option value="1200">20 Hours</option>
+            <option value="1320">22 Hours</option>
             <option value="1440">24 Hours</option>
           </select>
-          <button class="button primary" id="enableDebugBtn">Create Debug Log</button>
+          <button class="button primary" id="enableDebugBtn">Create New Trace Flag</button>
         </div>
       </div>
       
@@ -412,6 +414,14 @@
       <div class="trace-flags-section">
         <div class="section-header">
           <div class="section-title">Trace Flags</div>
+        </div>
+        <div class="trace-flags-search">
+          <input 
+            type="text" 
+            id="traceFlagsSearchInput" 
+            class="trace-flags-search-input" 
+            placeholder="Search by user or debug level..."
+          />
         </div>
         <div class="trace-flags-list" id="traceFlagsList">
           <div class="loading-state">Loading trace flags...</div>
@@ -422,6 +432,37 @@
       <div class="delete-logs-section">
         <button class="button danger" id="deleteAllLogsBtn">Delete All Debug Logs</button>
         <span class="delete-hint">This will delete all debug logs for your user</span>
+      </div>
+    </div>
+    
+    <!-- Replace Trace Flag Confirmation Dialog -->
+    <div class="replace-confirmation-overlay hidden" id="replaceConfirmationDialog">
+      <div class="replace-confirmation-dialog">
+        <div class="confirmation-header">
+          <span class="confirmation-title">Replace Active Debug Log?</span>
+        </div>
+        <div class="confirmation-body">
+          <p class="confirmation-message">An active debug log already exists:</p>
+          <div class="current-trace-info">
+            <div class="trace-info-row">
+              <span class="trace-info-label">User:</span>
+              <span class="trace-info-value" id="confirmCurrentUser"></span>
+            </div>
+            <div class="trace-info-row">
+              <span class="trace-info-label">Debug Level:</span>
+              <span class="trace-info-value" id="confirmCurrentDebugLevel"></span>
+            </div>
+            <div class="trace-info-row">
+              <span class="trace-info-label">Time Remaining:</span>
+              <span class="trace-info-value" id="confirmTimeRemaining"></span>
+            </div>
+          </div>
+          <p class="confirmation-question">Do you want to expire the current debug log and create a new one?</p>
+        </div>
+        <div class="confirmation-actions">
+          <button class="button secondary" id="confirmCancelBtn">No, Keep Current</button>
+          <button class="button primary" id="confirmReplaceBtn">Yes, Replace</button>
+        </div>
       </div>
     </div>
   </div>

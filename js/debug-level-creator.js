@@ -140,14 +140,27 @@ class DebugLevelCreator {
       // Clear loading message
       select.innerHTML = '';
 
-      // Add options
-      field.picklistValues.forEach(picklistValue => {
-        if (picklistValue.active) {
-          const option = document.createElement('option');
-          option.value = picklistValue.value;
-          option.textContent = picklistValue.label;
-          select.appendChild(option);
-        }
+      // Define the desired order (least verbose to most verbose)
+      const logLevelOrder = ['NONE', 'ERROR', 'WARN', 'INFO', 'DEBUG', 'FINE', 'FINER', 'FINEST', 'INTERNAL'];
+      
+      // Sort picklist values by the defined order
+      const sortedPicklistValues = field.picklistValues
+        .filter(pv => pv.active)
+        .sort((a, b) => {
+          const indexA = logLevelOrder.indexOf(a.value);
+          const indexB = logLevelOrder.indexOf(b.value);
+          // If value not in order array, put it at the end
+          const posA = indexA === -1 ? 999 : indexA;
+          const posB = indexB === -1 ? 999 : indexB;
+          return posA - posB;
+        });
+
+      // Add sorted options
+      sortedPicklistValues.forEach(picklistValue => {
+        const option = document.createElement('option');
+        option.value = picklistValue.value;
+        option.textContent = picklistValue.label;
+        select.appendChild(option);
       });
 
       // Set default values based on common debug settings

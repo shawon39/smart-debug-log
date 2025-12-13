@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Salesforce Debug Log Beautifier",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "description": "Transform Salesforce debug logs with syntax highlighting, error analysis, governor limits tracking, and Apex execution.",
   
   "permissions": [
@@ -90,10 +90,10 @@
   "commands": {
     "open-debug-dashboard": {
       "suggested_key": {
-        "default": "Alt+D",
-        "mac": "Alt+D"
+        "default": "Alt+Shift+D",
+        "mac": "Option+Shift+D"
       },
-      "description": "Open Debug Dashboard"
+      "description": "View Debug Logs"
     }
   }
 } 

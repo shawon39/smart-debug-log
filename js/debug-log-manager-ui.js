@@ -18,6 +18,8 @@ class DebugLogManagerUI {
     this.searchTimeout = null;
     // Debug Level Creator
     this.debugLevelCreator = null;
+    // Trace flags search
+    this.traceFlagsSearchTerm = '';
   }
 
   async initialize(session) {
@@ -306,15 +308,18 @@ class DebugLogManagerUI {
       throw new Error('User ID not available');
     }
     
-    // Check if target user already has an active trace flag
-    const existingFlag = this.traceFlags.find(tf => tf.TracedEntityId === targetUserId);
+    // Check if target user already has an active (non-expired) trace flag
+    const now = new Date();
+    const existingFlag = this.traceFlags.find(tf => {
+      const expiration = new Date(tf.ExpirationDate);
+      return tf.TracedEntityId === targetUserId && expiration > now;
+    });
     if (existingFlag) {
       // Extend existing trace flag instead of creating new one
       await this.extendTraceFlag(existingFlag.Id, durationMinutes);
       return { extended: true };
     }
     
-    const now = new Date();
     const expiration = new Date(now.getTime() + durationMinutes * 60 * 1000);
     
     const data = {
@@ -364,6 +369,21 @@ class DebugLogManagerUI {
     await this.listTraceFlags();
   }
 
+  async expireTraceFlag(traceFlagId) {
+    const traceFlag = this.traceFlags.find(tf => tf.Id === traceFlagId);
+    if (!traceFlag) {
+      throw new Error('Trace flag not found');
+    }
+    
+    const now = new Date();
+    
+    await this.toolingUpdate('TraceFlag', traceFlagId, {
+      ExpirationDate: now.toISOString()
+    });
+    
+    await this.listTraceFlags();
+  }
+
   async reduceTraceFlag(traceFlagId, reduceMinutes = 60) {
     const traceFlag = this.traceFlags.find(tf => tf.Id === traceFlagId);
     if (!traceFlag) {
@@ -375,9 +395,12 @@ class DebugLogManagerUI {
     const remainingMs = currentExpiration - now;
     const reduceMs = reduceMinutes * 60 * 1000;
     
-    // If reducing would result in ≤0 time, delete the trace flag instead
+    // If reducing would result in ≤0 time, expire the trace flag instead of deleting
     if (remainingMs <= reduceMs) {
-      await this.deleteTraceFlag(traceFlagId);
+      await this.toolingUpdate('TraceFlag', traceFlagId, {
+        ExpirationDate: now.toISOString()
+      });
+      await this.listTraceFlags();
       return { disabled: true };
     }
     
@@ -394,6 +417,30 @@ class DebugLogManagerUI {
   async deleteTraceFlag(traceFlagId) {
     await this.toolingDelete('TraceFlag', traceFlagId);
     await this.listTraceFlags();
+  }
+
+  async createTraceFlagWithRetry(data, maxRetries = 2) {
+    let lastError = null;
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await this.toolingCreate('TraceFlag', data);
+        return result;
+      } catch (error) {
+        lastError = error;
+        
+        // If "already being traced" error, wait and retry
+        if (error.message && error.message.includes('already being traced') && attempt < maxRetries) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await this.listTraceFlags(); // Refresh to get updated state
+          continue;
+        }
+        
+        throw error;
+      }
+    }
+    
+    throw lastError;
   }
 
   // Debug Logs Methods
@@ -481,6 +528,17 @@ class DebugLogManagerUI {
     const targetUserId = this.getTargetUserId();
     
     this.traceFlags.forEach(tf => {
+      // Apply search filter
+      if (this.traceFlagsSearchTerm) {
+        const userName = (tf.TracedEntity?.Name || '').toLowerCase();
+        const debugLevelName = (tf.DebugLevel?.DeveloperName || '').toLowerCase();
+        
+        if (!userName.includes(this.traceFlagsSearchTerm) && 
+            !debugLevelName.includes(this.traceFlagsSearchTerm)) {
+          return; // Skip this item
+        }
+      }
+      
       const item = document.createElement('div');
       item.className = 'trace-flag-item';
       
@@ -539,6 +597,23 @@ class DebugLogManagerUI {
         badge = '<span class="current-badge">Selected</span>';
       }
       
+      // Render different action buttons based on expiration status
+      let actionButtons = '';
+      if (isExpired) {
+        // Expired trace flag - show reactivate button
+        actionButtons = `
+          <button class="button primary reactivate-btn" data-id="${tf.Id}">Reactivate (60 min)</button>
+          <button class="button secondary delete-btn" data-id="${tf.Id}">Delete</button>
+        `;
+      } else {
+        // Active trace flag - show extend/reduce/delete buttons
+        actionButtons = `
+          <button class="button secondary extend-btn" data-id="${tf.Id}">Extend (+60min)</button>
+          <button class="button secondary reduce-btn" data-id="${tf.Id}">Reduce (-60min)</button>
+          <button class="button secondary delete-btn" data-id="${tf.Id}">Delete</button>
+        `;
+      }
+      
       item.innerHTML = `
         <div class="trace-flag-info">
           <div class="trace-flag-user">
@@ -552,9 +627,7 @@ class DebugLogManagerUI {
           </div>
         </div>
         <div class="trace-flag-actions">
-          <button class="button secondary extend-btn" data-id="${tf.Id}">Extend (+60min)</button>
-          <button class="button secondary reduce-btn" data-id="${tf.Id}">Reduce (-60min)</button>
-          <button class="button secondary delete-btn" data-id="${tf.Id}">Delete</button>
+          ${actionButtons}
         </div>
       `;
       
@@ -570,6 +643,10 @@ class DebugLogManagerUI {
       btn.addEventListener('click', (e) => this.handleReduceTraceFlag(e.target.dataset.id));
     });
     
+    container.querySelectorAll('.reactivate-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => this.handleReactivateTraceFlag(e.target.dataset.id));
+    });
+    
     container.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => this.handleDeleteTraceFlag(e.target.dataset.id));
     });
@@ -581,21 +658,42 @@ class DebugLogManagerUI {
     return div.innerHTML;
   }
 
+  filterTraceFlags(searchTerm) {
+    this.traceFlagsSearchTerm = searchTerm.toLowerCase().trim();
+    this.renderTraceFlags();
+  }
+
   // Event Handlers
   async handleEnableDebug() {
     const btn = document.getElementById('enableDebugBtn');
     const durationSelect = document.getElementById('debugDurationSelect');
+    const debugLevelSelect = document.getElementById('debugLevelSelect');
     const originalText = btn.textContent;
     
     try {
+      // Get selected debug level and duration
+      const debugLevelId = debugLevelSelect.value;
+      const durationMinutes = parseInt(durationSelect?.value || '60', 10);
+      
+      // Check if there's an active trace flag for the selected user
+      const targetUserId = this.getTargetUserId();
+      const existingFlag = this.traceFlags.find(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        const now = new Date();
+        return tf.TracedEntityId === targetUserId && expiration > now;
+      });
+      
+      // If there's an active trace flag, show confirmation dialog
+      if (existingFlag) {
+        await this.showReplaceConfirmation(existingFlag, debugLevelId, durationMinutes);
+        return;
+      }
+      
+      // No active trace flag, proceed with creation
       btn.disabled = true;
       btn.textContent = 'Creating...';
       
-      // Get selected duration in minutes
-      const durationMinutes = parseInt(durationSelect?.value || '60', 10);
       const durationHours = durationMinutes / 60;
-      
-      const debugLevelId = document.getElementById('debugLevelSelect').value;
       let result;
       
       if (!debugLevelId) {
@@ -668,6 +766,135 @@ class DebugLogManagerUI {
     }
   }
 
+  // Show replace confirmation dialog
+  async showReplaceConfirmation(existingFlag, newDebugLevelId, durationMinutes) {
+    const dialog = document.getElementById('replaceConfirmationDialog');
+    if (!dialog) return;
+    
+    // Populate dialog with current trace flag info
+    const userName = existingFlag.TracedEntity?.Name || 'Unknown User';
+    const debugLevelName = existingFlag.DebugLevel?.DeveloperName || 'Unknown';
+    
+    const expiration = new Date(existingFlag.ExpirationDate);
+    const now = new Date();
+    const remainingMs = expiration - now;
+    const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
+    
+    let timeRemainingText = '';
+    if (remainingMinutes >= 60) {
+      const hours = Math.floor(remainingMinutes / 60);
+      const minutes = remainingMinutes % 60;
+      if (minutes === 0) {
+        timeRemainingText = `${hours} hour${hours !== 1 ? 's' : ''}`;
+      } else {
+        timeRemainingText = `${hours} hour${hours !== 1 ? 's' : ''} ${minutes} min`;
+      }
+    } else {
+      timeRemainingText = `${remainingMinutes} minutes`;
+    }
+    
+    document.getElementById('confirmCurrentUser').textContent = userName;
+    document.getElementById('confirmCurrentDebugLevel').textContent = debugLevelName;
+    document.getElementById('confirmTimeRemaining').textContent = timeRemainingText;
+    
+    // Show dialog
+    dialog.classList.remove('hidden');
+    
+    // Set up one-time event listeners for dialog actions
+    return new Promise((resolve) => {
+      const confirmBtn = document.getElementById('confirmReplaceBtn');
+      const cancelBtn = document.getElementById('confirmCancelBtn');
+      
+      const handleConfirm = async () => {
+        cleanup();
+        await this.handleConfirmReplace(existingFlag.Id, newDebugLevelId, durationMinutes);
+        resolve(true);
+      };
+      
+      const handleCancel = () => {
+        cleanup();
+        resolve(false);
+      };
+      
+      const cleanup = () => {
+        dialog.classList.add('hidden');
+        confirmBtn.removeEventListener('click', handleConfirm);
+        cancelBtn.removeEventListener('click', handleCancel);
+      };
+      
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', handleCancel);
+    });
+  }
+
+  // Handle confirmation to replace existing trace flag
+  async handleConfirmReplace(existingTraceFlagId, newDebugLevelId, durationMinutes) {
+    const btn = document.getElementById('enableDebugBtn');
+    const originalText = btn.textContent;
+    
+    try {
+      btn.disabled = true;
+      btn.textContent = 'Replacing...';
+      
+      // Expire the existing trace flag
+      await this.expireTraceFlag(existingTraceFlagId);
+      
+      // Get the debug level to use
+      const debugLevelToUse = newDebugLevelId || await this.getOrCreateDefaultDebugLevel();
+      
+      // Directly create new trace flag (bypass createOrExtendTraceFlag to avoid race conditions)
+      const now = new Date();
+      // Start the new trace flag 5 seconds in the future to avoid overlap with expired flag
+      const startTime = new Date(now.getTime() + 5000);
+      const expiration = new Date(startTime.getTime() + durationMinutes * 60 * 1000);
+      
+      const data = {
+        TracedEntityId: this.getTargetUserId(),
+        LogType: 'USER_DEBUG',
+        DebugLevelId: debugLevelToUse,
+        StartDate: startTime.toISOString(),
+        ExpirationDate: expiration.toISOString()
+      };
+      
+      await this.createTraceFlagWithRetry(data);
+      await this.listTraceFlags();
+      
+      this.renderTraceFlags();
+      this.startTimer();
+      
+      // Set log type to Monitoring after trace flag creation
+      const logTypeFilter = document.getElementById('logTypeFilter');
+      if (logTypeFilter) {
+        logTypeFilter.value = 'Monitoring';
+        // Save the preference
+        if (typeof savePreferences === 'function') {
+          await savePreferences();
+        }
+      }
+      
+      // Show success message
+      const userName = this.useOtherUser && this.selectedUserName ? this.selectedUserName : 'you';
+      const durationHours = durationMinutes / 60;
+      const durationText = durationMinutes < 60 
+        ? `${durationMinutes} minutes`
+        : durationHours === 1 ? '1 hour' : `${durationHours} hours`;
+      this.showNotification(`Debug log replaced successfully for ${durationText} for ${userName}`, 'success');
+      
+    } catch (error) {
+      console.error('Failed to replace debug log:', error);
+      
+      let message = 'Failed to replace debug log.';
+      if (error.message.includes('Access token required')) {
+        message = 'Please generate an access token first.';
+      }
+      
+      this.showNotification(message, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalText;
+    }
+  }
+
   async handleExtendTraceFlag(traceFlagId) {
     try {
       await this.extendTraceFlag(traceFlagId || this.currentTraceFlag?.Id, this.DEFAULT_DURATION_MINUTES);
@@ -694,6 +921,65 @@ class DebugLogManagerUI {
     } catch (error) {
       console.error('Failed to reduce time:', error);
       this.showNotification('Failed to reduce: ' + error.message, 'error');
+    }
+  }
+
+  async handleReactivateTraceFlag(traceFlagId) {
+    if (!traceFlagId) return;
+    
+    try {
+      // Find the trace flag we want to reactivate
+      const traceFlagToReactivate = this.traceFlags.find(tf => tf.Id === traceFlagId);
+      if (!traceFlagToReactivate) {
+        throw new Error('Trace flag not found');
+      }
+      
+      const now = new Date();
+      
+      // Check if there's another active trace flag for the same user
+      const otherActiveFlag = this.traceFlags.find(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.Id !== traceFlagId && 
+               tf.TracedEntityId === traceFlagToReactivate.TracedEntityId && 
+               expiration > now;
+      });
+      
+      if (otherActiveFlag) {
+        const userName = traceFlagToReactivate.TracedEntity?.Name || 'this user';
+        this.showNotification(
+          `Cannot reactivate: ${userName} already has an active trace flag. Delete or wait for it to expire first.`, 
+          'error'
+        );
+        return;
+      }
+      
+      // Instead of updating, delete the old expired flag and create a new one
+      // This avoids Salesforce conflicts with other expired flags
+      const debugLevelId = traceFlagToReactivate.DebugLevelId;
+      const tracedEntityId = traceFlagToReactivate.TracedEntityId;
+      
+      // Delete the old expired flag
+      await this.toolingDelete('TraceFlag', traceFlagId);
+      
+      // Create a new trace flag with the same debug level
+      const newExpiration = new Date(now.getTime() + this.DEFAULT_DURATION_MINUTES * 60 * 1000);
+      
+      const data = {
+        TracedEntityId: tracedEntityId,
+        LogType: 'USER_DEBUG',
+        DebugLevelId: debugLevelId,
+        StartDate: now.toISOString(),
+        ExpirationDate: newExpiration.toISOString()
+      };
+      
+      await this.toolingCreate('TraceFlag', data);
+      
+      await this.listTraceFlags();
+      this.renderTraceFlags();
+      this.showNotification('Trace flag reactivated for 60 minutes', 'success');
+    } catch (error) {
+      console.error('Failed to reactivate trace flag:', error);
+      this.showNotification('Failed to reactivate: ' + error.message, 'error');
     }
   }
 
@@ -904,6 +1190,14 @@ class DebugLogManagerUI {
     const clearSelectedUserBtn = document.getElementById('clearSelectedUserBtn');
     if (clearSelectedUserBtn) {
       clearSelectedUserBtn.addEventListener('click', () => this.clearSelectedUser());
+    }
+
+    // Trace flags search input
+    const traceFlagsSearchInput = document.getElementById('traceFlagsSearchInput');
+    if (traceFlagsSearchInput) {
+      traceFlagsSearchInput.addEventListener('input', (e) => {
+        this.filterTraceFlags(e.target.value);
+      });
     }
   }
 }

@@ -164,6 +164,20 @@ Deploy to org: ${sfHost}`;
   deployPrettierBtn.disabled = true;
 
   try {
+    // Check if class already exists
+    const existingCheck = await chrome.runtime.sendMessage({
+      type: 'EXECUTE_TOOLING_QUERY',
+      query: `SELECT Id FROM ApexClass WHERE Name = '${className}' LIMIT 1`,
+      sfHost: getHostFromUrl()
+    });
+
+    if (existingCheck.success && existingCheck.data?.records?.length > 0) {
+      alert('✅ Console class already exists in this org.');
+      deployPrettierBtn.innerHTML = originalText;
+      deployPrettierBtn.disabled = false;
+      return;
+    }
+
     // Prepare the class data for deployment
     const classData = {
       Name: className,

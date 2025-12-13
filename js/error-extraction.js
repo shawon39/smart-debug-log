@@ -2,6 +2,36 @@
 // This file contains functions for extracting and formatting error messages from Salesforce debug logs
 
 /**
+ * Checks if a line is a pipe-delimited log entry
+ * @param {string} line - Line to check
+ * @returns {boolean} - True if line is a pipe-delimited entry
+ */
+function isPipeLine(line) {
+  return /^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|/.test(line);
+}
+
+/**
+ * Extracts event type from a pipe-delimited log line
+ * @param {string} line - Log line
+ * @returns {string|null} - Event type or null
+ */
+function extractEventType(line) {
+  const match = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|(\w+)\|/);
+  return match ? match[1] : null;
+}
+
+/**
+ * Extracts code unit name from CODE_UNIT_STARTED line
+ * @param {string} line - Log line
+ * @returns {string|null} - Code unit name or null
+ */
+function extractCodeUnitName(line) {
+  // Extract name from CODE_UNIT_STARTED|[EXTERNAL]|...|TriggerName or ClassName.methodName
+  const match = line.match(/CODE_UNIT_STARTED\|[^|]*\|[^|]*\|(.+)/);
+  return match ? match[1].trim() : null;
+}
+
+/**
  * Extracts error information from debug log content
  * @param {string} content - Raw debug log content 
  * @returns {object} - Object containing parsed error information
@@ -17,128 +47,197 @@ function extractErrorsFromDebugLog(content) {
 
   const errors = [];
   const lines = content.split('\n');
+  const codeUnitStack = [];
+  let collectingStackTrace = false;
+  let currentError = null;
   
-  // Find FATAL_ERROR entries
+  // Single-pass parsing with CODE_UNIT tracking
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     
-    // Match FATAL_ERROR pattern: timestamp|FATAL_ERROR|error message
-    const fatalErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|FATAL_ERROR\|(.*)/);
+    // Check if this is a pipe-delimited log entry
+    if (isPipeLine(line)) {
+      const eventType = extractEventType(line);
+      
+      // Track CODE_UNIT context
+      if (eventType === 'CODE_UNIT_STARTED') {
+        const unitName = extractCodeUnitName(line);
+        if (unitName) {
+          codeUnitStack.push(unitName);
+        }
+      } else if (eventType === 'CODE_UNIT_FINISHED') {
+        if (codeUnitStack.length > 0) {
+          codeUnitStack.pop();
+        }
+      }
+      
+      // Handle FATAL_ERROR
+      if (eventType === 'FATAL_ERROR') {
+        const fatalErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|FATAL_ERROR\|(.*)/);
+        if (fatalErrorMatch) {
+          const firstErrorLine = fatalErrorMatch[1].trim();
+          const errorDetails = parseErrorMessage(firstErrorLine);
+          
+          currentError = {
+            type: 'FATAL_ERROR',
+            timestamp: extractTimestamp(line),
+            rawMessage: firstErrorLine,
+            parsedMessage: errorDetails,
+            location: null,
+            stackTrace: [],
+            lineNumber: null,
+            columnNumber: null,
+            line: i + 1,
+            codeUnitContext: codeUnitStack.length > 0 ? codeUnitStack[codeUnitStack.length - 1] : null
+          };
+          
+          errors.push(currentError);
+          collectingStackTrace = true;
+        }
+      }
+      
+      // Handle EXCEPTION_THROWN
+      else if (eventType === 'EXCEPTION_THROWN') {
+        const exceptionMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|EXCEPTION_THROWN\|(.*)/);
+        if (exceptionMatch) {
+          let exceptionLine = exceptionMatch[1].trim();
+          
+          // Strip [lineNumber]| prefix if present (e.g., "[36]|System.AssertException...")
+          exceptionLine = exceptionLine.replace(/^\[\d+\]\|/, '');
+          
+          const errorDetails = parseErrorMessage(exceptionLine);
+          
+          currentError = {
+            type: 'EXCEPTION_THROWN',
+            timestamp: extractTimestamp(line),
+            rawMessage: exceptionLine,
+            parsedMessage: errorDetails,
+            location: null,
+            stackTrace: [],
+            lineNumber: null,
+            columnNumber: null,
+            line: i + 1,
+            codeUnitContext: codeUnitStack.length > 0 ? codeUnitStack[codeUnitStack.length - 1] : null
+          };
+          
+          errors.push(currentError);
+          collectingStackTrace = true;
+        }
+      }
+      
+      // Any other pipe line stops stack trace collection
+      else {
+        collectingStackTrace = false;
+        currentError = null;
+      }
+    }
     
-    if (fatalErrorMatch) {
-      const firstErrorLine = fatalErrorMatch[1].trim();
-      let fullErrorMessage = firstErrorLine;
-      let stackTrace = [];
-      
-      // Collect all lines until the next timestamp entry
-      let j = i + 1;
-      while (j < lines.length) {
-        const nextLine = lines[j];
-        
-        // Stop if we hit another log entry with timestamp and pipe
-        if (nextLine.match(/^\d{2}:\d{2}:\d{2}\.\d+.*\|/)) {
-          break;
-        }
-        
-        // Add non-empty lines to the error message
-        const cleanLine = nextLine.trim();
-        if (cleanLine) {
-          // Check if this is a stack trace line (Class.Method: line X, column Y, AnonymousBlock: line X, column Y)
-          if (cleanLine.match(/^(Class\.|Trigger\.|AnonymousBlock:)/)) {
-            stackTrace.push(cleanLine);
-          } else {
-            // Add to the main error message
-            fullErrorMessage += '\n' + cleanLine;
-          }
-        }
-        
-        j++;
-      }
-      
-      // Parse the first line of error to get basic info
-      const errorDetails = parseErrorMessage(firstErrorLine);
-      
-      // Extract line and column information from stack trace
-      let lineNumber = null;
-      let columnNumber = null;
-      let locationInfo = null;
-      
-      if (stackTrace.length > 0) {
-        // Use the first stack trace entry as the primary location
-        locationInfo = stackTrace.join('\n');
-        
-        // Extract line/column from the first stack trace entry
-        const firstTrace = stackTrace[0];
-        const linePatterns = [
-          /line\s+(\d+)/i,
-          /line:\s*(\d+)/i,
-          /Line\s+(\d+)/i
-        ];
-        
-        const columnPatterns = [
-          /column\s+(\d+)/i,
-          /column:\s*(\d+)/i
-        ];
-        
-        for (const pattern of linePatterns) {
-          const match = firstTrace.match(pattern);
-          if (match) {
-            lineNumber = parseInt(match[1], 10);
-            break;
-          }
-        }
-        
-        for (const pattern of columnPatterns) {
-          const match = firstTrace.match(pattern);
-          if (match) {
-            columnNumber = parseInt(match[1], 10);
-            break;
-          }
+    // Collect stack trace lines (non-pipe lines after error)
+    else if (collectingStackTrace && currentError) {
+      const cleanLine = line.trim();
+      if (cleanLine) {
+        // Check if this is a stack trace line
+        if (cleanLine.match(/^(Class\.|Trigger\.|AnonymousBlock:)/)) {
+          currentError.stackTrace.push(cleanLine);
+        } else {
+          // Add to the main error message
+          currentError.rawMessage += '\n' + cleanLine;
         }
       }
-      
-      // Fallback: try to extract line number from the error message itself
-      if (lineNumber === null) {
-        const errorLineMatch = fullErrorMessage.match(/line\s+(\d+)/i);
-        if (errorLineMatch) {
-          lineNumber = parseInt(errorLineMatch[1], 10);
-        }
-      }
-      
-      errors.push({
-        type: 'FATAL_ERROR',
-        timestamp: extractTimestamp(line),
-        rawMessage: fullErrorMessage,
-        parsedMessage: errorDetails,
-        location: locationInfo,
-        stackTrace: stackTrace,
-        lineNumber: lineNumber,
-        columnNumber: columnNumber,
-        line: i + 1
-      });
     }
   }
+  
+  // Extract line/column numbers from stack traces
+  errors.forEach(error => {
+    if (error.stackTrace && error.stackTrace.length > 0) {
+      error.location = error.stackTrace.join('\n');
+      
+      const firstTrace = error.stackTrace[0];
+      const linePatterns = [
+        /line\s+(\d+)/i,
+        /line:\s*(\d+)/i,
+        /Line\s+(\d+)/i
+      ];
+      
+      const columnPatterns = [
+        /column\s+(\d+)/i,
+        /column:\s*(\d+)/i
+      ];
+      
+      for (const pattern of linePatterns) {
+        const match = firstTrace.match(pattern);
+        if (match) {
+          error.lineNumber = parseInt(match[1], 10);
+          break;
+        }
+      }
+      
+      for (const pattern of columnPatterns) {
+        const match = firstTrace.match(pattern);
+        if (match) {
+          error.columnNumber = parseInt(match[1], 10);
+          break;
+        }
+      }
+    }
+    
+    // Fallback: try to extract line number from the error message itself
+    if (error.lineNumber === null) {
+      const errorLineMatch = error.rawMessage.match(/line\s+(\d+)/i);
+      if (errorLineMatch) {
+        error.lineNumber = parseInt(errorLineMatch[1], 10);
+      }
+    }
+  });
   
   // Look for other error patterns (compilation errors, runtime exceptions, etc.)
   const additionalErrors = extractAdditionalErrors(lines);
   errors.push(...additionalErrors);
   
-  // Deduplicate errors by rawMessage (keep first occurrence)
-  const seenMessages = new Set();
-  const uniqueErrors = [];
-  for (const error of errors) {
-    const messageKey = error.rawMessage.trim();
-    if (!seenMessages.has(messageKey)) {
-      seenMessages.add(messageKey);
-      uniqueErrors.push(error);
-    }
-  }
+  // Apply smart deduplication with FATAL_ERROR priority
+  const uniqueErrors = deduplicateErrors(errors);
   
   return {
     hasErrors: uniqueErrors.length > 0,
     errors: uniqueErrors,
     errorSummary: createErrorSummary(uniqueErrors)
   };
+}
+
+/**
+ * Creates a composite deduplication key for an error
+ * @param {object} error - Error object
+ * @returns {string} - Composite key
+ */
+function createErrorKey(error) {
+  const exceptionType = error.parsedMessage?.exceptionType || 'Unknown';
+  const message = error.parsedMessage?.message || '';
+  const context = error.codeUnitContext || '';
+  return `${exceptionType}|${message}|${context}`;
+}
+
+/**
+ * Deduplicates errors with FATAL_ERROR taking priority over EXCEPTION_THROWN
+ * @param {array} errors - Array of error objects
+ * @returns {array} - Deduplicated array of errors
+ */
+function deduplicateErrors(errors) {
+  const keyMap = new Map();
+  
+  for (const error of errors) {
+    const key = createErrorKey(error);
+    const existing = keyMap.get(key);
+    
+    if (!existing) {
+      keyMap.set(key, error);
+    } else if (error.type === 'FATAL_ERROR' && existing.type !== 'FATAL_ERROR') {
+      // FATAL_ERROR takes priority over EXCEPTION_THROWN
+      keyMap.set(key, error);
+    }
+    // Otherwise keep existing (first occurrence)
+  }
+  
+  return Array.from(keyMap.values());
 }
 
 /**
@@ -296,12 +395,23 @@ function formatErrorsForDisplay(errorData) {
   }
   
   // Add individual error details
-  errorData.errors.forEach((error) => {
+  errorData.errors.forEach((error, index) => {
     html += '<div class="error-item-block">';
+    
+    // Add error number badge for multiple errors
+    if (errorData.errors.length > 1) {
+      html += `<span class="error-number-badge">${index + 1}</span>`;
+    }
     
     // Error type header
     html += '<div class="error-type-header">';
     html += `<strong>${getErrorTypeDisplayName(error.type)}</strong>`;
+    
+    // Show code unit context if available
+    if (error.codeUnitContext) {
+      html += ` <span class="code-unit-context">(in ${escapeHtml(error.codeUnitContext)})</span>`;
+    }
+    
     html += '</div>';
     
     // Full error message (preserve multi-line formatting)
@@ -358,6 +468,7 @@ function getErrorTypeDisplayName(errorType) {
     'System.CalloutException': 'Callout Error',
     'System.LimitException': 'Governor Limit Error',
     'FATAL_ERROR': 'Fatal Error',
+    'EXCEPTION_THROWN': 'Exception Thrown',
     'COMPILE_ERROR': 'Compile Error',
     'VALIDATION_ERROR': 'Validation Error'
   };

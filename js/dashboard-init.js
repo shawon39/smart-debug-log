@@ -78,6 +78,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initializeDebugLogManager();
 });
 
+// Refresh status indicator when dashboard becomes visible
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden && window.debugLogManagerUI && window.debugLogManagerUI.userId) {
+    await window.debugLogManagerUI.refreshStatusIndicator();
+  }
+});
+
 // Cache DOM elements function
 function cacheElements() {
   elements = {
@@ -211,6 +218,8 @@ async function initializeApexManager() {
 async function initializeDebugLogManager() {
   if (window.debugLogManagerUI && currentSession) {
     await window.debugLogManagerUI.initialize(currentSession);
+    // Refresh status indicator after initialization
+    await window.debugLogManagerUI.refreshStatusIndicator();
   }
 }
 

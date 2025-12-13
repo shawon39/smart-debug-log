@@ -10,6 +10,7 @@ class DebugLogManagerUI {
     this.traceFlags = [];
     this.currentTraceFlag = null;
     this.timerInterval = null;
+    this.statusIndicatorTimer = null; // Timer for status indicator updates
     this.DEFAULT_DURATION_MINUTES = 60;
     // User selection
     this.selectedUserId = null;
@@ -299,6 +300,9 @@ class DebugLogManagerUI {
     const targetUserId = this.getTargetUserId();
     this.currentTraceFlag = this.traceFlags.find(tf => tf.TracedEntityId === targetUserId);
     
+    // Update status indicator in dashboard
+    await this.updateStatusIndicator();
+    
     return this.traceFlags;
   }
 
@@ -484,6 +488,140 @@ class DebugLogManagerUI {
     if (this.timerInterval) {
       clearInterval(this.timerInterval);
       this.timerInterval = null;
+    }
+  }
+
+  // Status Indicator Methods
+  startStatusIndicatorTimer() {
+    this.stopStatusIndicatorTimer();
+    this.statusIndicatorTimer = setInterval(() => this.updateStatusIndicator(), 1000);
+  }
+
+  stopStatusIndicatorTimer() {
+    if (this.statusIndicatorTimer) {
+      clearInterval(this.statusIndicatorTimer);
+      this.statusIndicatorTimer = null;
+    }
+  }
+
+  async updateStatusIndicator() {
+    const indicator = document.getElementById('traceStatusIndicator');
+    const dot = document.getElementById('traceStatusDot');
+    const text = document.getElementById('traceStatusText');
+    
+    if (!indicator || !dot || !text) return;
+
+    // Get current user's trace flag
+    const targetUserId = this.userId;
+    if (!targetUserId) {
+      // Hide indicator if no user ID
+      indicator.style.display = 'none';
+      return;
+    }
+
+    // Find active trace flag for current user
+    const now = new Date();
+    const activeTraceFlag = this.traceFlags.find(tf => {
+      const expiration = new Date(tf.ExpirationDate);
+      return tf.TracedEntityId === targetUserId && expiration > now;
+    });
+
+    if (activeTraceFlag) {
+      // Active trace flag
+      const expiration = new Date(activeTraceFlag.ExpirationDate);
+      const remainingMs = expiration - now;
+      const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
+      
+      const debugLevelName = activeTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
+      
+      let timeText = '';
+      if (remainingMinutes >= 60) {
+        const hours = Math.floor(remainingMinutes / 60);
+        const minutes = remainingMinutes % 60;
+        if (minutes === 0) {
+          timeText = `${hours}h left`;
+        } else {
+          timeText = `${hours}h ${minutes}m left`;
+        }
+      } else {
+        timeText = `${remainingMinutes}m left`;
+      }
+      
+      indicator.className = 'trace-status-indicator active';
+      text.textContent = `Active: ${timeText} • ${debugLevelName}`;
+      indicator.style.display = 'inline-flex';
+      
+    } else {
+      // Check for expired trace flags
+      const expiredTraceFlag = this.traceFlags.find(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.TracedEntityId === targetUserId && expiration <= now;
+      });
+      
+      if (expiredTraceFlag) {
+        // Expired trace flag - show how long ago it expired
+        const expiration = new Date(expiredTraceFlag.ExpirationDate);
+        const expiredMs = now - expiration;
+        const expiredMinutes = Math.floor(expiredMs / 60000);
+        const debugLevelName = expiredTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
+        
+        let expiredTimeText = '';
+        if (expiredMinutes < 60) {
+          // Less than 1 hour ago
+          expiredTimeText = expiredMinutes <= 1 ? 'just now' : `${expiredMinutes}m ago`;
+        } else if (expiredMinutes < 1440) {
+          // Less than 24 hours ago
+          const hours = Math.floor(expiredMinutes / 60);
+          expiredTimeText = `${hours}h ago`;
+        } else {
+          // 24 hours or more ago
+          const days = Math.floor(expiredMinutes / 1440);
+          expiredTimeText = `${days}d ago`;
+        }
+        
+        indicator.className = 'trace-status-indicator expired';
+        text.textContent = `Expired: ${expiredTimeText} • ${debugLevelName}`;
+        indicator.style.display = 'inline-flex';
+      } else {
+        // No trace flag at all
+        indicator.className = 'trace-status-indicator no-trace';
+        text.textContent = 'No Active Trace';
+        indicator.style.display = 'inline-flex';
+      }
+    }
+  }
+
+  async refreshStatusIndicator() {
+    try {
+      await this.listTraceFlags();
+      await this.updateStatusIndicator();
+      
+      // Start timer for active or recently expired traces (to update time display)
+      const targetUserId = this.userId;
+      const now = new Date();
+      const hasActiveTrace = this.traceFlags.some(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.TracedEntityId === targetUserId && expiration > now;
+      });
+      
+      const hasExpiredTrace = this.traceFlags.some(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.TracedEntityId === targetUserId && expiration <= now;
+      });
+      
+      // Run timer if there's an active trace or a recently expired one (for time updates)
+      if (hasActiveTrace || hasExpiredTrace) {
+        this.startStatusIndicatorTimer();
+      } else {
+        this.stopStatusIndicatorTimer();
+      }
+    } catch (error) {
+      console.error('Failed to refresh status indicator:', error);
+      // Hide indicator on error
+      const indicator = document.getElementById('traceStatusIndicator');
+      if (indicator) {
+        indicator.style.display = 'none';
+      }
     }
   }
 

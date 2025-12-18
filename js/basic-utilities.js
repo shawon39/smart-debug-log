@@ -291,6 +291,20 @@ function hasErrors(logContent) {
   return errorData.hasErrors;
 }
 
+// Helper function to check if log content contains fatal errors
+function hasFatalErrors(logContent) {
+  if (!logContent) return false;
+  const errorData = extractErrorsFromDebugLog(logContent);
+  return errorData.hasFatalErrors;
+}
+
+// Helper function to check if log content contains exceptions
+function hasExceptions(logContent) {
+  if (!logContent) return false;
+  const errorData = extractErrorsFromDebugLog(logContent);
+  return errorData.hasExceptions;
+}
+
 function containsSalesforceObjects(text) {
   if (!text) return false;
   

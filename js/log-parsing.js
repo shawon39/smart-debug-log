@@ -1,6 +1,10 @@
 // Log Content Parsing and Error Extraction
 // This file handles parsing debug log content, extracting errors, and formatting limits
 
+// Global variables to track current error filters
+let currentErrorFilters = { showFatal: true, showException: false }; // Default to showing Fatal only
+let currentErrorData = null; // Store current error data for re-rendering
+
 function addLineNumbers(messageContent) {
   if (!messageContent || typeof messageContent !== 'string') {
     return messageContent;
@@ -146,8 +150,26 @@ function displayDebugContent(parsedContent) {
   
   // Display error analysis
   if (errorContent && parsedContent.errors) {
-    const formattedErrors = formatErrorsForDisplay(parsedContent.errors);
+    // Store error data for re-rendering when filter changes
+    currentErrorData = parsedContent.errors;
+    
+    // Smart filter initialization: adjust filters based on what exists
+    if (!parsedContent.errors.hasFatalErrors && parsedContent.errors.hasExceptions) {
+      // Only exceptions exist, show them
+      currentErrorFilters = { showFatal: false, showException: true };
+    } else if (parsedContent.errors.hasFatalErrors && !parsedContent.errors.hasExceptions) {
+      // Only fatal errors exist, show them
+      currentErrorFilters = { showFatal: true, showException: false };
+    } else {
+      // Both exist, use current filter state (defaults to Fatal only)
+      // currentErrorFilters stays as is
+    }
+    
+    const formattedErrors = formatErrorsForDisplay(parsedContent.errors, currentErrorFilters);
     errorContent.innerHTML = formattedErrors;
+    
+    // Wire up filter checkbox event listeners
+    wireUpErrorFilterListeners();
   }
   
   // Display limits with enhanced formatting
@@ -159,6 +181,52 @@ function displayDebugContent(parsedContent) {
   } else {
     if (limitsContent) {
       limitsContent.innerHTML = '<div class="info-message">No CUMULATIVE_LIMIT_USAGE information found in this log.</div>';
+    }
+  }
+}
+
+/**
+ * Wires up event listeners for error filter checkboxes
+ */
+function wireUpErrorFilterListeners() {
+  // Use event delegation on the error content container
+  const errorContent = document.getElementById('errorContent');
+  if (!errorContent) return;
+  
+  // Remove existing listener to avoid duplicates
+  errorContent.removeEventListener('change', handleFilterCheckboxChange);
+  
+  // Add change listener for checkboxes
+  errorContent.addEventListener('change', handleFilterCheckboxChange);
+}
+
+/**
+ * Handles filter checkbox change events
+ * @param {Event} event - Change event
+ */
+function handleFilterCheckboxChange(event) {
+  const checkbox = event.target;
+  if (!checkbox || checkbox.type !== 'checkbox') return;
+  
+  const filter = checkbox.getAttribute('data-filter');
+  if (!filter) return;
+  
+  // Update current filters based on checkbox state
+  if (filter === 'fatal') {
+    currentErrorFilters.showFatal = checkbox.checked;
+  } else if (filter === 'exception') {
+    currentErrorFilters.showException = checkbox.checked;
+  }
+  
+  // Re-render error display with new filters
+  if (currentErrorData) {
+    const errorContent = document.getElementById('errorContent');
+    if (errorContent) {
+      const formattedErrors = formatErrorsForDisplay(currentErrorData, currentErrorFilters);
+      errorContent.innerHTML = formattedErrors;
+      
+      // Re-wire listeners after re-rendering
+      wireUpErrorFilterListeners();
     }
   }
 }

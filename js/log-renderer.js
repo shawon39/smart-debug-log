@@ -4,6 +4,9 @@
 class LogRenderer {
   constructor() {
     this.selectedLogId = null;
+    this.searchTerm = '';
+    this.searchDebounceTimer = null;
+    this.logContentCache = new Map(); // Cache for log contents during search
   }
 
   /**
@@ -81,6 +84,12 @@ class LogRenderer {
         item.setAttribute('data-listener-added', 'true');
       }
     });
+
+    // Re-apply search highlighting if there's an active search
+    if (this.searchTerm) {
+      // Use setTimeout to ensure DOM is updated before searching
+      setTimeout(() => this.searchInLogs(this.searchTerm), 50);
+    }
   }
 
   /**
@@ -168,12 +177,14 @@ class LogRenderer {
       // Store raw response data
       currentRawResponse = content;
       
-      // Cache debug and error status for this log
+      // Cache debug, error, and exception status for this log
       const hasDebugMsgs = hasDebugMessages(content);
-      const hasErrorMsgs = hasErrors(content);
+      const hasFatalErrorMsgs = hasFatalErrors(content);
+      const hasExceptionMsgs = hasExceptions(content);
       
       logCache.setDebugStatus(logId, hasDebugMsgs);
-      logCache.setErrorStatus(logId, hasErrorMsgs);
+      logCache.setErrorStatus(logId, hasFatalErrorMsgs);
+      logCache.setExceptionStatus(logId, hasExceptionMsgs);
       
       // Update the log display to show the new indicators
       this.displayDebugLogs(debugLogs);
@@ -198,6 +209,7 @@ class LogRenderer {
     }
   }
 
+
   /**
    * Updates indicator for a specific log
    * @param {string} logId - Log ID to update
@@ -212,6 +224,7 @@ class LogRenderer {
     // Get current status from caches
     const debugStatus = logCache.getDebugStatus(logId) || false;
     const errorStatus = logCache.getErrorStatus(logId) || false;
+    const exceptionStatus = logCache.getExceptionStatus(logId) || false;
     
     // Remove existing indicators
     const existingDebugIndicator = logTimeElement.querySelector('.has-debug-indicator');
@@ -224,13 +237,21 @@ class LogRenderer {
       existingErrorIndicator.remove();
     }
     
-    // Build indicators HTML
+    const existingExceptionIndicator = logTimeElement.querySelector('.has-exception-indicator');
+    if (existingExceptionIndicator) {
+      existingExceptionIndicator.remove();
+    }
+    
+    // Build indicators HTML (order: error, exception, debug)
     let indicatorsHtml = '';
+    if (errorStatus) {
+      indicatorsHtml += '<span class="has-error-indicator" title="Contains fatal errors">❗</span>';
+    }
+    if (exceptionStatus) {
+      indicatorsHtml += '<span class="has-exception-indicator" title="Contains exceptions">⚠️</span>';
+    }
     if (debugStatus) {
       indicatorsHtml += '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
-    }
-    if (errorStatus) {
-      indicatorsHtml += '<span class="has-error-indicator" title="Contains errors">❗</span>';
     }
     
     // Add indicators if any exist
@@ -277,6 +298,153 @@ class LogRenderer {
   }
 
   /**
+   * Initializes the log search functionality
+   */
+  initializeSearch() {
+    const searchInput = document.getElementById('logSearchInput');
+    const searchResults = document.getElementById('logSearchResults');
+    
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+      const searchTerm = e.target.value.trim();
+      
+      // Clear previous debounce timer
+      if (this.searchDebounceTimer) {
+        clearTimeout(this.searchDebounceTimer);
+      }
+
+      // If search is empty, clear all matches immediately
+      if (!searchTerm) {
+        this.clearSearch();
+        return;
+      }
+
+      // Debounce search for 300ms
+      this.searchDebounceTimer = setTimeout(async () => {
+        await this.searchInLogs(searchTerm);
+      }, 300);
+    });
+  }
+
+  /**
+   * Searches through debug logs for the given search term
+   * @param {string} searchTerm - The term to search for
+   */
+  async searchInLogs(searchTerm) {
+    if (!searchTerm || !debugLogs || debugLogs.length === 0) {
+      this.clearSearch();
+      return;
+    }
+
+    this.searchTerm = searchTerm.toLowerCase();
+    const searchResults = document.getElementById('logSearchResults');
+
+    // Show searching indicator
+    if (searchResults) {
+      searchResults.textContent = 'Searching...';
+    }
+
+    // Process all logs in parallel for much better performance
+    const searchPromises = debugLogs.map(async (log) => {
+      const logElement = document.querySelector(`[data-log-id="${log.Id}"]`);
+      if (!logElement) return { logId: log.Id, hasMatch: false, element: null };
+
+      try {
+        const hasMatch = await this.logContainsSearchTerm(log.Id, this.searchTerm);
+        return { logId: log.Id, hasMatch, element: logElement };
+      } catch (error) {
+        return { logId: log.Id, hasMatch: false, element: logElement };
+      }
+    });
+
+    // Wait for all searches to complete
+    const results = await Promise.all(searchPromises);
+
+    // Apply results to UI
+    let matchCount = 0;
+    results.forEach(({ hasMatch, element }) => {
+      if (!element) return;
+      
+      if (hasMatch) {
+        element.classList.add('search-match');
+        matchCount++;
+      } else {
+        element.classList.remove('search-match');
+      }
+    });
+
+    // Update search results count
+    if (searchResults) {
+      if (matchCount === 0) {
+        searchResults.textContent = 'No matches';
+      } else if (matchCount === 1) {
+        searchResults.textContent = '1 match';
+      } else {
+        searchResults.textContent = `${matchCount} matches`;
+      }
+    }
+  }
+
+  /**
+   * Checks if a log contains the search term in its debug messages
+   * @param {string} logId - Log ID to check
+   * @param {string} searchTerm - Search term (already lowercased)
+   * @returns {Promise<boolean>} True if log contains search term
+   */
+  async logContainsSearchTerm(logId, searchTerm) {
+    try {
+      // Try to get content from cache first
+      let content = this.logContentCache.get(logId);
+      
+      // If not cached, fetch it
+      if (!content) {
+        content = await logLoader.getLogContent(logId);
+        this.logContentCache.set(logId, content);
+        
+        // Limit cache size to prevent memory issues
+        if (this.logContentCache.size > 50) {
+          const firstKey = this.logContentCache.keys().next().value;
+          this.logContentCache.delete(firstKey);
+        }
+      }
+
+      // Extract debug messages
+      const debugMessages = extractUserDebugBlocks(content);
+      
+      // Search through debug messages
+      for (const message of debugMessages) {
+        if (message.toLowerCase().includes(searchTerm)) {
+          return true;
+        }
+      }
+      
+      return false;
+    } catch (error) {
+      // If we can't get content, treat as no match
+      return false;
+    }
+  }
+
+  /**
+   * Clears the search highlighting
+   */
+  clearSearch() {
+    this.searchTerm = '';
+    
+    // Remove all search-match classes
+    document.querySelectorAll('.log-item.search-match').forEach(item => {
+      item.classList.remove('search-match');
+    });
+
+    // Clear search results text
+    const searchResults = document.getElementById('logSearchResults');
+    if (searchResults) {
+      searchResults.textContent = '';
+    }
+  }
+
+  /**
    * Renders a single log item
    * @private
    * @param {Object} log - Log object
@@ -300,14 +468,17 @@ class LogRenderer {
     const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">📋</span>' : '';
     
     const errorStatus = logCache.getErrorStatus(log.Id);
-    const hasErrorIndicator = (errorStatus === true) ? '<span class="has-error-indicator" title="Contains errors">❗</span>' : '';
+    const hasErrorIndicator = (errorStatus === true) ? '<span class="has-error-indicator" title="Contains fatal errors">❗</span>' : '';
+    
+    const exceptionStatus = logCache.getExceptionStatus(log.Id);
+    const hasExceptionIndicator = (exceptionStatus === true) ? '<span class="has-exception-indicator" title="Contains exceptions">⚠️</span>' : '';
     
     return `
     <div class="log-item ${this.selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
       <div class="log-header">
         <div class="log-id">${log.Id}${unreadIndicator}</div>
         <div class="log-time">
-          ${expiredIndicator}${hasDebugIndicator}${hasErrorIndicator}
+          ${expiredIndicator}${hasErrorIndicator}${hasExceptionIndicator}${hasDebugIndicator}
           ${formatDateTimeWithHighlight(log.StartTime)}
         </div>
       </div>
@@ -425,6 +596,7 @@ class LogRenderer {
     // Cache that this log was checked but has no accessible debug messages  
     logCache.setDebugStatus(logId, false);
     logCache.setErrorStatus(logId, false);
+    logCache.setExceptionStatus(logId, false);
     this.displayDebugLogs(debugLogs);
   }
 }

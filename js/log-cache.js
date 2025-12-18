@@ -5,6 +5,7 @@ class LogCache {
   constructor() {
     this.debugStatusCache = new Map();
     this.errorStatusCache = new Map();
+    this.exceptionStatusCache = new Map();
     this.maxCacheSize = 1000; // Maximum number of entries per cache
     this.cleanupThreshold = 800; // When to start cleanup
     this._loadedOrgId = null;
@@ -59,6 +60,7 @@ class LogCache {
       const json = localStorage.getItem(key);
       this.debugStatusCache.clear();
       this.errorStatusCache.clear();
+      this.exceptionStatusCache.clear();
       if (json) {
         const data = JSON.parse(json);
         if (Array.isArray(data)) {
@@ -76,6 +78,9 @@ class LogCache {
             }
             if (typeof status.hasError === 'boolean') {
               this.errorStatusCache.set(logId, status.hasError);
+            }
+            if (typeof status.hasException === 'boolean') {
+              this.exceptionStatusCache.set(logId, status.hasException);
             }
           });
         }
@@ -97,7 +102,7 @@ class LogCache {
     try {
       const now = Date.now();
       const result = {};
-      // Merge both caches into a single object keyed by logId
+      // Merge all caches into a single object keyed by logId
       this.debugStatusCache.forEach((hasDebug, logId) => {
         if (!result[logId]) result[logId] = { updatedAt: now };
         result[logId].hasDebug = hasDebug;
@@ -105,6 +110,10 @@ class LogCache {
       this.errorStatusCache.forEach((hasError, logId) => {
         if (!result[logId]) result[logId] = { updatedAt: now };
         result[logId].hasError = hasError;
+      });
+      this.exceptionStatusCache.forEach((hasException, logId) => {
+        if (!result[logId]) result[logId] = { updatedAt: now };
+        result[logId].hasException = hasException;
       });
       // Prune entries older than 24h just before saving
       const twentyFourHoursMs = 24 * 60 * 60 * 1000;
@@ -187,6 +196,38 @@ class LogCache {
   }
 
   /**
+   * Gets exception status from cache
+   * @param {string} logId - Log ID
+   * @returns {boolean|undefined} Exception status or undefined if not cached
+   */
+  getExceptionStatus(logId) {
+    this._ensureOrgLoaded();
+    return this.exceptionStatusCache.get(logId);
+  }
+
+  /**
+   * Sets exception status in cache
+   * @param {string} logId - Log ID
+   * @param {boolean} hasExceptions - Whether log has exceptions
+   */
+  setExceptionStatus(logId, hasExceptions) {
+    this._ensureOrgLoaded();
+    this._ensureCacheSize(this.exceptionStatusCache);
+    this.exceptionStatusCache.set(logId, hasExceptions);
+    this._saveStatusesToStorage();
+  }
+
+  /**
+   * Checks if log has cached exception status
+   * @param {string} logId - Log ID
+   * @returns {boolean} True if cached
+   */
+  hasExceptionStatus(logId) {
+    this._ensureOrgLoaded();
+    return this.exceptionStatusCache.has(logId);
+  }
+
+  /**
    * Gets cache statistics
    * @returns {Object} Cache stats
    */
@@ -194,6 +235,7 @@ class LogCache {
     return {
       debugCacheSize: this.debugStatusCache.size,
       errorCacheSize: this.errorStatusCache.size,
+      exceptionCacheSize: this.exceptionStatusCache.size,
       maxCacheSize: this.maxCacheSize,
       cleanupThreshold: this.cleanupThreshold
     };
@@ -206,6 +248,7 @@ class LogCache {
     this._ensureOrgLoaded();
     this.debugStatusCache.clear();
     this.errorStatusCache.clear();
+    this.exceptionStatusCache.clear();
     this._saveStatusesToStorage();
   }
 
@@ -217,6 +260,7 @@ class LogCache {
     this._ensureOrgLoaded();
     this.debugStatusCache.delete(logId);
     this.errorStatusCache.delete(logId);
+    this.exceptionStatusCache.delete(logId);
     this._saveStatusesToStorage();
   }
 
@@ -254,23 +298,26 @@ class LogCache {
   getUncachedLogs(logs) {
     this._ensureOrgLoaded();
     return logs.filter(log => 
-      (!this.hasDebugStatus(log.Id) || !this.hasErrorStatus(log.Id)) &&
+      (!this.hasDebugStatus(log.Id) || !this.hasErrorStatus(log.Id) || !this.hasExceptionStatus(log.Id)) &&
       !isLogCleared(log.Id)
     );
   }
 
   /**
    * Bulk update cache for multiple logs
-   * @param {Array} updates - Array of {logId, hasDebugMessages, hasErrors}
+   * @param {Array} updates - Array of {logId, hasDebugMessages, hasErrors, hasExceptions}
    */
   bulkUpdate(updates) {
     this._ensureOrgLoaded();
-    updates.forEach(({ logId, hasDebugMessages, hasErrors }) => {
+    updates.forEach(({ logId, hasDebugMessages, hasErrors, hasExceptions }) => {
       if (hasDebugMessages !== undefined) {
         this.setDebugStatus(logId, hasDebugMessages);
       }
       if (hasErrors !== undefined) {
         this.setErrorStatus(logId, hasErrors);
+      }
+      if (hasExceptions !== undefined) {
+        this.setExceptionStatus(logId, hasExceptions);
       }
     });
     this._saveStatusesToStorage();

@@ -109,8 +109,24 @@ function showRawResponse() {
     
     // Display error analysis
     if (errorContent && parsedContent.errors) {
-      const formattedErrors = formatErrorsForDisplay(parsedContent.errors);
+      // Store error data for re-rendering when filter changes
+      currentErrorData = parsedContent.errors;
+      
+      // Smart filter initialization: adjust filters based on what exists
+      if (!parsedContent.errors.hasFatalErrors && parsedContent.errors.hasExceptions) {
+        // Only exceptions exist, show them
+        currentErrorFilters = { showFatal: false, showException: true };
+      } else if (parsedContent.errors.hasFatalErrors && !parsedContent.errors.hasExceptions) {
+        // Only fatal errors exist, show them
+        currentErrorFilters = { showFatal: true, showException: false };
+      }
+      // If both exist, currentErrorFilters stays as is
+      
+      const formattedErrors = formatErrorsForDisplay(parsedContent.errors, currentErrorFilters);
       errorContent.innerHTML = formattedErrors;
+      
+      // Wire up filter checkbox event listeners
+      wireUpErrorFilterListeners();
     }
     
     // Display limits
@@ -146,6 +162,9 @@ function showDebugMessages() {
   
   // Clear search state
   clearSearch();
+  
+  // Reset error filters to default (Fatal only)
+  currentErrorFilters = { showFatal: true, showException: false };
   
   // Re-display debug messages and error analysis/limits (trigger original parsing)
   if (currentRawResponse) {

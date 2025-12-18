@@ -1,106 +1,152 @@
 SHORT DESCRIPTION (132 characters max):
-Transform Salesforce debug logs with syntax highlighting, error analysis, governor limits tracking, and anonymous Apex execution.
+Transform and manage Salesforce debug logs with syntax highlighting, JSON formatting, error analysis, and anonymous Apex.
 
 ================================================================================
 
 FULL DESCRIPTION:
 
-Transform the way you debug Salesforce applications.
+Debug Salesforce the way it should be.
 
-Salesforce Debug Log Beautifier is designed for developers and administrators who spend hours analyzing debug logs. Instead of scrolling through plain text trying to make sense of stack traces, JSON objects, and error messages, this extension brings clarity and efficiency to your debugging workflow.
+If you've ever squinted at raw debug logs trying to figure out what's actually happening, you know the pain. This extension fixes that. Your logs get syntax highlighting, JSON formatting, and instant error extraction. No more scrolling through thousands of lines looking for that one error message.
 
-WHAT YOU GET
+⚡ HOW IT WORKS
 
-The moment you open a debug log, you'll see the difference. Syntax highlighting makes code structures immediately recognizable. JSON objects are automatically formatted and collapsible, so you can focus on what matters. Error messages are extracted and categorized at the top, saving you from hunting through thousands of lines.
+Two ways to get clean debug output:
 
-Governor limits appear in real-time with visual progress bars. You'll know instantly if you're approaching SOQL query limits, heap size constraints, or CPU time thresholds. No more manual counting or guessing—the information is right there when you need it.
+Use JSON.serializePretty() directly:
+```apex
+List<Account> accounts = [SELECT Id, Name, Industry FROM Account LIMIT 5];
+System.debug(JSON.serializePretty(accounts));
+```
 
-BUILT FOR YOUR WORKFLOW
-
-Execute anonymous Apex code directly from the extension. Save your frequently used code blocks, organize them by project or purpose, and run them with a single click. View execution results with full debug output, all without switching tabs or opening Developer Console.
-
-Managing trace flags becomes effortless. Enable debug logging for any user in your org, create custom debug levels with the exact log categories you need, and set expiration times from one hour to 24 hours. The extension handles the complexity of the Tooling API so you don't have to.
-
-WORKS EVERYWHERE
-
-Whether you're on Production, Sandbox, or Scratch orgs, the extension adapts. It automatically detects your Salesforce session and works across all domain patterns—from lightning.force.com to my.salesforce.com. Testing across multiple orgs? Use incognito login support to stay signed into different environments simultaneously.
-
-DEVELOPER EXPERIENCE MATTERS
-
-Dark mode and light mode support ensure comfortable viewing in any environment. The responsive interface adapts to your screen size. Keyboard shortcuts (Alt+D opens the dashboard on Windows, Option+D on Mac) keep you moving fast. Search functionality helps you find specific content in raw responses.
-
-Copy session URLs to share access with team members. View raw API responses when you need to dig deeper. Clear all logs with one click when starting fresh. Every feature is designed to save you time.
-
-PRIVACY FIRST
-
-Your data stays yours. The extension operates entirely within your browser, communicating directly with Salesforce APIs using your authenticated session. No data is sent to external servers. No tracking. No analytics. Just a tool that does what it promises.
-
-GETTING STARTED
-
-Step 1: Install the extension from the Chrome Web Store
-Step 2: Navigate to any Salesforce org
-Step 3: Click the extension icon and generate an access token
-Step 4: Open the Debug Dashboard (Alt+D on Windows, Option+D on Mac)
-Step 5: Start analyzing logs with enhanced clarity
-
-The extension requires permissions to access Salesforce domains for API communication and Chrome storage for saving your preferences and code blocks. These permissions are used exclusively for extension functionality.
-
-HOW TO USE IT
-
-Step 1: Install the extension from the Chrome Web Store.
-
-Step 2: Open any Salesforce org and click the extension icon to open the Debug Dashboard.
-
-Step 3: Click "Deploy Prettier Class" button to deploy the Apex Console class to your org. This is a one-time setup that adds a powerful Console class for better logging.
-
-Step 4: Start using the Console class in your Apex code. Here are some examples:
-
-Example 1 - Log a list of accounts without a label:
-
-List<Account> accounts = [SELECT Id, Name, Industry, Type FROM Account LIMIT 5];
+Or deploy the Console class (saves typing):
+```apex
 Console.log(accounts);
+Console.log('Top Accounts', accounts); // with a label
+```
 
-Example 2 - Log with a descriptive label:
+The Console class is just a wrapper around JSON.serializePretty() - pick whichever you prefer.
 
-List<Account> accounts = [SELECT Id, Name, Industry, Type FROM Account LIMIT 5];
-Console.log('Account Results', accounts);
+✨ BEAUTIFUL DEBUG LOGS
 
-The Console class works with any Salesforce object, collection, or data structure. Your debug logs will appear in the dashboard with beautiful syntax highlighting, making it easy to inspect complex objects, nested collections, and JSON structures. The formatted output shows object properties in a clean, readable format that's much easier to understand than standard System.debug output.
+Hit Alt+Shift+D (Option+Shift+D on Mac) to open the dashboard. You'll see:
 
-PERFECT FOR
+• Syntax highlighting that actually helps
+• Collapsible JSON objects
+• Errors pulled out and shown at the top
+• Clean stack traces
+• Governor limits as progress bars
+• Search that works
 
-Salesforce Developers debugging Apex code and triggers
-Technical Architects analyzing performance bottlenecks
-System Administrators troubleshooting integration issues
-QA Engineers investigating test failures
-Consultants working across multiple client orgs
+✨ MANAGE DEBUG LOGS
 
-WHAT MAKES IT DIFFERENT
+Create trace flags without opening Setup:
 
-No external dependencies. No build process. Pure vanilla JavaScript running efficiently in your browser. The codebase is clean, maintainable, and follows Chrome extension best practices. Regular updates ensure compatibility with the latest Salesforce API versions.
+• Turn on debugging for any user
+• Search by name or username  
+• Build custom debug levels
+• Set how long they last (15 min to 24 hours)
+• See what's active and when it expires
+• Delete old logs in bulk
 
-The extension respects your workflow instead of dictating it. Want to keep logs open while switching tabs? They're cached. Prefer dark mode? It remembers. Need specific debug levels? Create them once and reuse them across orgs.
+No more clicking through Setup pages.
 
-TECHNICAL CAPABILITIES
+🚀 EXECUTE APEX
 
-Supports Salesforce API v62.0
-Works with all Salesforce editions (Developer, Professional, Enterprise, Unlimited)
-Compatible with Lightning Experience and Salesforce Classic
-Handles logs up to 20MB in size
-Parses complex nested Apex collections
-Extracts stack traces and exception details
-Identifies SOQL queries and DML statements
-Highlights System.debug() messages
-Formats HTTP callout requests and responses
-Displays flow and process builder execution
-Shows validation rule evaluations
-Tracks workflow and trigger execution order
+Write and run code right from the extension:
 
-SUPPORT AND UPDATES
+• Save code blocks you use often
+• Run them with one click
+• See the full output
+• Search your saved snippets
 
-The extension is actively maintained with regular updates. Feature requests and bug reports are welcome. The development follows a simple principle: every change should make debugging easier without adding complexity.
+Beats opening Developer Console every time.
 
-Ready to transform your Salesforce debugging experience? Install now and see the difference.
+📊 GOVERNOR LIMITS
 
-Version 2.1.0 | Requires Chrome 88+ | Made for Salesforce Developers
+See where you are vs. the limits:
 
+• SOQL queries
+• Heap size
+• CPU time  
+• DML statements
+• Callouts
+• Everything else
+
+Just there when you need it.
+
+🌍 ALL SALESFORCE ENVIRONMENTS
+
+Works on production, sandboxes, scratch orgs - whatever you've got. Handles all the different Salesforce domains automatically.
+
+Testing in multiple orgs? Open them in incognito windows. Need to share access? Copy the session URL.
+
+💻 DEVELOPER EXPERIENCE
+
+• Dark and light modes
+• Works on any screen size
+• Keyboard shortcuts (Alt+Shift+D / Option+Shift+D)
+• Search in raw API responses
+• Copy responses to clipboard
+• Clear everything with one click
+
+🏁 GETTING STARTED
+
+1. Install from Chrome Web Store
+2. Go to any Salesforce org
+3. Click the extension icon, generate a token
+4. Open the dashboard (Alt+Shift+D)
+5. Use JSON.serializePretty() or deploy the Console class
+
+Example with JSON.serializePretty():
+```apex
+List<Account> accounts = [SELECT Id, Name FROM Account LIMIT 5];
+System.debug(JSON.serializePretty(accounts));
+```
+
+With Console class:
+```apex
+Console.log('My Accounts', accounts);
+```
+
+That's it. Your logs show up formatted and easy to read.
+
+💎 WHY USE THIS
+
+It's just vanilla JavaScript. No dependencies, no build tools, no bloat. Runs in your browser, follows Chrome's best practices.
+
+The whole point is to respect your workflow. Logs stay cached when you switch tabs. Theme preference is saved. Debug levels work across orgs once you create them.
+
+👥 WHO IT'S FOR
+
+Developers debugging Apex, architects tracking performance, admins fixing integrations, QA investigating failures, consultants juggling multiple orgs. If you work with Salesforce debug logs, this helps.
+
+⚙️ WHAT IT HANDLES
+
+• API v62.0
+• All Salesforce editions
+• Lightning and Classic
+• Logs up to 20MB
+• Nested collections
+• Stack traces and exceptions
+• SOQL and DML
+• System.debug messages
+• HTTP callouts
+• Flows and process builders
+• Validation rules
+• Workflow and triggers
+
+🔒 YOUR DATA
+
+Everything stays in your browser. The extension talks directly to Salesforce APIs using your session. Nothing gets sent anywhere else. No tracking, no analytics, no external servers.
+
+Required permissions:
+• Salesforce domains - to call their APIs
+• Chrome storage - to save your settings and code
+• Active tab - to know which org you're on
+
+🤝 SUPPORT
+
+Regular updates, bug fixes, new features. Open to suggestions. The goal is simple: make debugging easier without making the tool complicated.
+
+Version 2.3.0 | Made for Salesforce Professionals

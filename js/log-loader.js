@@ -392,10 +392,12 @@ class LogLoader {
         try {
           const content = await this.getLogContent(log.Id);
           const hasDebugMsgs = hasDebugMessages(content);
-          const hasErrorMsgs = hasErrors(content);
+          const hasFatalErrorMsgs = hasFatalErrors(content);
+          const hasExceptionMsgs = hasExceptions(content);
           
           logCache.setDebugStatus(log.Id, hasDebugMsgs);
-          logCache.setErrorStatus(log.Id, hasErrorMsgs);
+          logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
+          logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
           
           // Update UI immediately for this specific log
           if (updateCallback) {
@@ -405,6 +407,7 @@ class LogLoader {
           // If there's an error, assume no debug messages
           logCache.setDebugStatus(log.Id, false);
           logCache.setErrorStatus(log.Id, false);
+          logCache.setExceptionStatus(log.Id, false);
           
           if (updateCallback) {
             updateCallback(log.Id);
@@ -436,13 +439,16 @@ class LogLoader {
       try {
         const content = await this.getLogContent(log.Id);
         const hasDebugMsgs = hasDebugMessages(content);
-        const hasErrorMsgs = hasErrors(content);
+        const hasFatalErrorMsgs = hasFatalErrors(content);
+        const hasExceptionMsgs = hasExceptions(content);
         
         logCache.setDebugStatus(log.Id, hasDebugMsgs);
-        logCache.setErrorStatus(log.Id, hasErrorMsgs);
+        logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
+        logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
       } catch (error) {
         logCache.setDebugStatus(log.Id, false);
         logCache.setErrorStatus(log.Id, false);
+        logCache.setExceptionStatus(log.Id, false);
       }
     });
 

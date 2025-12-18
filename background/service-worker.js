@@ -4,7 +4,7 @@ import sessionManager from './session-manager.js';
 const debugLogManager = new DebugLogManager();
 
 // OAuth Configuration
-//const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
+// const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
 const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2CKKjz0rft6yvoueOIdkjyYyOCS1zj3EzVIKrc5Y25ekBWEZ4omoLZ8T8t79';
 
 
@@ -574,7 +574,7 @@ chrome.runtime.onStartup.addListener(() => {
   }
 });
 
-// Keyboard shortcut command listener (Alt+D / Option+D)
+// Keyboard shortcut command listener (Alt+Shift+D / Option+Shift+D)
 chrome.commands.onCommand.addListener(async (command) => {
   if (command === 'open-debug-dashboard') {
     try {

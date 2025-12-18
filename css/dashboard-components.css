@@ -262,6 +262,47 @@ input:checked + .toggle-slider:hover {
 }
 
 /* Recent Logs Panel */
+/* Log Search Container */
+.log-search-container {
+  padding: 8px 12px;
+  background: var(--bg-panel-header);
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.3s ease;
+}
+
+#logSearchInput {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-primary);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 11px;
+  transition: all 0.2s ease;
+}
+
+#logSearchInput:focus {
+  outline: none;
+  border-color: #00A1E0;
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.1);
+}
+
+#logSearchInput::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.6;
+}
+
+.log-search-info {
+  font-size: 10px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  min-width: 80px;
+  text-align: right;
+}
+
 .logs-grid {
   display: flex;
   flex-direction: column;
@@ -277,6 +318,59 @@ input:checked + .toggle-slider:hover {
   transition: all 0.3s ease;
   border-left: 2px solid var(--border-log-item);
   font-size: 11px;
+}
+
+/* Search match highlighting - Bold Vibrant Cyan/Teal - ALWAYS TAKES PRIORITY */
+.log-item.search-match {
+  background: rgba(20, 184, 166, 0.22) !important;
+  border-left: 4px solid #14B8A6 !important;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.35) !important;
+}
+
+.log-item.search-match:hover {
+  background: rgba(20, 184, 166, 0.28) !important;
+  border-left-color: #0D9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.4) !important;
+}
+
+/* Explicitly override selected state when search match is present */
+.log-item.selected.search-match {
+  background: rgba(20, 184, 166, 0.22) !important;
+  border-left: 4px solid #14B8A6 !important;
+  border-left-width: 4px !important;
+  box-shadow: 0 0 0 2px rgba(20, 184, 166, 0.35) !important;
+}
+
+.log-item.selected.search-match:hover {
+  background: rgba(20, 184, 166, 0.28) !important;
+  border-left-color: #0D9488 !important;
+  box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.4) !important;
+}
+
+[data-theme="dark"] .log-item.search-match {
+  background: rgba(20, 184, 166, 0.28) !important;
+  border-left: 4px solid #2DD4BF !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.45) !important;
+}
+
+[data-theme="dark"] .log-item.search-match:hover {
+  background: rgba(20, 184, 166, 0.35) !important;
+  border-left-color: #2DD4BF !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.5) !important;
+}
+
+/* Dark theme: Explicitly override selected state when search match is present */
+[data-theme="dark"] .log-item.selected.search-match {
+  background: rgba(20, 184, 166, 0.28) !important;
+  border-left: 4px solid #2DD4BF !important;
+  border-left-width: 4px !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.45) !important;
+}
+
+[data-theme="dark"] .log-item.selected.search-match:hover {
+  background: rgba(20, 184, 166, 0.35) !important;
+  border-left-color: #2DD4BF !important;
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.5) !important;
 }
 
 .log-item:hover {
@@ -316,6 +410,14 @@ input:checked + .toggle-slider:hover {
   font-size: 12px;
   opacity: 0.8;
   color: var(--text-error);
+}
+
+.has-exception-indicator {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 12px;
+  opacity: 0.8;
+  color: #f59e0b; /* Orange/yellow for exceptions */
 }
 
 .log-header {
@@ -479,8 +581,7 @@ input:checked + .toggle-slider:hover {
 }
 
 .see-more-logs-btn .button {
-  width: 80%;
-  max-width: 200px;
+  width: 75%;
   position: relative;
   display: inline-flex;
   align-items: center;
@@ -488,7 +589,6 @@ input:checked + .toggle-slider:hover {
   gap: 6px;
   background: var(--bg-button-secondary);
   color: var(--text-button);
-  opacity: 0.9;
   transition: all 0.2s ease;
 }
 

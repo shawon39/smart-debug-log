@@ -210,8 +210,55 @@
   border-radius: 6px;
   margin: 8px;
   border: 1px solid var(--border-limits-content);
-  transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.error-status-info {
+  text-align: center;
+  padding: 12px 16px;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 500;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  margin: 8px;
+  border: 1px solid var(--border-color);
+}
+
+/* Error filter checkboxes */
+.error-filter-pills {
+  display: flex;
+  gap: 12px;
+  margin: 8px 8px 8px 8px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  align-items: center;
+  border: 1px solid var(--border-color);
+}
+
+.filter-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+  user-select: none;
+}
+
+.filter-checkbox input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--bg-accent);
+  flex-shrink: 0;
+}
+
+.checkbox-label {
+  white-space: nowrap;
 }
 
 .error-section {
@@ -227,7 +274,6 @@
   border: 1px solid var(--border-error-message);
   border-radius: 6px 6px 0 0;
   margin-bottom: 0;
-  transition: all 0.3s ease;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -236,15 +282,9 @@
   font-weight: 600;
   color: var(--text-error);
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  transition: color 0.3s ease;
   display: flex;
   align-items: center;
   gap: 4px;
-}
-
-.error-count::before {
-  content: "🚨";
-  font-size: 10px;
 }
 
 .error-type-badge {
@@ -262,38 +302,16 @@
 .error-item-block {
   background: var(--bg-debug-message);
   border: 1px solid var(--border-error-message);
-  border-top: none;
+  border-radius: 6px;
   padding: 12px;
   font-size: 10px;
   line-height: 1.5;
-  transition: all 0.3s ease;
   position: relative;
+  margin-bottom: 12px;
 }
 
 .error-item-block:last-child {
-  border-radius: 0 0 6px 6px;
-}
-
-.error-item-block:only-child {
-  border-top: 1px solid var(--border-error-message);
-  border-radius: 6px;
-}
-
-.error-item-block:not(:only-child):not(:last-child) {
-  margin-bottom: 8px;
-  border-bottom: 2px solid var(--border-limits-content);
-  border-radius: 0;
-}
-
-.error-item-block:not(:only-child):first-child {
-  border-top: 1px solid var(--border-error-message);
-  border-radius: 6px 6px 0 0;
-}
-
-.error-item-block:hover {
-  background: var(--bg-debug-message-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  margin-bottom: 0;
 }
 
 .error-number-badge {
@@ -314,14 +332,19 @@
   z-index: 10;
 }
 
+.error-number-badge.exception-badge {
+  background: #f59e0b;
+  color: #ffffff;
+}
+
 .error-message-text {
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   color: var(--text-debug-message);
   margin-bottom: 6px;
   word-wrap: break-word;
-  transition: color 0.3s ease;
   font-weight: 500;
   line-height: 1.4;
+  font-size: 10px;
 }
 
 .error-location-line {
@@ -330,22 +353,17 @@
   font-weight: 600;
   margin: 8px 0 0 0;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
-  transition: color 0.3s ease;
   opacity: 0.8;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.error-location-line::before {
-  content: "📍";
-  font-size: 9px;
 }
 
 /* New error formatting styles */
 .error-type-header {
   margin-bottom: 8px;
+  padding-right: 30px;
   font-size: 10px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-wrap: break-word;
 }
 
 .code-unit-context {
@@ -420,9 +438,9 @@
   border-color: var(--border-error-message);
 }
 
-[data-theme="dark"] .error-item-block:hover {
-  background: var(--bg-debug-message-hover);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+[data-theme="dark"] .error-number-badge.exception-badge {
+  background: #fbbf24;
+  color: #1f2937;
 }
 
 [data-theme="dark"] .error-number-badge {

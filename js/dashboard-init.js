@@ -47,6 +47,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   await loadDebugLogs();
   
+  // Initialize log search functionality
+  if (logRenderer && typeof logRenderer.initializeSearch === 'function') {
+    logRenderer.initializeSearch();
+  }
+  
   // Check if trace flag was just created (from popup)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('traceFlagCreated') === 'true') {

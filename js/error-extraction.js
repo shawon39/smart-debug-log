@@ -40,6 +40,8 @@ function extractErrorsFromDebugLog(content) {
   if (!content || typeof content !== 'string') {
     return {
       hasErrors: false,
+      hasFatalErrors: false,
+      hasExceptions: false,
       errors: [],
       errorSummary: null
     };
@@ -80,6 +82,7 @@ function extractErrorsFromDebugLog(content) {
           
           currentError = {
             type: 'FATAL_ERROR',
+            isFatal: true,
             timestamp: extractTimestamp(line),
             rawMessage: firstErrorLine,
             parsedMessage: errorDetails,
@@ -109,6 +112,7 @@ function extractErrorsFromDebugLog(content) {
           
           currentError = {
             type: 'EXCEPTION_THROWN',
+            isFatal: false,
             timestamp: extractTimestamp(line),
             rawMessage: exceptionLine,
             parsedMessage: errorDetails,
@@ -197,8 +201,14 @@ function extractErrorsFromDebugLog(content) {
   // Apply smart deduplication with FATAL_ERROR priority
   const uniqueErrors = deduplicateErrors(errors);
   
+  // Separate fatal errors from exceptions
+  const fatalErrors = uniqueErrors.filter(e => e.isFatal);
+  const exceptions = uniqueErrors.filter(e => !e.isFatal);
+  
   return {
     hasErrors: uniqueErrors.length > 0,
+    hasFatalErrors: fatalErrors.length > 0,
+    hasExceptions: exceptions.length > 0,
     errors: uniqueErrors,
     errorSummary: createErrorSummary(uniqueErrors)
   };
@@ -291,6 +301,7 @@ function extractAdditionalErrors(lines) {
     if (compileErrorMatch) {
       errors.push({
         type: 'COMPILE_ERROR',
+        isFatal: true,
         timestamp: extractTimestamp(line),
         rawMessage: line,
         parsedMessage: {
@@ -308,6 +319,7 @@ function extractAdditionalErrors(lines) {
     if (validationErrorMatch) {
       errors.push({
         type: 'VALIDATION_ERROR',
+        isFatal: true,
         timestamp: extractTimestamp(line),
         rawMessage: line,
         parsedMessage: {
@@ -367,40 +379,91 @@ function createErrorSummary(errors) {
 }
 
 /**
+ * Generates filter checkbox controls for error display
+ * @param {object} errorData - Error data from extractErrorsFromDebugLog
+ * @param {object} activeFilters - Object with showFatal and showException booleans
+ * @returns {string} - HTML for filter controls
+ */
+function generateFilterPills(errorData, activeFilters) {
+  const hasFatal = errorData.hasFatalErrors;
+  const hasException = errorData.hasExceptions;
+  
+  // If only one type exists, don't show filters
+  if (!hasFatal || !hasException) {
+    return '';
+  }
+  
+  const fatalCount = errorData.errors.filter(e => e.isFatal).length;
+  const exceptionCount = errorData.errors.filter(e => !e.isFatal).length;
+  
+  let html = '<div class="error-filter-pills">';
+  
+  html += `<label class="filter-checkbox">
+    <input type="checkbox" data-filter="fatal" ${activeFilters.showFatal ? 'checked' : ''}>
+    <span class="checkbox-label">Fatal Errors (${fatalCount})</span>
+  </label>`;
+  
+  html += `<label class="filter-checkbox">
+    <input type="checkbox" data-filter="exception" ${activeFilters.showException ? 'checked' : ''}>
+    <span class="checkbox-label">Exception Thrown (${exceptionCount})</span>
+  </label>`;
+  
+  html += '</div>';
+  
+  return html;
+}
+
+/**
  * Formats errors for display in the UI
  * @param {object} errorData - Error data from extractErrorsFromDebugLog
+ * @param {object} filters - Object with showFatal and showException booleans (default: both true)
  * @returns {string} - HTML formatted error display
  */
-function formatErrorsForDisplay(errorData) {
+function formatErrorsForDisplay(errorData, filters = { showFatal: true, showException: true }) {
   if (!errorData.hasErrors) {
     return '<div class="error-status-success">✅ No errors found in this debug log</div>';
   }
   
-  let html = '<div class="error-section">';
-  
-  // Add error summary header showing all error types
-  if (errorData.errorSummary) {
-    const summary = errorData.errorSummary;
-    html += '<div class="error-summary-header">';
-    
-    // Show count and types
-    const errorTypeList = Object.keys(summary.errorTypes).map(type => {
-      const count = summary.errorTypes[type];
-      const displayName = getErrorTypeDisplayName(type);
-      return count > 1 ? `${displayName} (${count})` : displayName;
-    }).join(', ');
-    
-    html += `<div class="error-count">${summary.totalErrors} Error${summary.totalErrors > 1 ? 's' : ''}: ${errorTypeList}</div>`;
-    html += '</div>';
+  // Smart filter adjustment: if only exceptions exist and fatal is selected, auto-show exceptions
+  let adjustedFilters = { ...filters };
+  if (!errorData.hasFatalErrors && errorData.hasExceptions) {
+    // Only exceptions exist, make sure they're shown
+    adjustedFilters.showException = true;
+  }
+  if (errorData.hasFatalErrors && !errorData.hasExceptions) {
+    // Only fatal errors exist, make sure they're shown
+    adjustedFilters.showFatal = true;
   }
   
+  // Filter controls HTML
+  const pillsHtml = generateFilterPills(errorData, adjustedFilters);
+  
+  // Filter errors based on selected checkboxes
+  let filteredErrors = errorData.errors.filter(e => {
+    if (e.isFatal && adjustedFilters.showFatal) return true;
+    if (!e.isFatal && adjustedFilters.showException) return true;
+    return false;
+  });
+  
+  // If no errors match the filters, show appropriate message
+  if (filteredErrors.length === 0) {
+    let message = 'No errors match the selected filters';
+    if (!adjustedFilters.showFatal && !adjustedFilters.showException) {
+      message = 'Please select at least one filter to view errors';
+    }
+    return pillsHtml + `<div class="error-status-info">ℹ️ ${message}</div>`;
+  }
+  
+  let html = pillsHtml + '<div class="error-section">';
+  
   // Add individual error details
-  errorData.errors.forEach((error, index) => {
+  filteredErrors.forEach((error, index) => {
     html += '<div class="error-item-block">';
     
-    // Add error number badge for multiple errors
-    if (errorData.errors.length > 1) {
-      html += `<span class="error-number-badge">${index + 1}</span>`;
+    // Add error number badge for multiple errors with appropriate class
+    if (filteredErrors.length > 1) {
+      const badgeClass = error.isFatal ? 'error-number-badge' : 'error-number-badge exception-badge';
+      html += `<span class="${badgeClass}">${index + 1}</span>`;
     }
     
     // Error type header

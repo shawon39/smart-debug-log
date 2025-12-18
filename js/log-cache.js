@@ -228,43 +228,6 @@ class LogCache {
   }
 
   /**
-   * Gets cache statistics
-   * @returns {Object} Cache stats
-   */
-  getStats() {
-    return {
-      debugCacheSize: this.debugStatusCache.size,
-      errorCacheSize: this.errorStatusCache.size,
-      exceptionCacheSize: this.exceptionStatusCache.size,
-      maxCacheSize: this.maxCacheSize,
-      cleanupThreshold: this.cleanupThreshold
-    };
-  }
-
-  /**
-   * Clears all caches
-   */
-  clearAll() {
-    this._ensureOrgLoaded();
-    this.debugStatusCache.clear();
-    this.errorStatusCache.clear();
-    this.exceptionStatusCache.clear();
-    this._saveStatusesToStorage();
-  }
-
-  /**
-   * Clears cache for specific log
-   * @param {string} logId - Log ID to clear
-   */
-  clearLog(logId) {
-    this._ensureOrgLoaded();
-    this.debugStatusCache.delete(logId);
-    this.errorStatusCache.delete(logId);
-    this.exceptionStatusCache.delete(logId);
-    this._saveStatusesToStorage();
-  }
-
-  /**
    * Ensures cache doesn't exceed size limits
    * @private
    * @param {Map} cache - Cache to check
@@ -302,31 +265,7 @@ class LogCache {
       !isLogCleared(log.Id)
     );
   }
-
-  /**
-   * Bulk update cache for multiple logs
-   * @param {Array} updates - Array of {logId, hasDebugMessages, hasErrors, hasExceptions}
-   */
-  bulkUpdate(updates) {
-    this._ensureOrgLoaded();
-    updates.forEach(({ logId, hasDebugMessages, hasErrors, hasExceptions }) => {
-      if (hasDebugMessages !== undefined) {
-        this.setDebugStatus(logId, hasDebugMessages);
-      }
-      if (hasErrors !== undefined) {
-        this.setErrorStatus(logId, hasErrors);
-      }
-      if (hasExceptions !== undefined) {
-        this.setExceptionStatus(logId, hasExceptions);
-      }
-    });
-    this._saveStatusesToStorage();
-  }
 }
 
 // Create singleton instance  
 const logCache = new LogCache();
-
-// Legacy compatibility - maintain access to cache Maps for existing code
-let logDebugStatusCache = logCache.debugStatusCache;
-let logErrorStatusCache = logCache.errorStatusCache;

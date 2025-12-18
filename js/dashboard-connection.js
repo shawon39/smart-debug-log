@@ -239,10 +239,6 @@ function hideTokenWarning() {
   elements.devConsoleWarning?.classList.add('hidden');
 }
 
-// Alias for backward compatibility
-const showDevConsoleWarning = showTokenWarning;
-const hideDevConsoleWarning = hideTokenWarning;
-
 async function generateAccessToken() {
   const button = document.getElementById('openDevConsoleBtn');
   const originalText = button?.textContent;
@@ -374,29 +370,5 @@ async function revokeAccessTokenDashboard() {
         button.disabled = false;
       }, 2000);
     }
-  }
-}
-
-function dismissSessionHelp() {
-  const controlsBar = document.querySelector('.controls-bar');
-  const existingHelpPanel = controlsBar?.querySelector('.session-help-panel');
-  existingHelpPanel?.remove();
-}
-
-async function autoEstablishSession(targetHost) {
-  try {
-    const classicDomain = targetHost.replace('.lightning.force.com', '.my.salesforce.com');
-    
-    await chrome.tabs.create({
-      url: `https://${classicDomain}/lightning/page/home`,
-      active: true
-    });
-    
-    setTimeout(async () => {
-      await checkConnectionStatus(targetHost);
-    }, 3000);
-    
-  } catch (error) {
-    // Failed
   }
 }

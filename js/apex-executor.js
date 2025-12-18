@@ -165,19 +165,6 @@ class ApexExecutor {
     div.textContent = text == null ? '' : String(text);
     return div.innerHTML;
   }
-
-  clearResults() {
-    const resultsContent = document.getElementById('resultsContent');
-    if (!resultsContent) return;
-
-    resultsContent.innerHTML = `
-      <div class="welcome-state">
-        <div class="welcome-icon">⚡</div>
-        <h4>Ready to Execute</h4>
-        <p>Select Apex code and click Run to see results</p>
-      </div>
-    `;
-  }
 }
 
 // Global instance

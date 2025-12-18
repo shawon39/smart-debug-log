@@ -328,22 +328,4 @@
   color: #fff;
 }
 
-/* Raw Response Line Numbers (optional enhancement) */
-.raw-response-line {
-  display: block;
-  position: relative;
-  padding-left: 40px;
-}
-
-.raw-response-line:before {
-  content: attr(data-line);
-  position: absolute;
-  left: 8px;
-  color: var(--text-secondary);
-  font-size: 9px;
-  width: 30px;
-  text-align: right;
-  user-select: none;
-}
-
 /* Toggle button states - using standard primary/secondary classes */

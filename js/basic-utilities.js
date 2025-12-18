@@ -415,20 +415,6 @@ async function setTheme(theme) {
   return theme;
 }
 
-// Check if current theme is dark
-async function isDarkTheme() {
-  const theme = await getThemeFromStorage();
-  return theme === THEME_DARK;
-}
-
-// Get system theme preference (if available)
-function getSystemTheme() {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? THEME_DARK : THEME_LIGHT;
-  }
-  return THEME_LIGHT;
-}
-
 // Setup theme toggle listener for a checkbox element
 function setupThemeToggle(toggleElement) {
   if (!toggleElement) {

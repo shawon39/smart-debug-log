@@ -568,10 +568,6 @@ function updateSearchInfo(totalMatches, currentMatch, customMessage = null) {
   }
 }
 
-function escapeRegex(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 // Copy raw response function
 async function copyRawResponse() {
   if (!currentRawResponse) return;

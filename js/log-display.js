@@ -197,20 +197,3 @@ async function loadMoreLogs() {
     }
   }
 }
-
-/**
- * Legacy compatibility functions for progressive checking
- */
-async function checkDebugStatusForLogsProgressive(logs) {
-  // Filter out cleared logs to minimize API calls
-  const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
-  await logLoader.checkDebugStatusProgressive(visibleLogs, (logId) => {
-    logRenderer.updateLogIndicator(logId);
-  });
-}
-
-async function checkDebugStatusForLogs(logs) {
-  // Filter out cleared logs to minimize API calls
-  const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
-  await logLoader.checkDebugStatusLimited(visibleLogs);
-}

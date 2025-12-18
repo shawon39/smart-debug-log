@@ -48,11 +48,6 @@ function removeUnwantedFields(data, fieldsToRemove = DEFAULT_FIELDS_TO_REMOVE) {
   return data;
 }
 
-// Legacy function name for backward compatibility
-function removeAttributesOnly(data) {
-  return removeUnwantedFields(data, ['attributes']);
-}
-
 // Extracts a JSON object from a raw text string.
 function extractJsonFromText(text) {
   // First try direct parsing

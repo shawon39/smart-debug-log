@@ -35,62 +35,6 @@ body {
   gap: 8px;
 }
 
-/* Token Warning Banner */
-.token-warning {
-  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-  color: #fff;
-  padding: 12px 20px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-shadow: 0 2px 8px rgba(255, 152, 0, 0.3);
-  animation: slideDown 0.3s ease-out;
-}
-
-@keyframes slideDown {
-  from {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.token-warning .warning-icon {
-  font-size: 18px;
-}
-
-.token-warning .warning-text {
-  flex: 1;
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.token-warning .button.small {
-  padding: 6px 14px;
-  font-size: 12px;
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  color: #fff;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  font-weight: 600;
-}
-
-.token-warning .button.small:hover {
-  background: rgba(255, 255, 255, 0.3);
-  border-color: rgba(255, 255, 255, 0.6);
-}
-
-/* Dark mode token warning */
-[data-theme="dark"] .token-warning {
-  background: linear-gradient(135deg, #e65100 0%, #bf360c 100%);
-  box-shadow: 0 2px 8px rgba(230, 81, 0, 0.4);
-}
-
 /* Compact Controls Bar */
 .controls-bar {
   background: var(--bg-primary);
@@ -111,25 +55,10 @@ body {
   gap: 20px;
 }
 
-.status-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-status);
-  transition: color 0.3s ease;
-}
-
 .org-info {
   font-size: 11px;
   color: var(--text-org-info);
   transition: color 0.3s ease;
-}
-
-.controls-section {
-  display: flex;
-  align-items: center;
-  gap: 15px;
 }
 
 .right-controls {
@@ -203,30 +132,6 @@ body {
   transition: color 0.3s ease;
 }
 
-.panel-icon {
-  width: 16px;
-  height: 16px;
-  border-radius: 3px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  color: white;
-  font-weight: bold;
-}
-
-.logs-icon {
-  background: #6f42c1;
-}
-
-.debug-icon {
-  background: #28a745;
-}
-
-.limits-icon {
-  background: #dc3545;
-}
-
 .panel-content {
   flex: 1;
   overflow-y: auto;
@@ -252,22 +157,6 @@ body {
   font-size: 32px;
   margin-bottom: 10px;
   opacity: 0.5;
-}
-
-.welcome-title {
-  font-size: 16px;
-  font-weight: 500;
-  color: var(--text-primary);
-  margin: 0 0 8px 0;
-  opacity: 0.85;
-}
-
-.welcome-subtitle {
-  font-size: 13px;
-  font-weight: 400;
-  color: var(--text-secondary);
-  margin: 0;
-  opacity: 0.75;
 }
 
 /* Icon Legend */

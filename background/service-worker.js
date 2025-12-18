@@ -703,9 +703,6 @@ async function handleMessage(request, sender, sendResponse) {
       case 'TOOLING_DESCRIBE':
         result = await handleToolingDescribe(request, sender);
         break;
-      case 'DOWNLOAD_LOG':
-        result = await handleDownloadLog(request, sender);
-        break;
       case 'SAVE_APEX_CODE':
         result = await handleSaveApexCode(request, sender);
         break;
@@ -1009,24 +1006,6 @@ async function handleToolingDescribe(request, sender) {
       return { success: false, error: 'Access token required. Please generate an access token first.' };
     }
     return { success: false, error: error.message || 'Failed to describe SObject via Tooling API' };
-  }
-}
-
-async function handleDownloadLog(request, sender) {
-  try {
-    const { logId, session } = request;
-    
-    if (!logId || !session) {
-      return { success: false, message: 'Log ID and session are required' };
-    }
-
-    await debugLogManager.downloadLogContent(logId, session);
-    return { success: true, message: 'Log content downloaded successfully' };
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'Failed to download log content'
-    };
   }
 }
 

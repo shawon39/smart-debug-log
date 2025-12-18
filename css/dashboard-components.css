@@ -616,7 +616,7 @@ input:checked + .toggle-slider:hover {
 .see-more-logs-btn .loading-spinner {
   font-size: 10px;
   color: var(--text-button);
-  animation: pulse 1.5s infinite;
+  animation: pulse-opacity 1.5s infinite;
 }
 
 .see-more-logs-btn .button-text {
@@ -634,7 +634,7 @@ input:checked + .toggle-slider:hover {
   background: var(--bg-button-header-hover);
 }
 
-@keyframes pulse {
+@keyframes pulse-opacity {
   0%, 100% {
     opacity: 1;
   }

@@ -119,30 +119,6 @@ class LogLoader {
   }
 
   /**
-   * Clear cache for current org and all log types (used when log type changes)
-   */
-  clearAllLogTypeCaches() {
-    const orgId = this._getOrgId();
-    if (!orgId) return;
-    
-    const logTypes = ['SystemLog', 'Monitoring'];
-    logTypes.forEach(logType => {
-      const cacheKey = `cachedLogs_${orgId}_${logType}`;
-      const timeKey = `lastFetchTime_${orgId}_${logType}`;
-      localStorage.removeItem(cacheKey);
-      localStorage.removeItem(timeKey);
-    });
-  }
-
-  /**
-   * Force refresh - clear cache and reload from server
-   */
-  async forceRefresh() {
-    this.clearCache();
-    return await this.loadDebugLogs(0, true);
-  }
-
-  /**
    * Cleanup old cache entries to prevent unlimited growth
    */
   cleanupOldCaches() {

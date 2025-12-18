@@ -274,22 +274,6 @@ async function checkAndShowTokenWarning(targetHost) {
   }
 }
 
-// Show no-token warning banner (different from dev console warning)
-function showNoTokenWarning() {
-  const warningBanner = document.getElementById('noTokenWarning');
-  if (warningBanner) {
-    warningBanner.style.display = 'flex';
-  }
-}
-
-// Hide no-token warning banner
-function hideNoTokenWarning() {
-  const warningBanner = document.getElementById('noTokenWarning');
-  if (warningBanner) {
-    warningBanner.style.display = 'none';
-  }
-}
-
 // Apex Manager Event Handlers
 async function handleRunApex() {
   if (!window.apexExecutor || !window.apexCodeManager) {

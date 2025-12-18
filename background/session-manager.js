@@ -217,54 +217,6 @@ class SessionManager {
     }
   }
 
-  getAllSessions() {
-    return Array.from(this.sessions.values()).filter(session => session.isValid);
-  }
-
-  getSessionByOrgId(orgId) {
-    return this.sessions.get(orgId) || null;
-  }
-
-  async refreshSession(orgId) {
-    try {
-      const session = this.sessions.get(orgId);
-      if (!session) {
-        return false;
-      }
-
-      session.lastUsed = Date.now();
-      
-      const isValid = await this.validateSession(session);
-      session.isValid = isValid;
-
-      if (isValid) {
-        return true;
-      } else {
-        this.sessions.delete(orgId);
-        return false;
-      }
-
-    } catch (error) {
-      return false;
-    }
-  }
-
-  async cleanupSessions() {
-    const now = Date.now();
-    const maxAge = 2 * 60 * 60 * 1000;
-    
-    for (const [orgId, session] of this.sessions.entries()) {
-      if (now - session.lastUsed > maxAge || !session.isValid) {
-        this.sessions.delete(orgId);
-      }
-    }
-  }
-
-  clearAllSessions() {
-    this.sessions.clear();
-    this.domainCache.clear();
-  }
-
   async getCookieStoreId(tabId) {
     if (!tabId) return undefined;
     
@@ -318,22 +270,6 @@ class SessionManager {
     }
     
     return null;
-  }
-
-  async findMatchingDomain(orgId, storeId) {
-    const searchPromises = SALESFORCE_DOMAINS.map(async domain => {
-      const cookies = await this.getAllCookies(domain, 'sid', storeId);
-      
-      const matchingCookie = cookies.find(cookie => 
-        cookie.value.startsWith(orgId + '!') && 
-        cookie.domain !== 'help.salesforce.com'
-      );
-
-      return matchingCookie ? matchingCookie.domain : null;
-    });
-
-    const results = await Promise.all(searchPromises);
-    return results.find(domain => domain !== null) || null;
   }
 
   shouldValidateSession(sessionData) {

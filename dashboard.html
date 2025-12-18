@@ -154,16 +154,33 @@
         </div>
       </div>
       <div class="panel-content">
-        <div class="welcome-state" id="welcomeState" style="margin-top: 35px;">
-          <div class="welcome-icon">📋</div>
-          <h4>Select a Debug Log</h4>
-          <p>Click any log to view debug messages</p>
-          <p style="color: #6c757d; font-size: 13px; margin-top: 16px; font-style: italic; line-height: 1.4;">
-            💡 Not seeing logs? Make sure you have generated an access token.<br>
-            <span style="font-size: 11px; opacity: 0.8; margin-top: 4px; display: inline-block;">
-              Click the <strong>Generate Token</strong> button above if you haven't authenticated yet.
-            </span>
-          </p>
+        <div class="welcome-state" id="welcomeState">
+          
+          <!-- Icon Legend -->
+          <div class="icon-legend">
+            <div class="icon-legend-header">Log Status Icons</div>
+            <div class="icon-legend-item">
+              <span class="icon-legend-icon">❗</span>
+              <div class="icon-legend-content">
+                <span class="icon-legend-label">Fatal Error</span>
+                <span class="icon-legend-description">Log contains fatal errors that stopped execution</span>
+              </div>
+            </div>
+            <div class="icon-legend-item">
+              <span class="icon-legend-icon">⚠️</span>
+              <div class="icon-legend-content">
+                <span class="icon-legend-label">Exception Thrown</span>
+                <span class="icon-legend-description">Log contains exception events (not necessarily errors)</span>
+              </div>
+            </div>
+            <div class="icon-legend-item">
+              <span class="icon-legend-icon">📋</span>
+              <div class="icon-legend-content">
+                <span class="icon-legend-label">Debug Messages</span>
+                <span class="icon-legend-description">Log contains System.debug() statements</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="debug-content hidden" id="debugContentPanel">
           <div id="debugContent"></div>

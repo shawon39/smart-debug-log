@@ -249,6 +249,11 @@
   user-select: none;
 }
 
+.filter-checkbox.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .filter-checkbox input[type="checkbox"] {
   width: 16px;
   height: 16px;
@@ -257,8 +262,19 @@
   flex-shrink: 0;
 }
 
+.filter-checkbox.disabled input[type="checkbox"] {
+  cursor: not-allowed;
+}
+
 .checkbox-label {
   white-space: nowrap;
+}
+
+.filter-note {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 .error-section {

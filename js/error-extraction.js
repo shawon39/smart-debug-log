@@ -385,26 +385,24 @@ function createErrorSummary(errors) {
  * @returns {string} - HTML for filter controls
  */
 function generateFilterPills(errorData, activeFilters) {
-  const hasFatal = errorData.hasFatalErrors;
-  const hasException = errorData.hasExceptions;
-  
-  // If only one type exists, don't show filters
-  if (!hasFatal || !hasException) {
-    return '';
-  }
-  
   const fatalCount = errorData.errors.filter(e => e.isFatal).length;
   const exceptionCount = errorData.errors.filter(e => !e.isFatal).length;
   
   let html = '<div class="error-filter-pills">';
   
-  html += `<label class="filter-checkbox">
-    <input type="checkbox" data-filter="fatal" ${activeFilters.showFatal ? 'checked' : ''}>
+  // Fatal Errors checkbox
+  const fatalDisabled = fatalCount === 0 ? 'disabled' : '';
+  const fatalChecked = fatalCount > 0 && activeFilters.showFatal ? 'checked' : '';
+  html += `<label class="filter-checkbox ${fatalDisabled}">
+    <input type="checkbox" data-filter="fatal" ${fatalChecked} ${fatalDisabled}>
     <span class="checkbox-label">Fatal Errors (${fatalCount})</span>
   </label>`;
   
-  html += `<label class="filter-checkbox">
-    <input type="checkbox" data-filter="exception" ${activeFilters.showException ? 'checked' : ''}>
+  // Exception Thrown checkbox
+  const exceptionDisabled = exceptionCount === 0 ? 'disabled' : '';
+  const exceptionChecked = exceptionCount > 0 && activeFilters.showException ? 'checked' : '';
+  html += `<label class="filter-checkbox ${exceptionDisabled}">
+    <input type="checkbox" data-filter="exception" ${exceptionChecked} ${exceptionDisabled}>
     <span class="checkbox-label">Exception Thrown (${exceptionCount})</span>
   </label>`;
   

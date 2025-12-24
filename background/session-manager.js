@@ -1,6 +1,7 @@
 const SALESFORCE_DOMAINS = [
   'salesforce.com',
-  'cloudforce.com', 
+  'salesforce-setup.com',
+  'cloudforce.com',
   'salesforce.mil',
   'cloudforce.mil',
   'sfcrmproducts.cn',
@@ -34,40 +35,40 @@ class SessionManager {
     if (currentDomain.includes('.my.salesforce.com')) {
       return currentDomain;
     }
-    
+
     for (const [pattern, apiDomain] of Object.entries(DOMAIN_MAPPINGS)) {
       if (currentDomain.includes(pattern)) {
         return currentDomain.replace(pattern, apiDomain);
       }
     }
-    
+
     return currentDomain;
   }
 
   getRelatedDomains(sfHost) {
     const domains = new Set();
-    
+
     const orgMatch = sfHost.match(/^([^.]+(?:\.[^.]+)*)\.(my\.salesforce|lightning\.force|visual\.force)\.com$/);
     if (orgMatch) {
       const orgPrefix = orgMatch[1];
-      
+
       domains.add(`${orgPrefix}.my.salesforce.com`);
       domains.add(`${orgPrefix}.lightning.force.com`);
       domains.add(`${orgPrefix}.visual.force.com`);
-      
+
       if (orgPrefix.includes('.develop')) {
         const baseOrg = orgPrefix.replace('.develop', '');
         domains.add(`${baseOrg}.my.salesforce.com`);
         domains.add(`${baseOrg}.lightning.force.com`);
       }
-      
+
       if (orgPrefix.includes('.sandbox')) {
         const baseOrg = orgPrefix.replace('.sandbox', '');
         domains.add(`${baseOrg}.my.salesforce.com`);
         domains.add(`${baseOrg}.lightning.force.com`);
       }
     }
-    
+
     return Array.from(domains).filter(domain => domain !== sfHost);
   }
 
@@ -81,7 +82,7 @@ class SessionManager {
       }
 
       const [orgId, ...sessionParts] = sessionCookie.value.split('!');
-      
+
       if (!orgId || sessionParts.length === 0) {
         return null;
       }
@@ -110,7 +111,7 @@ class SessionManager {
     try {
       const urlObj = new URL(url);
       const currentDomain = urlObj.hostname;
-      
+
       if (this.domainCache.has(currentDomain)) {
         return this.domainCache.get(currentDomain);
       }
@@ -122,94 +123,100 @@ class SessionManager {
 
       const cookieStoreId = await this.getCookieStoreId(tabId);
       const currentCookie = await this.getCookie(url, 'sid', cookieStoreId);
-      
+
       if (currentCookie) {
         const [orgId] = currentCookie.value.split('!');
         if (orgId) {
-          
+
           const apiDomain = await this.findApiEnabledDomain(orgId, cookieStoreId);
           const effectiveDomain = apiDomain || currentDomain;
-          
+
           this.domainCache.set(currentDomain, effectiveDomain);
           return effectiveDomain;
         }
       }
 
       const isSalesforce = SALESFORCE_DOMAINS.some(domain => currentDomain.includes(domain));
-      
+
       if (isSalesforce) {
         this.domainCache.set(currentDomain, currentDomain);
         return currentDomain;
       }
 
-      this.domainCache.set(currentDomain, currentDomain);
-      return currentDomain;
+      // Not a Salesforce URL - return null to indicate this
+      return null;
 
     } catch (error) {
-      const urlObj = new URL(url);
-      return urlObj.hostname;
+      // Return null for invalid/non-Salesforce URLs
+      return null;
     }
   }
 
-  async getSession(sfHost, tabId = null) {
+  async getSession(sfHost, tabId = null, skipValidation = false) {
     try {
+      // First check if we have a cached session for this host
       let session = await this.getSessionFromDomain(sfHost, tabId);
+      if (session && session.orgId) {
+        const cachedSession = this.sessions.get(session.orgId);
+        if (cachedSession && cachedSession.key === session.key) {
+          // Use cached session if the key matches (same login session)
+          return cachedSession;
+        }
+      }
+
+      // If no cache or different session, proceed with fresh session
       if (session) {
-        if (await this.shouldValidateSession(session)) {
+        if (!skipValidation && await this.shouldValidateSession(session)) {
           const isValid = await this.validateSession(session);
           session.isValid = isValid;
-          
-          if (!isValid) {
-            return null;
-          }
+
+          // Don't return null on validation failure - just mark as invalid
+          // This allows popup to still show org info even if API validation fails
         }
 
         this.sessions.set(session.orgId, session);
         return session;
       }
-      
+
       const apiDomain = this.getApiEnabledDomain(sfHost);
       if (apiDomain !== sfHost) {
         session = await this.getSessionFromDomain(apiDomain, tabId);
         if (session) {
           session.displayDomain = sfHost;
           session.apiDomain = apiDomain;
-          
-          if (await this.shouldValidateSession(session)) {
+
+          if (!skipValidation && await this.shouldValidateSession(session)) {
             const isValid = await this.validateSession(session);
             session.isValid = isValid;
-            
-            if (!isValid) {
-              return null;
-            }
+
+            // Don't return null on validation failure
           }
 
           this.sessions.set(session.orgId, session);
           return session;
         }
       }
-      
+
       const relatedDomains = this.getRelatedDomains(sfHost);
       for (const domain of relatedDomains) {
         session = await this.getSessionFromDomain(domain, tabId);
         if (session) {
           session.displayDomain = sfHost;
           session.apiDomain = domain;
-          
-          if (await this.shouldValidateSession(session)) {
+
+          if (!skipValidation && await this.shouldValidateSession(session)) {
             const isValid = await this.validateSession(session);
             session.isValid = isValid;
-            
-            if (!isValid) {
-              continue;
-            }
+
+            // Don't skip to next domain on validation failure
+            // The session cookie is valid even if API check fails
           }
 
           this.sessions.set(session.orgId, session);
           return session;
         }
       }
-      
+
       return null;
 
     } catch (error) {
@@ -219,7 +226,7 @@ class SessionManager {
 
   async getCookieStoreId(tabId) {
     if (!tabId) return undefined;
-    
+
     try {
       const tab = await chrome.tabs.get(tabId);
       return tab.cookieStoreId;
@@ -258,9 +265,9 @@ class SessionManager {
   async findApiEnabledDomain(orgId, storeId) {
     for (const domain of SALESFORCE_DOMAINS) {
       const cookies = await this.getAllCookies(domain, 'sid', storeId);
-      
-      const matchingCookie = cookies.find(cookie => 
-        cookie.value.startsWith(orgId + '!') && 
+
+      const matchingCookie = cookies.find(cookie =>
+        cookie.value.startsWith(orgId + '!') &&
         cookie.domain !== 'help.salesforce.com'
       );
 
@@ -268,7 +275,7 @@ class SessionManager {
         return matchingCookie.domain;
       }
     }
-    
+
     return null;
   }
 
@@ -276,14 +283,14 @@ class SessionManager {
     const now = Date.now();
     const lastValidation = sessionData.lastValidated || 0;
     const validationInterval = 10 * 60 * 1000;
-    
+
     return (now - lastValidation) > validationInterval;
   }
 
   async validateSession(sessionData) {
     try {
       const apiDomain = sessionData.apiDomain || sessionData.domain;
-      
+
       const response = await fetch(`https://${apiDomain}/services/data/${SALESFORCE_API_VERSION}/limits`, {
         headers: {
           'Authorization': `Bearer ${sessionData.key}`,
@@ -293,7 +300,7 @@ class SessionManager {
 
       const isValid = response.ok;
       sessionData.lastValidated = Date.now();
-      
+
       return isValid;
 
     } catch (error) {

@@ -55,8 +55,15 @@
 }
 
 @keyframes slideIn {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* User Selection Section */
@@ -278,6 +285,28 @@
   box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
 }
 
+.debug-level-dropdown.validation-error {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2) !important;
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
+}
+
 #createDebugLevelBtn {
   padding: 5px 12px;
   font-size: 11px;
@@ -295,13 +324,15 @@
 
 .debug-create-section .debug-create-controls {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   width: 100%;
   align-items: center;
+  justify-content: flex-end;
+  /* Right-align everything */
 }
 
 .debug-create-section .duration-select {
-  padding: 7px 10px;
+  padding: 6px 12px;
   border: 1px solid var(--border-secondary);
   border-radius: 4px;
   background: var(--bg-primary);
@@ -309,11 +340,12 @@
   font-size: 11px;
   cursor: pointer;
   transition: all 0.15s ease;
-  min-width: 100px;
+  min-width: 110px;
 }
 
 .debug-create-section .duration-select:hover {
   border-color: var(--bg-button);
+  background: var(--bg-secondary);
 }
 
 .debug-create-section .duration-select:focus {
@@ -323,9 +355,99 @@
 }
 
 .debug-create-section .button.primary {
-  flex: 1;
-  padding: 7px 12px;
+  padding: 7px 20px;
   font-size: 11px;
+  font-weight: 600;
+  min-width: 150px;
+  width: auto;
+  letter-spacing: 0.3px;
+}
+
+/* Expiration Mode Toggle */
+.expiration-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.expiration-mode-toggle .mode-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+.expiration-mode-toggle .radio-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--text-primary);
+  transition: color 0.15s ease;
+}
+
+.expiration-mode-toggle .radio-option:hover {
+  color: var(--bg-button);
+}
+
+.expiration-mode-toggle .radio-option input[type="radio"] {
+  margin: 0;
+  cursor: pointer;
+}
+
+/* Custom Date/Time Controls */
+.custom-datetime-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.datetime-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.datetime-label {
+  min-width: 40px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.custom-date-input,
+.custom-time-input {
+  padding: 7px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 120px;
+}
+
+.custom-date-input:hover,
+.custom-time-input:hover {
+  border-color: var(--bg-button);
+}
+
+.custom-date-input:focus,
+.custom-time-input:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+}
+
+.custom-datetime-controls .button.primary {
+  align-self: flex-end;
+  margin-top: 4px;
 }
 
 /* Create Debug Level Form */
@@ -347,6 +469,7 @@
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -655,6 +778,11 @@
   box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
 }
 
+.trace-flag-user .trace-status-dot.scheduled {
+  background: #3b82f6;
+  box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+}
+
 .trace-flag-user .trace-status-dot.expired {
   background: #ef4444;
   opacity: 0.5;
@@ -685,6 +813,17 @@
   display: flex;
   align-items: center;
   gap: 3px;
+}
+
+.trace-flag-expires.scheduled {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.trace-flag-expires.scheduled .schedule-range {
+  color: #94a3b8;
+  font-weight: 400;
+  font-size: 0.95em;
 }
 
 .trace-flag-expires.expired {
@@ -774,8 +913,13 @@
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 .replace-confirmation-dialog {
@@ -793,6 +937,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -919,57 +1064,57 @@
     max-height: 90vh;
     border-radius: 0;
   }
-  
+
   .debug-log-manager-content {
     padding: 12px;
     gap: 10px;
   }
-  
+
   .status-display {
     flex-direction: column;
     gap: 10px;
     align-items: stretch;
   }
-  
+
   .timer-display {
     justify-content: center;
   }
-  
+
   .debug-actions {
     flex-wrap: wrap;
   }
-  
+
   .debug-actions .button {
     min-width: calc(50% - 4px);
   }
-  
+
   .trace-flag-item {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
   }
-  
+
   .trace-flag-actions {
     width: 100%;
     justify-content: flex-end;
   }
-  
+
   .delete-logs-section {
     flex-direction: column;
     gap: 8px;
     text-align: center;
   }
-  
+
   /* Create Debug Level Form Responsive */
   .create-debug-level-form .form-grid {
     grid-template-columns: 1fr;
     gap: 8px;
   }
-  
+
   .debug-level-section .section-header {
     flex-wrap: wrap;
   }
-  
+
   #createDebugLevelBtn {
     width: 100%;
     margin-top: 6px;
@@ -1027,7 +1172,7 @@
 
 .trace-status-indicator.active .status-dot {
   background: #22c55e;
-  box-shadow: 
+  box-shadow:
     0 0 0 2px rgba(34, 197, 94, 0.2),
     0 0 12px rgba(34, 197, 94, 0.6),
     inset 0 1px 2px rgba(255, 255, 255, 0.3);
@@ -1047,6 +1192,32 @@
   animation: ripple 2s ease-out infinite;
 }
 
+/* Scheduled state - soft blue with gentle pulse */
+.trace-status-indicator.scheduled {
+  background: rgba(59, 130, 246, 0.08);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(59, 130, 246, 0.1);
+}
+
+.trace-status-indicator.scheduled .status-dot {
+  background: #3b82f6;
+  box-shadow:
+    0 0 0 2px rgba(59, 130, 246, 0.2),
+    0 0 12px rgba(59, 130, 246, 0.6),
+    inset 0 1px 2px rgba(255, 255, 255, 0.3);
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.trace-status-indicator.scheduled .status-text {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+.trace-status-indicator.scheduled .schedule-range {
+  color: #94a3b8;
+  font-weight: 400;
+  opacity: 0.9;
+}
+
 /* Expired state - prominent red/orange with warning animation */
 .trace-status-indicator.expired {
   background: rgba(239, 68, 68, 0.08);
@@ -1056,7 +1227,7 @@
 
 .trace-status-indicator.expired .status-dot {
   background: linear-gradient(135deg, #ef4444, #dc2626);
-  box-shadow: 
+  box-shadow:
     0 0 0 2px rgba(239, 68, 68, 0.2),
     0 0 10px rgba(239, 68, 68, 0.5),
     inset 0 1px 2px rgba(255, 255, 255, 0.2);
@@ -1072,7 +1243,7 @@
 
 .trace-status-indicator.no-trace .status-dot {
   background: linear-gradient(135deg, #94a3b8, #64748b);
-  box-shadow: 
+  box-shadow:
     0 0 0 2px rgba(148, 163, 184, 0.15),
     inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
@@ -1103,14 +1274,17 @@
 
 /* Enhanced animations */
 @keyframes pulseGlow {
-  0%, 100% {
-    box-shadow: 
+
+  0%,
+  100% {
+    box-shadow:
       0 0 0 2px rgba(34, 197, 94, 0.2),
       0 0 12px rgba(34, 197, 94, 0.6),
       inset 0 1px 2px rgba(255, 255, 255, 0.3);
   }
+
   50% {
-    box-shadow: 
+    box-shadow:
       0 0 0 3px rgba(34, 197, 94, 0.3),
       0 0 20px rgba(34, 197, 94, 0.8),
       inset 0 1px 2px rgba(255, 255, 255, 0.4);
@@ -1122,6 +1296,7 @@
     opacity: 1;
     transform: translate(-50%, -50%) scale(1);
   }
+
   100% {
     opacity: 0;
     transform: translate(-50%, -50%) scale(2.5);
@@ -1129,16 +1304,19 @@
 }
 
 @keyframes warningBlink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
-    box-shadow: 
+    box-shadow:
       0 0 0 2px rgba(239, 68, 68, 0.2),
       0 0 10px rgba(239, 68, 68, 0.5),
       inset 0 1px 2px rgba(255, 255, 255, 0.2);
   }
+
   50% {
     opacity: 0.7;
-    box-shadow: 
+    box-shadow:
       0 0 0 3px rgba(239, 68, 68, 0.3),
       0 0 16px rgba(239, 68, 68, 0.7),
       inset 0 1px 2px rgba(255, 255, 255, 0.3);
@@ -1146,9 +1324,12 @@
 }
 
 @keyframes warningPulse {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
   }
+
   50% {
     box-shadow: 0 2px 12px rgba(239, 68, 68, 0.25);
   }
@@ -1159,6 +1340,7 @@
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -1172,7 +1354,7 @@
     padding: 5px 12px;
     gap: 6px;
   }
-  
+
   .trace-status-indicator .status-dot {
     width: 9px;
     height: 9px;

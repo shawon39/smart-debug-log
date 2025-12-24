@@ -1,7 +1,7 @@
 // Prevent multiple declarations and instantiations
-(function() {
+(function () {
   'use strict';
-  
+
   // Check if already loaded
   if (window.SalesforceAPIHandler) {
     return;
@@ -21,6 +21,10 @@
 
     setupMessageListener() {
       chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        const handledActions = ['TOOLING_QUERY', 'TOOLING_CREATE', 'GET_LOG_BODY', 'PING', 'EXECUTE_ANONYMOUS'];
+        if (!handledActions.includes(message.action)) {
+          return false; // Don't handle other message types
+        }
         this.handleMessage(message, sender, sendResponse);
         return true;
       });
@@ -58,8 +62,8 @@
             sendResponse({ success: false, error: 'Unknown action: ' + message.action });
         }
       } catch (error) {
-        sendResponse({ 
-          success: false, 
+        sendResponse({
+          success: false,
           error: error.message,
           details: error.toString()
         });
@@ -69,11 +73,11 @@
     isSalesforcePage() {
       const hostname = window.location.hostname;
       const pathname = window.location.pathname;
-      
+
       // Check for all Salesforce domains
       const salesforceDomains = [
         'salesforce.com',
-        'force.com', 
+        'force.com',
         'cloudforce.com',
         'salesforce.mil',
         'cloudforce.mil',
@@ -86,12 +90,12 @@
         'scratch.my.salesforce.com',
         'salesforce-setup.com'
       ];
-      
+
       const isDomainMatch = salesforceDomains.some(domain => hostname.includes(domain));
-      
+
       // Additional check for Lightning Experience paths
       const isLightningPath = pathname.includes('/lightning/');
-      
+
       return isDomainMatch || isLightningPath;
     }
   }
@@ -102,10 +106,10 @@
   // Initialize the handler only once on Salesforce pages
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
-  
+
   const salesforceDomains = [
     'salesforce.com',
-    'force.com', 
+    'force.com',
     'cloudforce.com',
     'salesforce.mil',
     'cloudforce.mil',
@@ -118,10 +122,10 @@
     'scratch.my.salesforce.com',
     'salesforce-setup.com'
   ];
-  
+
   const isDomainMatch = salesforceDomains.some(domain => hostname.includes(domain));
   const isLightningPath = pathname.includes('/lightning/');
-  
+
   if (isDomainMatch || isLightningPath) {
     // Prevent multiple instances
     if (!window.salesforceAPIHandlerInstance) {

@@ -263,7 +263,7 @@ async function generateAccessToken() {
       }
       hideTokenWarning();
       
-      // Auto-enable debug logging (60 min) for current user
+      // Auto-enable debug logging (45 min) for current user
       try {
         await chrome.runtime.sendMessage({ 
           type: 'ENSURE_TRACE_FLAG',

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,6 +15,7 @@
   <link rel="stylesheet" href="css/debug-log-manager.css">
   <!-- Use local highlight.js - CDN removed for CSP compliance -->
 </head>
+
 <body>
   <!-- Compact Header -->
   <div class="header">
@@ -38,12 +40,18 @@
   <div class="controls-bar">
     <div class="status-section">
       <div class="org-actions hidden" id="orgActions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;" title="Copy session URL">Copy Session URL</button>
-        <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;" title="Open in incognito">Incognito Login</button>
-        <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;" title="Deploy Prettier Class">Deploy Prettier Class</button>
-        <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Anonymous Code Manager">Anonymous Execution</button>
-        <button class="button secondary" id="openDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;" title="Open Salesforce Debug Logs Setup">Open Debug Logs</button>
-        <button class="button primary" id="debugLogManagerBtn" style="font-size: 10px; padding: 3px 8px;" title="Manage Debug Logs">Manage Debug Logs</button>
+        <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Copy session URL">Copy Session URL</button>
+        <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Open in incognito">Incognito Login</button>
+        <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Deploy Prettier Class">Deploy Prettier Class</button>
+        <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Open Anonymous Code Manager">Anonymous Execution</button>
+        <button class="button secondary" id="openDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Open Salesforce Debug Logs Setup">Open Debug Logs</button>
+        <button class="button primary" id="debugLogManagerBtn" style="font-size: 10px; padding: 3px 8px;"
+          title="Manage Debug Logs">Manage Debug Logs</button>
         <div class="trace-status-indicator" id="traceStatusIndicator" style="display: none;">
           <span class="status-dot" id="traceStatusDot"></span>
           <span class="status-text" id="traceStatusText">Checking...</span>
@@ -70,7 +78,8 @@
         </select>
       </div>
       <div class="auto-refresh-toggle">
-        <label class="toggle-label" for="autoRefreshToggle" title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
+        <label class="toggle-label" for="autoRefreshToggle"
+          title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
         <div class="toggle-switch">
           <input type="checkbox" id="autoRefreshToggle" checked>
           <span class="toggle-slider"></span>
@@ -97,18 +106,21 @@
   </div>
 
   <!-- Main Content - Direct Layout -->
-    <!-- Main Content - 3 Column Layout -->
-    <div class="main-content">
-      <!-- Recent Debug Logs -->
-      <div class="panel">
+  <!-- Main Content - 3 Column Layout -->
+  <div class="main-content">
+    <!-- Recent Debug Logs -->
+    <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
           Recent Logs
         </div>
         <div style="display: flex; gap: 6px;">
-          <button class="button secondary" id="clearLogsBtn" style="font-size: 10px; padding: 3px 8px;">Clear Logs</button>
-          <button class="button secondary" id="markAllReadBtn" style="font-size: 10px; padding: 3px 8px;">Read All</button>
-          <button class="button secondary" id="refreshLogsBtn" style="font-size: 10px; padding: 3px 8px;">Refresh</button>
+          <button class="button secondary" id="clearLogsBtn" style="font-size: 10px; padding: 3px 8px;">Clear
+            Logs</button>
+          <button class="button secondary" id="markAllReadBtn" style="font-size: 10px; padding: 3px 8px;">Read
+            All</button>
+          <button class="button secondary" id="refreshLogsBtn"
+            style="font-size: 10px; padding: 3px 8px;">Refresh</button>
         </div>
       </div>
       <!-- Search Box for Debug Logs -->
@@ -136,8 +148,10 @@
           Debug Messages
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="button primary hidden" id="toggleViewBtn" style="font-size: 10px; padding: 3px 8px;" title="Toggle between debug messages and raw response">Show Raw Response</button>
-          <button class="copy-icon-btn hidden" id="copyRawBtn" style="font-size: 10px; padding: 3px 6px;" title="Copy raw response">📋</button>
+          <button class="button primary hidden" id="toggleViewBtn" style="font-size: 10px; padding: 3px 8px;"
+            title="Toggle between debug messages and raw response">Show Raw Response</button>
+          <button class="copy-icon-btn hidden" id="copyRawBtn" style="font-size: 10px; padding: 3px 6px;"
+            title="Copy raw response">📋</button>
           <div id="selectedLogId" style="font-family: monospace; font-size: 10px; color: #6c757d;"></div>
         </div>
       </div>
@@ -155,7 +169,7 @@
       </div>
       <div class="panel-content">
         <div class="welcome-state" id="welcomeState">
-          
+
           <!-- Icon Legend -->
           <div class="icon-legend">
             <div class="icon-legend-header">Log Status Icons</div>
@@ -206,7 +220,7 @@
           <div id="errorAnalysisSection" style="margin-top: 5px;">
             <div id="errorContent"></div>
           </div>
-          
+
           <!-- Governor Limits Section -->
           <div id="governorLimitsSection" style="margin-top: 12px;">
             <div class="limits-content" id="limitsContent"></div>
@@ -216,60 +230,62 @@
     </div>
   </div>
 
-<!-- Apex Manager Modal -->
-<div class="modal-overlay" id="apexManagerModal" style="display: none;">
-  <div class="modal-content apex-manager-modal">
-    <div class="modal-header">
-      <div class="modal-title">Saved Anonymous Code Block</div>
-      <button class="modal-close-btn" id="closeApexManagerBtn">×</button>
-    </div>
-    
-    <div class="apex-manager-content">
-      <!-- Left Panel - Apex Code List -->
-      <div class="apex-list-panel">
-        <div class="panel-header">
-          <div class="apex-search-container">
-            <input type="text" id="apexSearchInput" class="apex-search-input" placeholder="Search code blocks..." />
-          </div>
-          <div class="panel-actions">
-            <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add Code Block</button>
-          </div>
-        </div>
-        <div class="apex-list-content">
-          <div id="apexCodeList" class="apex-code-list"></div>
-        </div>
+  <!-- Apex Manager Modal -->
+  <div class="modal-overlay" id="apexManagerModal" style="display: none;">
+    <div class="modal-content apex-manager-modal">
+      <div class="modal-header">
+        <div class="modal-title">Saved Anonymous Code Block</div>
+        <button class="modal-close-btn" id="closeApexManagerBtn">×</button>
       </div>
-      
-      <!-- Right Panel - Code Editor and Execution -->
-      <div class="apex-editor-panel">
-        <div class="panel-header">
-          <div class="panel-title">
-            <span id="apexCodeTitle">Select Apex Code</span>
-            <span id="unsavedIndicator" class="unsaved-indicator hidden">●</span>
-            <button id="editApexTitleBtn" class="title-edit-btn" title="Rename code">✎</button>
+
+      <div class="apex-manager-content">
+        <!-- Left Panel - Apex Code List -->
+        <div class="apex-list-panel">
+          <div class="panel-header">
+            <div class="apex-search-container">
+              <input type="text" id="apexSearchInput" class="apex-search-input" placeholder="Search code blocks..." />
+            </div>
+            <div class="panel-actions">
+              <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add Code Block</button>
+            </div>
           </div>
-          <div class="panel-actions">
-            <button class="button primary" id="runApexBtn" title="Execute Apex code">Execute</button>
-            <button class="button secondary" id="saveApexBtn" title="Save current code">Save Code</button>
+          <div class="apex-list-content">
+            <div id="apexCodeList" class="apex-code-list"></div>
           </div>
         </div>
-        <div class="apex-editor-content">
-          <div class="code-editor-container">
-            <div class="code-editor-wrapper">
-              <div id="lineNumbers" class="line-numbers"></div>
-              <div id="syntaxHighlightOverlay" class="syntax-highlight-overlay"></div>
-              <textarea id="apexCodeEditor" class="apex-code-editor" spellcheck="false" placeholder="Select an Apex code from the list..."></textarea>
+
+        <!-- Right Panel - Code Editor and Execution -->
+        <div class="apex-editor-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span id="apexCodeTitle">Select Apex Code</span>
+              <span id="unsavedIndicator" class="unsaved-indicator hidden">●</span>
+              <button id="editApexTitleBtn" class="title-edit-btn" title="Rename code">✎</button>
+            </div>
+            <div class="panel-actions">
+              <button class="button primary" id="runApexBtn" title="Execute Apex code">Execute</button>
+              <button class="button secondary" id="saveApexBtn" title="Save current code">Save Code</button>
             </div>
           </div>
-          <div class="execution-results" id="executionResults">
-            <div class="results-header">
-              <div class="results-title">Execution Results</div>
+          <div class="apex-editor-content">
+            <div class="code-editor-container">
+              <div class="code-editor-wrapper">
+                <div id="lineNumbers" class="line-numbers"></div>
+                <div id="syntaxHighlightOverlay" class="syntax-highlight-overlay"></div>
+                <textarea id="apexCodeEditor" class="apex-code-editor" spellcheck="false"
+                  placeholder="Select an Apex code from the list..."></textarea>
+              </div>
             </div>
-            <div class="results-content" id="resultsContent">
-              <div class="welcome-state">
-                <div class="welcome-icon">⚡</div>
-                <h4>Ready to Execute</h4>
-                <p>Select Apex code and click Execute to see results</p>
+            <div class="execution-results" id="executionResults">
+              <div class="results-header">
+                <div class="results-title">Execution Results</div>
+              </div>
+              <div class="results-content" id="resultsContent">
+                <div class="welcome-state">
+                  <div class="welcome-icon">⚡</div>
+                  <h4>Ready to Execute</h4>
+                  <p>Select Apex code and click Execute to see results</p>
+                </div>
               </div>
             </div>
           </div>
@@ -277,250 +293,283 @@
       </div>
     </div>
   </div>
-</div>
 
-<!-- Debug Log Manager Modal -->
-<div class="modal-overlay" id="debugLogManagerModal" style="display: none;">
-  <div class="modal-content debug-log-manager-modal">
-    <div class="modal-header">
-      <div class="modal-title">Manage Debug Logs</div>
-      <button class="modal-close-btn" id="closeDebugLogManagerBtn">×</button>
-    </div>
-    
-    <div class="debug-log-manager-content">
-      <!-- User Selection Section -->
-      <div class="user-selection-section">
-        <div class="section-header">
-          <label>Enable Debug For:</label>
-        </div>
-        <div class="user-type-toggle">
-          <label class="radio-label">
-            <input type="radio" name="userType" id="currentUserRadio" value="current" checked>
-            <span>Current User</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="userType" id="otherUserRadio" value="other">
-            <span>Other User</span>
-          </label>
-        </div>
-        <div class="user-search-container hidden" id="userSearchContainer">
-          <div class="user-search-input-wrapper">
-            <input type="text" id="userSearchInput" class="user-search-input" placeholder="Search by name or username...">
-            <button class="button secondary" id="userSearchBtn" title="Search users">🔍</button>
+  <!-- Debug Log Manager Modal -->
+  <div class="modal-overlay" id="debugLogManagerModal" style="display: none;">
+    <div class="modal-content debug-log-manager-modal">
+      <div class="modal-header">
+        <div class="modal-title">Manage Debug Logs</div>
+        <button class="modal-close-btn" id="closeDebugLogManagerBtn">×</button>
+      </div>
+
+      <div class="debug-log-manager-content">
+        <!-- User Selection Section -->
+        <div class="user-selection-section">
+          <div class="section-header">
+            <label>Enable Debug For:</label>
           </div>
-          <div class="user-search-results hidden" id="userSearchResults"></div>
-          <div class="selected-user hidden" id="selectedUserDisplay">
-            <span class="selected-user-label">Selected:</span>
-            <span class="selected-user-name" id="selectedUserName"></span>
-            <button class="clear-user-btn" id="clearSelectedUserBtn" title="Clear selection">×</button>
+          <div class="user-type-toggle">
+            <label class="radio-label">
+              <input type="radio" name="userType" id="currentUserRadio" value="current" checked>
+              <span>Current User</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="userType" id="otherUserRadio" value="other">
+              <span>Other User</span>
+            </label>
           </div>
+          <div class="user-search-container hidden" id="userSearchContainer">
+            <div class="user-search-input-wrapper">
+              <input type="text" id="userSearchInput" class="user-search-input"
+                placeholder="Search by name or username...">
+              <button class="button secondary" id="userSearchBtn" title="Search users">🔍</button>
+            </div>
+            <div class="user-search-results hidden" id="userSearchResults"></div>
+            <div class="selected-user hidden" id="selectedUserDisplay">
+              <span class="selected-user-label">Selected:</span>
+              <span class="selected-user-name" id="selectedUserName"></span>
+              <button class="clear-user-btn" id="clearSelectedUserBtn" title="Clear selection">×</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Debug Level Selection -->
+        <div class="debug-level-section">
+          <div class="section-header">
+            <label for="debugLevelSelect">Debug Level:</label>
+            <select id="debugLevelSelect" class="debug-level-dropdown">
+              <option value="">Select Debug Level...</option>
+            </select>
+            <button class="button primary" id="createDebugLevelBtn" title="Create new debug level">New Debug
+              Level</button>
+          </div>
+
+          <!-- Create Debug Level Form (Initially Hidden) -->
+          <div class="create-debug-level-form hidden" id="createDebugLevelForm">
+            <div class="form-header">
+              <span class="form-title">Create New Debug Level</span>
+              <button class="form-close-btn" id="closeCreateFormBtn" title="Close form">×</button>
+            </div>
+
+            <div class="form-row">
+              <label for="debugLevelLabel">Label: <span class="required">*</span></label>
+              <input type="text" id="debugLevelLabel" class="form-input" placeholder="My Debug Level" maxlength="40" />
+              <span class="input-hint">User-friendly name for this debug level</span>
+            </div>
+
+            <div class="form-row">
+              <label for="debugLevelApiName">API Name: <span class="required">*</span></label>
+              <input type="text" id="debugLevelApiName" class="form-input" placeholder="My_Debug_Level" maxlength="40"
+                pattern="^[A-Za-z][A-Za-z0-9_]*$" />
+              <span class="input-hint">Auto-generated from label. Must start with letter, only letters, numbers, and
+                underscores.</span>
+            </div>
+
+            <div class="form-grid">
+              <div class="form-field">
+                <label for="apexCodeLevel">ApexCode:</label>
+                <select id="apexCodeLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="apexProfilingLevel">ApexProfiling:</label>
+                <select id="apexProfilingLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="databaseLevel">Database:</label>
+                <select id="databaseLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="systemLevel">System:</label>
+                <select id="systemLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="workflowLevel">Workflow:</label>
+                <select id="workflowLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="validationLevel">Validation:</label>
+                <select id="validationLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="calloutLevel">Callout:</label>
+                <select id="calloutLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="visualforceLevel">Visualforce:</label>
+                <select id="visualforceLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button class="button secondary" id="cancelCreateDebugLevelBtn">Cancel</button>
+              <button class="button primary" id="submitCreateDebugLevelBtn">Create Debug Level</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Create Debug Log Section -->
+        <div class="debug-create-section">
+          <!-- Mode Toggle -->
+          <div class="expiration-mode-toggle">
+            <label class="mode-label">Mode:</label>
+            <label class="radio-option">
+              <input type="radio" name="expirationMode" value="duration" id="modeDuration" checked>
+              <span>Duration</span>
+            </label>
+            <label class="radio-option">
+              <input type="radio" name="expirationMode" value="custom" id="modeCustom">
+              <span>Custom Date/Time</span>
+            </label>
+          </div>
+
+          <!-- Duration Mode Controls -->
+          <div class="debug-create-controls" id="durationControls">
+            <select id="debugDurationSelect" class="duration-select">
+              <option value="15">15 Minutes</option>
+              <option value="30">30 Minutes</option>
+              <option value="45" selected>45 Minutes</option>
+              <option value="60">1 Hour</option>
+              <option value="120">2 Hours</option>
+              <option value="240">4 Hours</option>
+              <option value="360">6 Hours</option>
+              <option value="480">8 Hours</option>
+              <option value="600">10 Hours</option>
+              <option value="720">12 Hours</option>
+              <option value="840">14 Hours</option>
+              <option value="960">16 Hours</option>
+              <option value="1080">18 Hours</option>
+              <option value="1200">20 Hours</option>
+              <option value="1320">22 Hours</option>
+              <option value="1440">24 Hours</option>
+            </select>
+            <button class="button primary" id="enableDebugBtn">Create New Trace Flag</button>
+          </div>
+
+          <!-- Custom Date/Time Mode Controls -->
+          <div class="custom-datetime-controls" id="customControls" style="display: none;">
+            <div class="datetime-row">
+              <label class="datetime-label">Start:</label>
+              <input type="date" id="customStartDate" class="custom-date-input">
+              <input type="time" id="customStartTime" class="custom-time-input">
+            </div>
+            <div class="datetime-row">
+              <label class="datetime-label">End:</label>
+              <input type="date" id="customEndDate" class="custom-date-input">
+              <input type="time" id="customEndTime" class="custom-time-input">
+            </div>
+            <button class="button primary" id="enableDebugBtnCustom">Create New Trace Flag</button>
+          </div>
+        </div>
+
+        <!-- Trace Flags Section -->
+        <div class="trace-flags-section">
+          <div class="section-header">
+            <div class="section-title">Trace Flags</div>
+          </div>
+          <div class="trace-flags-search">
+            <input type="text" id="traceFlagsSearchInput" class="trace-flags-search-input"
+              placeholder="Search by user or debug level..." />
+          </div>
+          <div class="trace-flags-list" id="traceFlagsList">
+            <div class="loading-state">Loading trace flags...</div>
+          </div>
+        </div>
+
+        <!-- Delete Logs Section -->
+        <div class="delete-logs-section">
+          <button class="button danger" id="deleteAllLogsBtn">Delete All Debug Logs</button>
+          <span class="delete-hint">This will delete all debug logs for your user</span>
         </div>
       </div>
-      
-      <!-- Debug Level Selection -->
-      <div class="debug-level-section">
-        <div class="section-header">
-          <label for="debugLevelSelect">Debug Level:</label>
-          <select id="debugLevelSelect" class="debug-level-dropdown">
-            <option value="">Select Debug Level...</option>
-          </select>
-          <button class="button primary" id="createDebugLevelBtn" title="Create new debug level">New Debug Level</button>
-        </div>
-        
-        <!-- Create Debug Level Form (Initially Hidden) -->
-        <div class="create-debug-level-form hidden" id="createDebugLevelForm">
-          <div class="form-header">
-            <span class="form-title">Create New Debug Level</span>
-            <button class="form-close-btn" id="closeCreateFormBtn" title="Close form">×</button>
+
+      <!-- Replace Trace Flag Confirmation Dialog -->
+      <div class="replace-confirmation-overlay hidden" id="replaceConfirmationDialog">
+        <div class="replace-confirmation-dialog">
+          <div class="confirmation-header">
+            <span class="confirmation-title">Replace Active Debug Log?</span>
           </div>
-          
-          <div class="form-row">
-            <label for="debugLevelLabel">Label: <span class="required">*</span></label>
-            <input type="text" id="debugLevelLabel" class="form-input" placeholder="My Debug Level" maxlength="40" />
-            <span class="input-hint">User-friendly name for this debug level</span>
+          <div class="confirmation-body">
+            <p class="confirmation-message">An active debug log already exists:</p>
+            <div class="current-trace-info">
+              <div class="trace-info-row">
+                <span class="trace-info-label">User:</span>
+                <span class="trace-info-value" id="confirmCurrentUser"></span>
+              </div>
+              <div class="trace-info-row">
+                <span class="trace-info-label">Debug Level:</span>
+                <span class="trace-info-value" id="confirmCurrentDebugLevel"></span>
+              </div>
+              <div class="trace-info-row">
+                <span class="trace-info-label">Time Remaining:</span>
+                <span class="trace-info-value" id="confirmTimeRemaining"></span>
+              </div>
+            </div>
+            <p class="confirmation-question">Do you want to expire the current debug log and create a new one?</p>
           </div>
-          
-          <div class="form-row">
-            <label for="debugLevelApiName">API Name: <span class="required">*</span></label>
-            <input type="text" id="debugLevelApiName" class="form-input" placeholder="My_Debug_Level" maxlength="40" pattern="^[A-Za-z][A-Za-z0-9_]*$" />
-            <span class="input-hint">Auto-generated from label. Must start with letter, only letters, numbers, and underscores.</span>
+          <div class="confirmation-actions">
+            <button class="button secondary" id="confirmCancelBtn">No, Keep Current</button>
+            <button class="button primary" id="confirmReplaceBtn">Yes, Replace</button>
           </div>
-          
-          <div class="form-grid">
-            <div class="form-field">
-              <label for="apexCodeLevel">ApexCode:</label>
-              <select id="apexCodeLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="apexProfilingLevel">ApexProfiling:</label>
-              <select id="apexProfilingLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="databaseLevel">Database:</label>
-              <select id="databaseLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="systemLevel">System:</label>
-              <select id="systemLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="workflowLevel">Workflow:</label>
-              <select id="workflowLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="validationLevel">Validation:</label>
-              <select id="validationLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="calloutLevel">Callout:</label>
-              <select id="calloutLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-            
-            <div class="form-field">
-              <label for="visualforceLevel">Visualforce:</label>
-              <select id="visualforceLevel" class="form-select">
-                <option value="">Loading...</option>
-              </select>
-            </div>
-          </div>
-          
-          <div class="form-actions">
-            <button class="button secondary" id="cancelCreateDebugLevelBtn">Cancel</button>
-            <button class="button primary" id="submitCreateDebugLevelBtn">Create Debug Level</button>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Create Debug Log Section -->
-      <div class="debug-create-section">
-        <div class="debug-create-controls">
-          <select id="debugDurationSelect" class="duration-select">
-            <option value="15">15 Minutes</option>
-            <option value="30">30 Minutes</option>
-            <option value="45" selected>45 Minutes</option>
-            <option value="60">1 Hour</option>
-            <option value="120">2 Hours</option>
-            <option value="240">4 Hours</option>
-            <option value="360">6 Hours</option>
-            <option value="480">8 Hours</option>
-            <option value="600">10 Hours</option>
-            <option value="720">12 Hours</option>
-            <option value="840">14 Hours</option>
-            <option value="960">16 Hours</option>
-            <option value="1080">18 Hours</option>
-            <option value="1200">20 Hours</option>
-            <option value="1320">22 Hours</option>
-            <option value="1440">24 Hours</option>
-          </select>
-          <button class="button primary" id="enableDebugBtn">Create New Trace Flag</button>
-        </div>
-      </div>
-      
-      <!-- Trace Flags Section -->
-      <div class="trace-flags-section">
-        <div class="section-header">
-          <div class="section-title">Trace Flags</div>
-        </div>
-        <div class="trace-flags-search">
-          <input 
-            type="text" 
-            id="traceFlagsSearchInput" 
-            class="trace-flags-search-input" 
-            placeholder="Search by user or debug level..."
-          />
-        </div>
-        <div class="trace-flags-list" id="traceFlagsList">
-          <div class="loading-state">Loading trace flags...</div>
-        </div>
-      </div>
-      
-      <!-- Delete Logs Section -->
-      <div class="delete-logs-section">
-        <button class="button danger" id="deleteAllLogsBtn">Delete All Debug Logs</button>
-        <span class="delete-hint">This will delete all debug logs for your user</span>
-      </div>
-    </div>
-    
-    <!-- Replace Trace Flag Confirmation Dialog -->
-    <div class="replace-confirmation-overlay hidden" id="replaceConfirmationDialog">
-      <div class="replace-confirmation-dialog">
-        <div class="confirmation-header">
-          <span class="confirmation-title">Replace Active Debug Log?</span>
-        </div>
-        <div class="confirmation-body">
-          <p class="confirmation-message">An active debug log already exists:</p>
-          <div class="current-trace-info">
-            <div class="trace-info-row">
-              <span class="trace-info-label">User:</span>
-              <span class="trace-info-value" id="confirmCurrentUser"></span>
-            </div>
-            <div class="trace-info-row">
-              <span class="trace-info-label">Debug Level:</span>
-              <span class="trace-info-value" id="confirmCurrentDebugLevel"></span>
-            </div>
-            <div class="trace-info-row">
-              <span class="trace-info-label">Time Remaining:</span>
-              <span class="trace-info-value" id="confirmTimeRemaining"></span>
-            </div>
-          </div>
-          <p class="confirmation-question">Do you want to expire the current debug log and create a new one?</p>
-        </div>
-        <div class="confirmation-actions">
-          <button class="button secondary" id="confirmCancelBtn">No, Keep Current</button>
-          <button class="button primary" id="confirmReplaceBtn">Yes, Replace</button>
         </div>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Local Highlight.js JavaScript -->
-<script src="js/highlight.js"></script>
+  <!-- Local Highlight.js JavaScript -->
+  <script src="js/highlight.js"></script>
 
-<!-- Load JavaScript files in order: utilities, parsing, formatting, error extraction, then new modular components, then dashboard modules -->
-<script src="js/basic-utilities.js"></script>
-<script src="js/basic-parsing.js"></script>
-<script src="js/complex-parsing.js"></script>
-<script src="js/salesforce-response-cleaner.js"></script>
-<script src="js/formatting-utilities.js"></script>
-<script src="js/error-extraction.js"></script>
-<script src="js/syntax-highlighting.js"></script>
-<script src="js/log-parsing.js"></script>
-<script src="js/error-handler.js"></script>
-<script src="js/log-cache.js"></script>
-<script src="js/tab-manager.js"></script>
-<script src="js/log-loader.js"></script>
-<script src="js/log-renderer.js"></script>
-<script src="js/log-display.js"></script>
-<script src="js/raw-view.js"></script>
-<script src="js/apex-storage-service.js"></script>
-<script src="js/apex-code-manager.js"></script>
-<script src="js/apex-executor.js"></script>
-<script src="js/debug-level-creator.js"></script>
-<script src="js/debug-log-manager-ui.js"></script>
-<script src="js/dashboard-connection.js"></script>
-<script src="js/dashboard-monitoring.js"></script>
-<script src="js/dashboard-actions.js"></script>
-<script src="js/dashboard-init.js"></script>
+  <!-- Load JavaScript files in order: utilities, parsing, formatting, error extraction, then new modular components, then dashboard modules -->
+  <script src="js/basic-utilities.js"></script>
+  <script src="js/basic-parsing.js"></script>
+  <script src="js/complex-parsing.js"></script>
+  <script src="js/salesforce-response-cleaner.js"></script>
+  <script src="js/formatting-utilities.js"></script>
+  <script src="js/error-extraction.js"></script>
+  <script src="js/syntax-highlighting.js"></script>
+  <script src="js/log-parsing.js"></script>
+  <script src="js/error-handler.js"></script>
+  <script src="js/log-cache.js"></script>
+  <script src="js/tab-manager.js"></script>
+  <script src="js/log-loader.js"></script>
+  <script src="js/log-renderer.js"></script>
+  <script src="js/log-display.js"></script>
+  <script src="js/raw-view.js"></script>
+  <script src="js/apex-storage-service.js"></script>
+  <script src="js/apex-code-manager.js"></script>
+  <script src="js/apex-code-ui.js"></script>
+  <script src="js/apex-executor.js"></script>
+  <script src="js/debug-level-creator.js"></script>
+  <script src="js/debug-log-manager-ui.js"></script>
+  <script src="js/debug-log-ui-api.js"></script>
+  <script src="js/debug-log-ui-traceflags.js"></script>
+  <script src="js/debug-log-ui-rendering.js"></script>
+  <script src="js/dashboard-connection.js"></script>
+  <script src="js/dashboard-monitoring.js"></script>
+  <script src="js/dashboard-actions.js"></script>
+  <script src="js/dashboard-init.js"></script>
 </body>
-</html> 
+
+</html>

@@ -12,46 +12,46 @@ let elements = {};
 // Initialize dashboard
 document.addEventListener('DOMContentLoaded', async () => {
   await new Promise(resolve => setTimeout(resolve, 100));
-  
+
   // Cache DOM elements after DOM is loaded
   cacheElements();
-  
+
   // Initialize theme first
   await initializeTheme();
-  
+
   // Initialize view preference
   await initializeViewPreference();
-  
+
   const targetHost = getHostFromUrl();
   const headerHost = document.getElementById('headerHost');
   if (headerHost && targetHost) {
     headerHost.textContent = `(${targetHost})`;
   }
-  
+
   // Clear raw response and hide button initially
   clearRawResponse();
-  
+
   // Load saved preferences
   await loadPreferences();
-  
+
   // Ensure auto-refresh default is saved if not present
   await ensureAutoRefreshDefault();
-  
+
   // Initialize stats display
   initializeStats();
-  
+
   await checkConnectionStatus(targetHost);
-  
+
   // Check OAuth token status and show warning if needed
   await checkAndShowTokenWarning(targetHost);
-  
+
   await loadDebugLogs();
-  
+
   // Initialize log search functionality
   if (logRenderer && typeof logRenderer.initializeSearch === 'function') {
     logRenderer.initializeSearch();
   }
-  
+
   // Check if trace flag was just created (from popup)
   const urlParams = new URLSearchParams(window.location.search);
   if (urlParams.get('traceFlagCreated') === 'true') {
@@ -61,24 +61,24 @@ document.addEventListener('DOMContentLoaded', async () => {
       await savePreferences();
     }
   }
-  
+
   setupEventListeners();
-  
+
   // Setup Apex Manager modal
   if (window.apexCodeManager) {
     window.apexCodeManager.setupModalEventListeners();
   }
-  
+
   // Setup Debug Log Manager modal
   if (window.debugLogManagerUI) {
     window.debugLogManagerUI.setupModalEventListeners();
   }
-  
+
   setupEventListeners();
-  
+
   // Setup Apex Manager modal
   await initializeApexManager();
-  
+
   // Initialize Debug Log Manager
   await initializeDebugLogManager();
 });
@@ -140,22 +140,22 @@ function cacheElements() {
 
 // Setup event listeners
 function setupEventListeners() {
-  const { refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn, 
-          openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, revokeTokenDashboardBtn, logLimit, toggleViewBtn, copyRawBtn,
-          openDebugLogsBtn, debugLogManagerBtn, logTypeFilter } = elements;
-  
+  const { refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn,
+    openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, revokeTokenDashboardBtn, logLimit, toggleViewBtn, copyRawBtn,
+    openDebugLogsBtn, debugLogManagerBtn, logTypeFilter } = elements;
+
   // Setup theme toggle
   const themeToggle = document.getElementById('themeToggleDashboard');
   if (themeToggle) {
     setupThemeToggle(themeToggle);
   }
-  
+
   refreshLogsBtn?.addEventListener('click', refreshDashboard);
   clearLogsBtn?.addEventListener('click', clearAllLogs);
   markAllReadBtn?.addEventListener('click', markAllLogsAsRead);
-  
+
   document.getElementById('closeDashboardBtn')?.addEventListener('click', () => window.close());
-  
+
   copySessionBtn?.addEventListener('click', copySessionUrl);
   openIncognitoBtn?.addEventListener('click', openInIncognito);
   deployPrettierBtn?.addEventListener('click', deployPrettierClass);
@@ -164,7 +164,7 @@ function setupEventListeners() {
   revokeTokenDashboardBtn?.addEventListener('click', revokeAccessTokenDashboard);
   toggleViewBtn?.addEventListener('click', toggleDebugView);
   copyRawBtn?.addEventListener('click', copyRawResponse);
-  
+
   // Debug logs buttons event listeners
   openDebugLogsBtn?.addEventListener('click', openDebugLogsSetup);
   debugLogManagerBtn?.addEventListener('click', () => {
@@ -172,12 +172,12 @@ function setupEventListeners() {
       window.debugLogManagerUI.openModal();
     }
   });
-  
+
   logLimit?.addEventListener('change', async () => {
     savePreferences();
     await loadDebugLogs();
   });
-  
+
   logTypeFilter?.addEventListener('change', async () => {
     savePreferences();
     // Clear cache when log type changes to prevent mixing logs
@@ -186,7 +186,7 @@ function setupEventListeners() {
     }
     await loadDebugLogs();
   });
-  
+
   // Auto refresh toggle event listener
   const autoRefreshToggle = document.getElementById('autoRefreshToggle');
   if (autoRefreshToggle) {
@@ -196,7 +196,7 @@ function setupEventListeners() {
   }
 
 
-  
+
   // Apex Manager event listeners
   setupApexManagerEventListeners();
 }
@@ -204,7 +204,7 @@ function setupEventListeners() {
 // Setup Apex Manager Event Listeners
 function setupApexManagerEventListeners() {
   const { runApexBtn, saveApexBtn, addCodeBlockBtn } = elements;
-  
+
   runApexBtn?.addEventListener('click', handleRunApex);
   saveApexBtn?.addEventListener('click', handleSaveApex);
   addCodeBlockBtn?.addEventListener('click', handleAddCodeBlock);
@@ -235,23 +235,23 @@ async function checkAndShowTokenWarning(targetHost) {
       type: 'CHECK_TOKEN_STATUS',
       sfHost: targetHost
     });
-    
+
     const warningBanner = document.getElementById('noTokenWarning');
     const generateBtn = document.getElementById('generateTokenFromWarning');
-    
+
     if (!warningBanner) return;
-    
+
     if (response && response.success && response.data) {
       if (!response.data.hasToken || response.data.isExpired) {
         // Show warning
         warningBanner.style.display = 'flex';
-        
+
         // Setup generate token button click handler
         if (generateBtn) {
           generateBtn.onclick = async () => {
             generateBtn.disabled = true;
             generateBtn.textContent = 'Generating...';
-            
+
             try {
               await generateAccessToken();
               // Hide warning on success
@@ -280,27 +280,27 @@ async function handleRunApex() {
     alert('Apex execution components not loaded');
     return;
   }
-  
+
   const code = window.apexCodeManager.getCurrentCode();
   if (!code || !code.trim()) {
     alert('No Apex code to execute');
     return;
   }
-  
+
   if (!currentSession) {
     alert('No Salesforce session available');
     return;
   }
-  
+
   try {
     // Create session data with instanceUrl for apex execution
     const sessionForApex = {
       ...currentSession,
       instanceUrl: currentSession.instanceUrl || `https://${currentSession.domain || currentSession.hostname || sfHost}`
     };
-    
+
     const result = await window.apexExecutor.executeApexCode(code, sessionForApex);
-    
+
     // Refresh logs regardless of success so user can see new/related logs
     if (typeof loadDebugLogs === 'function') {
       await loadDebugLogs();
@@ -315,7 +315,7 @@ async function handleRunApex() {
       }
     }
     // If execution failed but didn't throw an error, keep modal open to show results
-    
+
   } catch (error) {
     console.error('Apex execution failed:', error);
     // Don't close modal on error - let user see the execution results
@@ -338,13 +338,13 @@ async function handleSaveApex() {
     alert('Apex manager not loaded');
     return;
   }
-  
+
   const code = window.apexCodeManager.getCurrentCode();
   if (!code || !code.trim()) {
     alert('No Apex code to save');
     return;
   }
-  
+
   // Use the new save or update logic
   const success = await window.apexCodeManager.saveOrUpdateCurrentCode();
   if (success) {
@@ -371,21 +371,107 @@ function showToast(message, duration = 3000) {
   if (existingToast) {
     existingToast.remove();
   }
-  
+
   // Create toast element
   const toast = document.createElement('div');
   toast.className = 'toast-notification';
   toast.textContent = message;
-  
+
   // Add to document
   document.body.appendChild(toast);
-  
+
   // Show toast
   setTimeout(() => toast.classList.add('show'), 100);
-  
+
   // Hide and remove toast
   setTimeout(() => {
     toast.classList.remove('show');
     setTimeout(() => toast.remove(), 300);
   }, duration);
 }
+
+// Listen for log deletion broadcasts from background script
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  const handledTypes = ['LOGS_DELETED', 'CLEAR_ALL_LOGS_CACHE_BROADCAST'];
+
+  if (!handledTypes.includes(request.type)) {
+    return false; // Don't handle other message types
+  }
+
+  if (request.type === 'LOGS_DELETED' && request.logIds && request.logIds.length > 0) {
+
+    // Remove from localStorage cache
+    try {
+      const logIdSet = new Set(request.logIds);
+
+      // Clean all localStorage caches for this org
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('cachedLogs_')) {
+          try {
+            const cached = localStorage.getItem(key);
+            if (cached) {
+              const logs = JSON.parse(cached);
+              const filteredLogs = logs.filter(log => !logIdSet.has(log.Id));
+
+              if (filteredLogs.length !== logs.length) {
+                localStorage.setItem(key, JSON.stringify(filteredLogs));
+              }
+            }
+          } catch (parseError) {
+            // Invalid cache entry, skip
+          }
+        }
+      }
+
+      // If logs are currently displayed, remove them from view
+      if (typeof debugLogs !== 'undefined' && Array.isArray(debugLogs)) {
+        const originalLength = debugLogs.length;
+        debugLogs = debugLogs.filter(log => !logIdSet.has(log.Id));
+
+        if (debugLogs.length !== originalLength) {
+          // Re-render the log list
+          if (typeof logRenderer !== 'undefined' && logRenderer.renderLogsList) {
+            logRenderer.renderLogsList(debugLogs);
+          }
+
+          // Update stats
+          if (typeof updateStats === 'function') {
+            updateStats();
+          }
+        }
+      }
+
+    } catch (error) {
+      console.error('Failed to handle LOGS_DELETED:', error);
+    }
+  }
+
+  // Handle clear all logs cache broadcast
+  if (request.type === 'CLEAR_ALL_LOGS_CACHE_BROADCAST') {
+
+    try {
+      // Clear all localStorage caches
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('cachedLogs_') || key.startsWith('lastFetchTime_'))) {
+          keysToRemove.push(key);
+        }
+      }
+
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+
+      // Reload logs to show empty state
+      if (typeof loadDebugLogs === 'function') {
+        loadDebugLogs();
+      }
+
+    } catch (error) {
+      console.error('Failed to handle CLEAR_ALL_LOGS_CACHE_BROADCAST:', error);
+    }
+  }
+
+  sendResponse({ success: true });
+  return true;
+});

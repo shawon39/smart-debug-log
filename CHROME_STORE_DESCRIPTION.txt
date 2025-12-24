@@ -121,21 +121,6 @@ The whole point is to respect your workflow. Logs stay cached when you switch ta
 
 Developers debugging Apex, architects tracking performance, admins fixing integrations, QA investigating failures, consultants juggling multiple orgs. If you work with Salesforce debug logs, this helps.
 
-⚙️ WHAT IT HANDLES
-
-• API v62.0
-• All Salesforce editions
-• Lightning and Classic
-• Logs up to 20MB
-• Nested collections
-• Stack traces and exceptions
-• SOQL and DML
-• System.debug messages
-• HTTP callouts
-• Flows and process builders
-• Validation rules
-• Workflow and triggers
-
 🔒 YOUR DATA
 
 Everything stays in your browser. The extension talks directly to Salesforce APIs using your session. Nothing gets sent anywhere else. No tracking, no analytics, no external servers.

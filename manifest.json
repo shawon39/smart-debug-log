@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Salesforce Debug Log Beautifier",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "Transform and manage Salesforce debug logs with syntax highlighting, JSON formatting, error analysis, and anonymous Apex.",
   
   "permissions": [
@@ -11,7 +11,8 @@
     "notifications",
     "windows",
     "scripting",
-    "identity"
+    "identity",
+    "alarms"
   ],
   
   "host_permissions": [

@@ -7,7 +7,7 @@ class SmartDebugLogPopup {
     try {
       // Initialize theme first
       await this.initializeTheme();
-      
+
       this.setupEventListeners();
       await this.checkConnection();
       await this.checkTokenStatus();
@@ -20,7 +20,7 @@ class SmartDebugLogPopup {
     try {
       // Initialize theme from storage
       await initializeTheme();
-      
+
       // Setup theme toggle
       const themeToggle = document.getElementById('themeToggle');
       if (themeToggle) {
@@ -34,19 +34,25 @@ class SmartDebugLogPopup {
   setupEventListeners() {
     // Event listener for dashboard button
     document.getElementById('openDashboardBtn').addEventListener('click', () => this.openDashboard());
-    
+
     // Event listener for generate token button
     document.getElementById('generateTokenBtn').addEventListener('click', () => this.generateAccessToken());
-    
+
     // Event listener for revoke token button
     document.getElementById('revokeTokenBtn').addEventListener('click', () => this.revokeAccessToken());
-    
+
+    // Event listener for Go to Setup button
+    const goToSetupBtn = document.getElementById('goToSetupBtn');
+    if (goToSetupBtn) {
+      goToSetupBtn.addEventListener('click', () => this.goToSetup());
+    }
+
     // Add simple hover effects for feature cards
     document.querySelectorAll('.feature-card').forEach(card => {
       card.addEventListener('mouseenter', () => {
         card.style.transform = 'translateY(-1px)';
       });
-      
+
       card.addEventListener('mouseleave', () => {
         card.style.transform = 'translateY(0)';
       });
@@ -55,8 +61,34 @@ class SmartDebugLogPopup {
 
   async checkConnection() {
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      
+      let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+
+      // If the active tab is an extension page (like our dashboard), find a Salesforce tab instead
+      if (tab && tab.url && tab.url.startsWith('chrome-extension://')) {
+        // Find Salesforce tabs, sorted by most recently accessed
+        const allTabs = await chrome.tabs.query({});
+        const salesforceTabs = allTabs.filter(t => {
+          if (!t.url) return false;
+          // Check if it's a Salesforce URL
+          return t.url.includes('salesforce.com') ||
+            t.url.includes('salesforce-setup.com') ||
+            t.url.includes('force.com') ||
+            t.url.includes('cloudforce.com') ||
+            t.url.includes('salesforce.mil') ||
+            t.url.includes('cloudforce.mil') ||
+            t.url.includes('sfcrmproducts.cn');
+        });
+
+
+        // Sort by lastAccessed (most recent first)
+        salesforceTabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+
+        if (salesforceTabs.length > 0) {
+          tab = salesforceTabs[0]; // Use the most recently accessed Salesforce tab
+        }
+      }
+
       if (!tab || !tab.url) {
         this.showNotOnSalesforceNotification();
         this.hideOrgInfo();
@@ -67,9 +99,11 @@ class SmartDebugLogPopup {
       const hostResponse = await chrome.runtime.sendMessage({
         type: 'GET_SALESFORCE_HOST',
         url: tab.url,
+        tabId: tab.id
       });
 
-      if (!hostResponse || !hostResponse.success) {
+
+      if (!hostResponse || !hostResponse.success || !hostResponse.data) {
         this.showNotOnSalesforceNotification();
         this.hideOrgInfo();
         this.hideButton();
@@ -77,10 +111,14 @@ class SmartDebugLogPopup {
       }
 
       const sfHost = hostResponse.data.salesforceHost;
+
       const sessionResponse = await chrome.runtime.sendMessage({
         type: 'GET_SESSION',
         sfHost: sfHost,
+        tabId: tab.id,
+        skipValidation: true  // Skip API validation for connection check - just verify SF cookies exist
       });
+
 
       if (!sessionResponse || !sessionResponse.success) {
         this.showNotOnSalesforceNotification();
@@ -91,12 +129,25 @@ class SmartDebugLogPopup {
 
       const session = sessionResponse.data;
       const orgName = session.orgName || session.hostname || sfHost;
-      
+
+
       this.hideNotOnSalesforceNotification();
       this.showOrgInfo(orgName);
-      this.showButton();
-      
+
+      // Check if we are currently on the dashboard page
+      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      const isDashboard = currentTab && currentTab.url && currentTab.url.includes(chrome.runtime.getURL('dashboard.html'));
+
+      if (isDashboard) {
+        await this.showDashboardNavigationButtons(sfHost);
+      } else {
+        this.showButton();
+        const setupBtn = document.getElementById('goToSetupBtn');
+        if (setupBtn) setupBtn.style.display = 'none';
+      }
+
     } catch (error) {
+      console.error('[Popup] Connection check error:', error);
       this.showNotOnSalesforceNotification();
       this.hideOrgInfo();
       this.hideButton();
@@ -107,7 +158,7 @@ class SmartDebugLogPopup {
     const notification = document.getElementById('notOnSalesforceNotification');
     if (notification) {
       notification.style.display = 'block';
-      
+
       // Add a slight delay for smooth animation
       setTimeout(() => {
         notification.style.opacity = '1';
@@ -140,29 +191,38 @@ class SmartDebugLogPopup {
 
   async openDashboard() {
     const btn = document.getElementById('openDashboardBtn');
+
+    // Check if we are in "Go Back" mode
+    if (btn && btn.textContent === 'Go Back Salesforce') {
+      const sfHost = btn.dataset.sfHost;
+      if (sfHost) {
+        return this.goBackToSalesforce(sfHost);
+      }
+    }
+
     const originalText = btn.textContent;
-    
+
     try {
       btn.textContent = 'Opening...';
       btn.disabled = true;
-      
+
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let sfHost = null;
-      
+
       if (tab && tab.url) {
         const hostResponse = await chrome.runtime.sendMessage({
           type: 'GET_SALESFORCE_HOST',
           url: tab.url,
         });
-        
+
         if (hostResponse && hostResponse.success) {
           sfHost = hostResponse.data.salesforceHost;
         }
       }
-      
-      // Auto-enable debug logging (60 min) if not already active
+
+      // Auto-enable debug logging (45 min) if not already active
       try {
-        await chrome.runtime.sendMessage({ 
+        await chrome.runtime.sendMessage({
           type: 'ENSURE_TRACE_FLAG',
           sfHost: sfHost // For org-aware token selection
         });
@@ -170,14 +230,22 @@ class SmartDebugLogPopup {
         // Continue even if trace flag creation fails - user can enable manually
         console.warn('Could not auto-enable debug:', traceFlagError);
       }
-      
+
       const baseUrl = chrome.runtime.getURL('dashboard.html');
       const dashboardUrl = sfHost ? `${baseUrl}?host=${encodeURIComponent(sfHost)}&traceFlagCreated=true` : `${baseUrl}?traceFlagCreated=true`;
-      
+
+      if (tab && tab.url && !tab.url.startsWith('chrome-extension://')) {
+        // Save the source URL for this host before leaving
+        if (sfHost) {
+          const storageKey = `lastSfUrl_${sfHost}`;
+          await chrome.storage.local.set({ [storageKey]: tab.url });
+        }
+      }
+
       const tabs = await chrome.tabs.query({});
       const existingDashboard = tabs.find(tab => {
         if (!tab.url) return false;
-        
+
         if (sfHost) {
           const targetUrl = `${baseUrl}?host=${encodeURIComponent(sfHost)}`;
           return tab.url === targetUrl || tab.url.startsWith(targetUrl + '&');
@@ -185,7 +253,7 @@ class SmartDebugLogPopup {
           return tab.url === baseUrl || (tab.url.startsWith(baseUrl) && !tab.url.includes('?host='));
         }
       });
-      
+
       if (existingDashboard) {
         await chrome.tabs.update(existingDashboard.id, { active: true });
         await chrome.windows.update(existingDashboard.windowId, { focused: true });
@@ -195,10 +263,10 @@ class SmartDebugLogPopup {
           active: true
         });
       }
-      
+
     } catch (error) {
       this.updateStatus('error', 'Failed to open dashboard');
-      
+
       // Fallback: try to open dashboard without specific host
       try {
         const fallbackUrl = chrome.runtime.getURL('dashboard.html');
@@ -219,36 +287,36 @@ class SmartDebugLogPopup {
   async generateAccessToken() {
     const tokenBtn = document.getElementById('generateTokenBtn');
     const originalText = tokenBtn.textContent;
-    
+
     try {
       tokenBtn.disabled = true;
       tokenBtn.textContent = 'Authenticating...';
-      
+
       // Get the current Salesforce org URL
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let orgUrl = null;
-      
+
       if (tab && tab.url) {
         const hostResponse = await chrome.runtime.sendMessage({
           type: 'GET_SALESFORCE_HOST',
           url: tab.url,
         });
-        
+
         if (hostResponse && hostResponse.success) {
           orgUrl = hostResponse.data.salesforceHost;
         }
       }
-      
+
       // Send message to background script to start OAuth flow
       const response = await chrome.runtime.sendMessage({
         type: 'SF_GENERATE_TOKEN',
         orgUrl: orgUrl
       });
-      
+
       if (response && response.success) {
         tokenBtn.textContent = 'Token Generated!';
         tokenBtn.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
-        
+
         // Reset after a short delay
         setTimeout(() => {
           tokenBtn.textContent = originalText;
@@ -258,12 +326,12 @@ class SmartDebugLogPopup {
       } else {
         throw new Error(response?.error || 'Failed to generate token');
       }
-      
+
     } catch (error) {
       console.error('Token generation failed:', error);
       tokenBtn.textContent = 'Failed - Try Again';
       tokenBtn.style.background = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
-      
+
       setTimeout(() => {
         tokenBtn.textContent = originalText;
         tokenBtn.style.background = '';
@@ -275,43 +343,43 @@ class SmartDebugLogPopup {
   async revokeAccessToken() {
     // Show confirmation dialog
     const confirmed = confirm('Are you sure you want to revoke your access token? You\'ll need to re-authenticate to use features requiring an access token.');
-    
+
     if (!confirmed) {
       return;
     }
-    
+
     const revokeBtn = document.getElementById('revokeTokenBtn');
     const originalText = revokeBtn.textContent;
-    
+
     try {
       revokeBtn.disabled = true;
       revokeBtn.textContent = 'Revoking...';
-      
+
       // Get the current Salesforce org URL
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let orgUrl = null;
-      
+
       if (tab && tab.url) {
         const hostResponse = await chrome.runtime.sendMessage({
           type: 'GET_SALESFORCE_HOST',
           url: tab.url,
         });
-        
+
         if (hostResponse && hostResponse.success) {
           orgUrl = hostResponse.data.salesforceHost;
         }
       }
-      
+
       // Send message to background script to revoke token
       const response = await chrome.runtime.sendMessage({
         type: 'REVOKE_OAUTH_TOKEN',
         sfHost: orgUrl
       });
-      
+
       if (response && response.success) {
         revokeBtn.textContent = 'Token Revoked!';
         revokeBtn.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
-        
+
         // Hide revoke button after short delay
         setTimeout(() => {
           revokeBtn.style.display = 'none';
@@ -322,11 +390,11 @@ class SmartDebugLogPopup {
       } else {
         throw new Error(response?.error || 'Failed to revoke token');
       }
-      
+
     } catch (error) {
       console.error('Token revocation failed:', error);
       revokeBtn.textContent = 'Failed - Try Again';
-      
+
       setTimeout(() => {
         revokeBtn.textContent = originalText;
         revokeBtn.disabled = false;
@@ -338,25 +406,25 @@ class SmartDebugLogPopup {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       let sfHost = null;
-      
+
       if (tab && tab.url) {
         const hostResponse = await chrome.runtime.sendMessage({
           type: 'GET_SALESFORCE_HOST',
           url: tab.url,
         });
-        
+
         if (hostResponse && hostResponse.success) {
           sfHost = hostResponse.data.salesforceHost;
         }
       }
-      
+
       const response = await chrome.runtime.sendMessage({
         type: 'CHECK_TOKEN_STATUS',
         sfHost: sfHost
       });
-      
+
       const revokeBtn = document.getElementById('revokeTokenBtn');
-      
+
       if (response && response.success && response.data && response.data.hasToken && !response.data.isExpired) {
         // Token exists and is valid - show revoke button
         if (revokeBtn) {
@@ -380,26 +448,26 @@ class SmartDebugLogPopup {
   updateStatus(status, message) {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
-    
+
     if (!dot || !text) return;
-    
+
     // Remove all status classes
     dot.classList.remove('connected', 'disconnected', 'error');
-    
+
     // Add the current status class if not connected
     if (status !== 'connected') {
       dot.classList.add(status);
     }
-    
+
     text.textContent = message;
   }
 
   showOrgInfo(orgName) {
     const orgInfo = document.getElementById('orgInfo');
     const orgNameElement = document.getElementById('orgName');
-    
+
     if (!orgInfo || !orgNameElement) return;
-    
+
     if (orgName) {
       // Clean up the org name (remove protocol and paths)
       const cleanOrgName = orgName.replace(/^https?:\/\//, '').split('/')[0];
@@ -416,7 +484,77 @@ class SmartDebugLogPopup {
       orgInfo.style.display = 'none';
     }
   }
+
+  async showDashboardNavigationButtons(sfHost) {
+    const mainBtn = document.getElementById('openDashboardBtn');
+    const setupBtn = document.getElementById('goToSetupBtn');
+
+    if (mainBtn) {
+      mainBtn.textContent = 'Go Back Salesforce';
+      // Store the host in the button for the click handler
+      mainBtn.dataset.sfHost = sfHost;
+    }
+
+    if (setupBtn) {
+      setupBtn.style.display = 'block';
+    }
+  }
+
+  async goToSetup() {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      let sfHost = null;
+
+      if (tab && tab.url) {
+        const hostResponse = await chrome.runtime.sendMessage({
+          type: 'GET_SALESFORCE_HOST',
+          url: tab.url,
+        });
+
+        if (hostResponse && hostResponse.success) {
+          sfHost = hostResponse.data.salesforceHost;
+        }
+      }
+
+      if (sfHost) {
+        const setupUrl = `https://${sfHost}/lightning/setup/SetupOneHome/home`;
+        await chrome.tabs.create({ url: setupUrl });
+        window.close();
+      }
+    } catch (error) {
+      console.error('Failed to navigate to setup:', error);
+    }
+  }
+
+  async goBackToSalesforce(sfHost) {
+    try {
+      const storageKey = `lastSfUrl_${sfHost}`;
+      const result = await chrome.storage.local.get([storageKey]);
+      const lastUrl = result[storageKey];
+
+      if (lastUrl) {
+        // Try to find a tab with this URL first
+        const tabs = await chrome.tabs.query({});
+        const existingTab = tabs.find(t => t.url === lastUrl);
+
+        if (existingTab) {
+          await chrome.tabs.update(existingTab.id, { active: true });
+          await chrome.windows.update(existingTab.windowId, { focused: true });
+        } else {
+          await chrome.tabs.create({ url: lastUrl });
+        }
+        window.close();
+      } else {
+        // Fallback: just open the host root
+        await chrome.tabs.create({ url: `https://${sfHost}` });
+        window.close();
+      }
+    } catch (error) {
+      console.error('Failed to go back to Salesforce:', error);
+    }
+  }
 }
+
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {

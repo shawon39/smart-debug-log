@@ -240,7 +240,8 @@ class LogLoader {
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
                    WHERE StartTime > ${isoString} AND Location = '${logType}'
-                   ORDER BY StartTime DESC`;
+                   ORDER BY StartTime DESC
+                   LIMIT 500`;
 
     return await this._executeQuery(query);
   }
@@ -250,7 +251,8 @@ class LogLoader {
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
                    WHERE Location = '${logType}'
-                   ORDER BY StartTime DESC`;
+                   ORDER BY StartTime DESC
+                   LIMIT 1000`;
 
     return await this._executeQuery(query);
   }
@@ -363,8 +365,8 @@ class LogLoader {
     for (let i = 0; i < uncachedLogs.length; i += this.batchSize) {
       const batch = uncachedLogs.slice(i, i + this.batchSize);
       
-      // Process each log in the batch independently
-      batch.forEach(async (log) => {
+      // Process each log in the batch using Promise.all for proper async handling
+      const batchPromises = batch.map(async (log) => {
         try {
           const content = await this.getLogContent(log.Id);
           const hasDebugMsgs = hasDebugMessages(content);
@@ -390,6 +392,9 @@ class LogLoader {
           }
         }
       });
+      
+      // Wait for all promises in the batch to complete
+      await Promise.all(batchPromises);
       
       // Add delay between batches
       if (i + this.batchSize < uncachedLogs.length) {

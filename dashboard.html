@@ -492,6 +492,12 @@
           <div class="trace-flags-search">
             <input type="text" id="traceFlagsSearchInput" class="trace-flags-search-input"
               placeholder="Search by user or debug level..." />
+            <select id="traceFlagsStatusFilter" class="trace-flags-status-filter">
+              <option value="All">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Scheduled">Scheduled</option>
+              <option value="Expired">Expired</option>
+            </select>
           </div>
           <div class="trace-flags-list" id="traceFlagsList">
             <div class="loading-state">Loading trace flags...</div>

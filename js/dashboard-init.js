@@ -64,19 +64,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   setupEventListeners();
 
-  // Setup Apex Manager modal
+  // Setup Manager modals
   if (window.apexCodeManager) {
     window.apexCodeManager.setupModalEventListeners();
   }
 
-  // Setup Debug Log Manager modal
   if (window.debugLogManagerUI) {
     window.debugLogManagerUI.setupModalEventListeners();
   }
 
-  setupEventListeners();
-
-  // Setup Apex Manager modal
+  // Initialize Apex Manager
   await initializeApexManager();
 
   // Initialize Debug Log Manager
@@ -129,6 +126,7 @@ function cacheElements() {
     openDebugLogsBtn: document.getElementById('openDebugLogsBtn'),
     debugLogManagerBtn: document.getElementById('debugLogManagerBtn'),
     logTypeFilter: document.getElementById('logTypeFilter'),
+    openApexManagerBtn: document.getElementById('openApexManagerBtn'),
     // Apex Manager elements
     runApexBtn: document.getElementById('runApexBtn'),
     saveApexBtn: document.getElementById('saveApexBtn'),
@@ -142,7 +140,7 @@ function cacheElements() {
 function setupEventListeners() {
   const { refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn,
     openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, revokeTokenDashboardBtn, logLimit, toggleViewBtn, copyRawBtn,
-    openDebugLogsBtn, debugLogManagerBtn, logTypeFilter } = elements;
+    openDebugLogsBtn, debugLogManagerBtn, openApexManagerBtn, logTypeFilter } = elements;
 
   // Setup theme toggle
   const themeToggle = document.getElementById('themeToggleDashboard');
@@ -167,6 +165,11 @@ function setupEventListeners() {
 
   // Debug logs buttons event listeners
   openDebugLogsBtn?.addEventListener('click', openDebugLogsSetup);
+  openApexManagerBtn?.addEventListener('click', () => {
+    if (window.apexCodeManager) {
+      window.apexCodeManager.openModal();
+    }
+  });
   debugLogManagerBtn?.addEventListener('click', () => {
     if (window.debugLogManagerUI) {
       window.debugLogManagerUI.openModal();

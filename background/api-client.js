@@ -132,7 +132,15 @@ export async function directToolingDescribe(sobjectType, sfHost = null) {
     return response.json();
 }
 
+const logBodyCache = new Map();
+
 export async function directGetLogBody(logId, sfHost = null) {
+    // Check cache first
+    const cacheKey = `${sfHost || 'default'}-${logId}`;
+    if (logBodyCache.has(cacheKey)) {
+        return logBodyCache.get(cacheKey);
+    }
+
     const token = await getStoredOAuthToken(sfHost);
     if (!token) {
         throw new Error('NO_OAUTH_TOKEN');
@@ -157,7 +165,16 @@ export async function directGetLogBody(logId, sfHost = null) {
     }
 
     const content = await response.text();
-    return { content, logId };
+    const result = { content, logId };
+
+    // Update cache (limit to 50 logs)
+    if (logBodyCache.size >= 50) {
+        const firstKey = logBodyCache.keys().next().value;
+        logBodyCache.delete(firstKey);
+    }
+    logBodyCache.set(cacheKey, result);
+
+    return result;
 }
 
 export async function directExecuteAnonymous(code, sfHost = null) {

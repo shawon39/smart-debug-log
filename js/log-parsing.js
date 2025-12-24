@@ -9,32 +9,36 @@ function addLineNumbers(messageContent) {
   if (!messageContent || typeof messageContent !== 'string') {
     return messageContent;
   }
-  
+
   const lines = messageContent.split('\n');
   const maxLineLength = String(lines.length).length;
-  
+
   const numberedLines = lines.map((line, index) => {
     const lineNumber = String(index + 1).padStart(maxLineLength, ' ');
-    // Handle empty lines gracefully - preserve them but add line numbers
-    return `<span class="line-number">${lineNumber}</span><span class="line-content">${line || ''}</span>`;
+
+    // Check if the line is already escaped/highlighted (contains HTML)
+    // If not, escape it to prevent XSS when rendering line patterns
+    const escapedLine = (line.includes('<span') || line.includes('<div')) ? line : escapeHtml(line);
+
+    return `<span class="line-number">${lineNumber}</span><span class="line-content">${escapedLine || ''}</span>`;
   });
-  
+
   return numberedLines.join('\n');
 }
 
 function parseDebugLogContent(content) {
   try {
     const debugMessages = extractUserDebugBlocks(content);
-    
+
     // Extract error information
     const errorData = extractErrorsFromDebugLog(content);
-          
+
     // Extract limits section
     const lines = content.split('\n');
     let limitsSection = '';
     let inLimitsSection = false;
     let lastLimitsStartIndex = -1;
-    
+
     // First pass: find the LAST LIMIT_USAGE_FOR_NS section
     for (let i = lines.length - 1; i >= 0; i--) {
       if (lines[i].includes('LIMIT_USAGE_FOR_NS')) {
@@ -47,7 +51,7 @@ function parseDebugLogContent(content) {
     if (lastLimitsStartIndex >= 0) {
       for (let i = lastLimitsStartIndex; i < lines.length; i++) {
         const line = lines[i];
-        
+
         if (line.includes('LIMIT_USAGE_FOR_NS')) {
           inLimitsSection = true;
           // Extract the namespace from the line
@@ -56,29 +60,31 @@ function parseDebugLogContent(content) {
           limitsSection = `LIMIT_USAGE_FOR_NS|${namespace}|\n`;
           continue;
         }
-        
+
         if (inLimitsSection) {
           // Stop collecting when we hit another section (any line with |) or empty line followed by another section
           if (line.includes('|') && !line.match(/^\s+/)) {
             break;
           }
-          
+
           // Stop collecting when we hit CUMULATIVE_LIMIT_USAGE_END
           if (line.includes('CUMULATIVE_LIMIT_USAGE_END')) {
             break;
           }
-          
+
           limitsSection += line + '\n';
         }
       }
     }
-    
+
     return {
       debugMessages: debugMessages,
       errors: errorData,
       limits: limitsSection.trim()
     };
   } catch (error) {
+    // Fallback: show info via toast
+    showToast('Failed to copy. Log content is available in the view.', 5000);
     return {
       debugMessages: [],
       errors: { hasErrors: false, errors: [], errorSummary: null },
@@ -92,7 +98,7 @@ function extractUserEmailFromLog(content) {
     if (!content || typeof content !== 'string') {
       return null;
     }
-    
+
     const lines = content.split('\n');
     for (const line of lines) {
       if (line.includes('|USER_INFO|')) {
@@ -113,16 +119,16 @@ function extractUserEmailFromLog(content) {
 
 function displayDebugContent(parsedContent) {
   const { debugContent, errorContent, limitsContent } = elements;
-  
+
   // Display debug messages
   if (parsedContent.debugMessages && parsedContent.debugMessages.length > 0) {
     // Create individual blocks for each debug message
     const messageBlocks = parsedContent.debugMessages.map((message, index) => {
       let formattedMessage = message;
-      
+
       // Decode HTML entities first
       formattedMessage = decodeHtmlEntities(formattedMessage);
-      
+
       // Check if this looks like Salesforce object notation and try to format it
       if (containsSalesforceObjects(formattedMessage)) {
         try {
@@ -137,22 +143,22 @@ function displayDebugContent(parsedContent) {
         // For simple text messages, apply debug log highlighting
         formattedMessage = applyDebugLogHighlighting(formattedMessage);
       }
-      
+
       // Add line numbers to the formatted message
       const messageWithLineNumbers = addLineNumbers(formattedMessage);
-      
+
       return `<div class="debug-message-block" data-message-index="${index}"><pre class="debug-message-pre">${messageWithLineNumbers}</pre></div>`;
     }).join('');
     debugContent.innerHTML = messageBlocks;
   } else {
     debugContent.innerHTML = '<div class="info-message">No DEBUG messages found in this log.</div>';
   }
-  
+
   // Display error analysis
   if (errorContent && parsedContent.errors) {
     // Store error data for re-rendering when filter changes
     currentErrorData = parsedContent.errors;
-    
+
     // Smart filter initialization: adjust filters based on what exists
     if (!parsedContent.errors.hasFatalErrors && parsedContent.errors.hasExceptions) {
       // Only exceptions exist, show them
@@ -164,14 +170,14 @@ function displayDebugContent(parsedContent) {
       // Both exist, use current filter state (defaults to Fatal only)
       // currentErrorFilters stays as is
     }
-    
+
     const formattedErrors = formatErrorsForDisplay(parsedContent.errors, currentErrorFilters);
     errorContent.innerHTML = formattedErrors;
-    
+
     // Wire up filter checkbox event listeners
     wireUpErrorFilterListeners();
   }
-  
+
   // Display limits with enhanced formatting
   if (parsedContent.limits) {
     const formattedLimits = formatGovernorLimits(parsedContent.limits);
@@ -192,10 +198,10 @@ function wireUpErrorFilterListeners() {
   // Use event delegation on the error content container
   const errorContent = document.getElementById('errorContent');
   if (!errorContent) return;
-  
+
   // Remove existing listener to avoid duplicates
   errorContent.removeEventListener('change', handleFilterCheckboxChange);
-  
+
   // Add change listener for checkboxes
   errorContent.addEventListener('change', handleFilterCheckboxChange);
 }
@@ -207,24 +213,24 @@ function wireUpErrorFilterListeners() {
 function handleFilterCheckboxChange(event) {
   const checkbox = event.target;
   if (!checkbox || checkbox.type !== 'checkbox') return;
-  
+
   const filter = checkbox.getAttribute('data-filter');
   if (!filter) return;
-  
+
   // Update current filters based on checkbox state
   if (filter === 'fatal') {
     currentErrorFilters.showFatal = checkbox.checked;
   } else if (filter === 'exception') {
     currentErrorFilters.showException = checkbox.checked;
   }
-  
+
   // Re-render error display with new filters
   if (currentErrorData) {
     const errorContent = document.getElementById('errorContent');
     if (errorContent) {
       const formattedErrors = formatErrorsForDisplay(currentErrorData, currentErrorFilters);
       errorContent.innerHTML = formattedErrors;
-      
+
       // Re-wire listeners after re-rendering
       wireUpErrorFilterListeners();
     }

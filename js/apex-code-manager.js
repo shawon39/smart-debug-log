@@ -113,7 +113,7 @@ class ApexCodeManager {
   }
 
   async deleteApexCode(id) {
-    const response = await ApexStorageService.deleteApexCode(id);
+    const response = await ApexStorageService.deleteApexCode(id, this.currentOrgId);
     if (response.success) { await this.loadApexCodes(); return true; }
     return false;
   }

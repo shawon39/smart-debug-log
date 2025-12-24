@@ -52,15 +52,15 @@ function extractErrorsFromDebugLog(content) {
   const codeUnitStack = [];
   let collectingStackTrace = false;
   let currentError = null;
-  
+
   // Single-pass parsing with CODE_UNIT tracking
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
-    
+
     // Check if this is a pipe-delimited log entry
     if (isPipeLine(line)) {
       const eventType = extractEventType(line);
-      
+
       // Track CODE_UNIT context
       if (eventType === 'CODE_UNIT_STARTED') {
         const unitName = extractCodeUnitName(line);
@@ -72,14 +72,14 @@ function extractErrorsFromDebugLog(content) {
           codeUnitStack.pop();
         }
       }
-      
+
       // Handle FATAL_ERROR
       if (eventType === 'FATAL_ERROR') {
         const fatalErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|FATAL_ERROR\|(.*)/);
         if (fatalErrorMatch) {
           const firstErrorLine = fatalErrorMatch[1].trim();
           const errorDetails = parseErrorMessage(firstErrorLine);
-          
+
           currentError = {
             type: 'FATAL_ERROR',
             isFatal: true,
@@ -93,23 +93,23 @@ function extractErrorsFromDebugLog(content) {
             line: i + 1,
             codeUnitContext: codeUnitStack.length > 0 ? codeUnitStack[codeUnitStack.length - 1] : null
           };
-          
+
           errors.push(currentError);
           collectingStackTrace = true;
         }
       }
-      
+
       // Handle EXCEPTION_THROWN
       else if (eventType === 'EXCEPTION_THROWN') {
         const exceptionMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s*\(\d+\)\|EXCEPTION_THROWN\|(.*)/);
         if (exceptionMatch) {
           let exceptionLine = exceptionMatch[1].trim();
-          
+
           // Strip [lineNumber]| prefix if present (e.g., "[36]|System.AssertException...")
           exceptionLine = exceptionLine.replace(/^\[\d+\]\|/, '');
-          
+
           const errorDetails = parseErrorMessage(exceptionLine);
-          
+
           currentError = {
             type: 'EXCEPTION_THROWN',
             isFatal: false,
@@ -123,19 +123,40 @@ function extractErrorsFromDebugLog(content) {
             line: i + 1,
             codeUnitContext: codeUnitStack.length > 0 ? codeUnitStack[codeUnitStack.length - 1] : null
           };
-          
+
           errors.push(currentError);
           collectingStackTrace = true;
         }
       }
-      
+
       // Any other pipe line stops stack trace collection
       else {
         collectingStackTrace = false;
         currentError = null;
+
+        // Optimized: Check for COMPILE_ERROR or VALIDATION_ERROR in any other pipe line
+        if (line.includes('|COMPILE_ERROR') || line.includes('|VALIDATION_ERROR')) {
+          const type = line.includes('COMPILE') ? 'COMPILE_ERROR' : 'VALIDATION_ERROR';
+          const excType = line.includes('COMPILE') ? 'CompileError' : 'ValidationError';
+          const msg = line.includes('COMPILE') ? 'Compilation error occurred' : 'Validation error occurred';
+
+          errors.push({
+            type: type,
+            isFatal: true,
+            timestamp: extractTimestamp(line),
+            rawMessage: line,
+            parsedMessage: {
+              exceptionType: excType,
+              message: msg,
+              fullMessage: line
+            },
+            location: null,
+            line: i + 1
+          });
+        }
       }
     }
-    
+
     // Collect stack trace lines (non-pipe lines after error)
     else if (collectingStackTrace && currentError) {
       const cleanLine = line.trim();
@@ -150,24 +171,24 @@ function extractErrorsFromDebugLog(content) {
       }
     }
   }
-  
+
   // Extract line/column numbers from stack traces
   errors.forEach(error => {
     if (error.stackTrace && error.stackTrace.length > 0) {
       error.location = error.stackTrace.join('\n');
-      
+
       const firstTrace = error.stackTrace[0];
       const linePatterns = [
         /line\s+(\d+)/i,
         /line:\s*(\d+)/i,
         /Line\s+(\d+)/i
       ];
-      
+
       const columnPatterns = [
         /column\s+(\d+)/i,
         /column:\s*(\d+)/i
       ];
-      
+
       for (const pattern of linePatterns) {
         const match = firstTrace.match(pattern);
         if (match) {
@@ -175,7 +196,7 @@ function extractErrorsFromDebugLog(content) {
           break;
         }
       }
-      
+
       for (const pattern of columnPatterns) {
         const match = firstTrace.match(pattern);
         if (match) {
@@ -184,7 +205,7 @@ function extractErrorsFromDebugLog(content) {
         }
       }
     }
-    
+
     // Fallback: try to extract line number from the error message itself
     if (error.lineNumber === null) {
       const errorLineMatch = error.rawMessage.match(/line\s+(\d+)/i);
@@ -193,18 +214,13 @@ function extractErrorsFromDebugLog(content) {
       }
     }
   });
-  
-  // Look for other error patterns (compilation errors, runtime exceptions, etc.)
-  const additionalErrors = extractAdditionalErrors(lines);
-  errors.push(...additionalErrors);
-  
+
   // Apply smart deduplication with FATAL_ERROR priority
   const uniqueErrors = deduplicateErrors(errors);
-  
-  // Separate fatal errors from exceptions
+
   const fatalErrors = uniqueErrors.filter(e => e.isFatal);
   const exceptions = uniqueErrors.filter(e => !e.isFatal);
-  
+
   return {
     hasErrors: uniqueErrors.length > 0,
     hasFatalErrors: fatalErrors.length > 0,
@@ -233,11 +249,11 @@ function createErrorKey(error) {
  */
 function deduplicateErrors(errors) {
   const keyMap = new Map();
-  
+
   for (const error of errors) {
     const key = createErrorKey(error);
     const existing = keyMap.get(key);
-    
+
     if (!existing) {
       keyMap.set(key, error);
     } else if (error.type === 'FATAL_ERROR' && existing.type !== 'FATAL_ERROR') {
@@ -246,7 +262,7 @@ function deduplicateErrors(errors) {
     }
     // Otherwise keep existing (first occurrence)
   }
-  
+
   return Array.from(keyMap.values());
 }
 
@@ -265,7 +281,7 @@ function parseErrorMessage(errorMessage) {
     // Custom exception patterns
     /^(\w+):\s*(.+)$/
   ];
-  
+
   for (const pattern of patterns) {
     const match = errorMessage.match(pattern);
     if (match) {
@@ -276,7 +292,7 @@ function parseErrorMessage(errorMessage) {
       };
     }
   }
-  
+
   // If no pattern matches, return as generic error
   return {
     exceptionType: 'Error',
@@ -285,56 +301,6 @@ function parseErrorMessage(errorMessage) {
   };
 }
 
-/**
- * Extracts additional error patterns from debug log lines
- * @param {array} lines - Array of log lines
- * @returns {array} - Array of additional errors found
- */
-function extractAdditionalErrors(lines) {
-  const errors = [];
-  
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    
-    // Look for compilation errors
-    const compileErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|.*COMPILE.*ERROR/i);
-    if (compileErrorMatch) {
-      errors.push({
-        type: 'COMPILE_ERROR',
-        isFatal: true,
-        timestamp: extractTimestamp(line),
-        rawMessage: line,
-        parsedMessage: {
-          exceptionType: 'CompileError',
-          message: 'Compilation error occurred',
-          fullMessage: line
-        },
-        location: null,
-        line: i + 1
-      });
-    }
-    
-    // Look for validation errors
-    const validationErrorMatch = line.match(/^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|.*VALIDATION.*ERROR/i);
-    if (validationErrorMatch) {
-      errors.push({
-        type: 'VALIDATION_ERROR',
-        isFatal: true,
-        timestamp: extractTimestamp(line),
-        rawMessage: line,
-        parsedMessage: {
-          exceptionType: 'ValidationError',
-          message: 'Validation error occurred',
-          fullMessage: line
-        },
-        location: null,
-        line: i + 1
-      });
-    }
-  }
-  
-  return errors;
-}
 
 /**
  * Extracts timestamp from a debug log line
@@ -355,21 +321,21 @@ function createErrorSummary(errors) {
   if (errors.length === 0) {
     return null;
   }
-  
+
   const errorTypes = {};
   let mostRecentError = null;
-  
+
   errors.forEach(error => {
     // Count error types
     const type = error.parsedMessage.exceptionType || error.type;
     errorTypes[type] = (errorTypes[type] || 0) + 1;
-    
+
     // Track most recent error
     if (!mostRecentError || error.line > mostRecentError.line) {
       mostRecentError = error;
     }
   });
-  
+
   return {
     totalErrors: errors.length,
     errorTypes: errorTypes,
@@ -387,9 +353,9 @@ function createErrorSummary(errors) {
 function generateFilterPills(errorData, activeFilters) {
   const fatalCount = errorData.errors.filter(e => e.isFatal).length;
   const exceptionCount = errorData.errors.filter(e => !e.isFatal).length;
-  
+
   let html = '<div class="error-filter-pills">';
-  
+
   // Fatal Errors checkbox
   const fatalDisabled = fatalCount === 0 ? 'disabled' : '';
   const fatalChecked = fatalCount > 0 && activeFilters.showFatal ? 'checked' : '';
@@ -397,7 +363,7 @@ function generateFilterPills(errorData, activeFilters) {
     <input type="checkbox" data-filter="fatal" ${fatalChecked} ${fatalDisabled}>
     <span class="checkbox-label">Fatal Errors (${fatalCount})</span>
   </label>`;
-  
+
   // Exception Thrown checkbox
   const exceptionDisabled = exceptionCount === 0 ? 'disabled' : '';
   const exceptionChecked = exceptionCount > 0 && activeFilters.showException ? 'checked' : '';
@@ -405,9 +371,9 @@ function generateFilterPills(errorData, activeFilters) {
     <input type="checkbox" data-filter="exception" ${exceptionChecked} ${exceptionDisabled}>
     <span class="checkbox-label">Exception Thrown (${exceptionCount})</span>
   </label>`;
-  
+
   html += '</div>';
-  
+
   return html;
 }
 
@@ -421,7 +387,7 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
   if (!errorData.hasErrors) {
     return '<div class="error-status-success">✅ No errors found in this debug log</div>';
   }
-  
+
   // Smart filter adjustment: if only exceptions exist and fatal is selected, auto-show exceptions
   let adjustedFilters = { ...filters };
   if (!errorData.hasFatalErrors && errorData.hasExceptions) {
@@ -432,17 +398,17 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
     // Only fatal errors exist, make sure they're shown
     adjustedFilters.showFatal = true;
   }
-  
+
   // Filter controls HTML
   const pillsHtml = generateFilterPills(errorData, adjustedFilters);
-  
+
   // Filter errors based on selected checkboxes
   let filteredErrors = errorData.errors.filter(e => {
     if (e.isFatal && adjustedFilters.showFatal) return true;
     if (!e.isFatal && adjustedFilters.showException) return true;
     return false;
   });
-  
+
   // If no errors match the filters, show appropriate message
   if (filteredErrors.length === 0) {
     let message = 'No errors match the selected filters';
@@ -451,36 +417,36 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
     }
     return pillsHtml + `<div class="error-status-info">ℹ️ ${message}</div>`;
   }
-  
+
   let html = pillsHtml + '<div class="error-section">';
-  
+
   // Add individual error details
   filteredErrors.forEach((error, index) => {
     html += '<div class="error-item-block">';
-    
+
     // Add error number badge for multiple errors with appropriate class
     if (filteredErrors.length > 1) {
       const badgeClass = error.isFatal ? 'error-number-badge' : 'error-number-badge exception-badge';
       html += `<span class="${badgeClass}">${index + 1}</span>`;
     }
-    
+
     // Error type header
     html += '<div class="error-type-header">';
     html += `<strong>${getErrorTypeDisplayName(error.type)}</strong>`;
-    
+
     // Show code unit context if available
     if (error.codeUnitContext) {
       html += ` <span class="code-unit-context">(in ${escapeHtml(error.codeUnitContext)})</span>`;
     }
-    
+
     html += '</div>';
-    
+
     // Full error message (preserve multi-line formatting)
     html += '<div class="error-message-text">';
     const formattedMessage = escapeHtml(error.rawMessage).replace(/\n/g, '<br>');
     html += formattedMessage;
     html += '</div>';
-    
+
     // Stack trace information (if available)
     if (error.stackTrace && error.stackTrace.length > 0) {
       html += '<div class="error-stack-trace">';
@@ -506,10 +472,10 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
       html += escapeHtml(locationDisplay);
       html += '</div>';
     }
-    
+
     html += '</div>';
   });
-  
+
   html += '</div>';
   return html;
 }
@@ -522,7 +488,7 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
 function getErrorTypeDisplayName(errorType) {
   const displayNames = {
     'System.QueryException': 'Query Error',
-    'System.DmlException': 'DML Error', 
+    'System.DmlException': 'DML Error',
     'System.NullPointerException': 'Null Pointer Error',
     'System.ListException': 'List Access Error',
     'System.ArithmeticException': 'Math Error',
@@ -533,6 +499,6 @@ function getErrorTypeDisplayName(errorType) {
     'COMPILE_ERROR': 'Compile Error',
     'VALIDATION_ERROR': 'Validation Error'
   };
-  
+
   return displayNames[errorType] || errorType;
 } 

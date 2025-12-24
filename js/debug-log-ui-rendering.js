@@ -92,7 +92,21 @@ DebugLogManagerUI.prototype.toggleUserSearchUI = function (show) {
 // Timer Methods
 DebugLogManagerUI.prototype.startTimer = function () {
     this.stopTimer();
-    this.timerInterval = setInterval(() => this.renderTraceFlags(), 1000);
+    this.timerInterval = setInterval(() => this.updateTraceFlagTimers(), 60000);
+};
+
+DebugLogManagerUI.prototype.checkTimeConflict = function (start, end, targetUserId) {
+    if (!this.traceFlags || !start || !end) return null;
+    const startMs = start.getTime();
+    const endMs = end.getTime();
+
+    return this.traceFlags.find(tf => {
+        if (tf.TracedEntityId !== targetUserId) return false;
+        const tfStart = new Date(tf.StartDate).getTime();
+        const tfEnd = new Date(tf.ExpirationDate).getTime();
+        // Overlap if (start < tfEnd) AND (end > tfStart)
+        return startMs < tfEnd && endMs > tfStart;
+    });
 };
 
 DebugLogManagerUI.prototype.stopTimer = function () {
@@ -129,91 +143,75 @@ DebugLogManagerUI.prototype.updateStatusIndicator = async function () {
     }
 
     const now = new Date();
-    const scheduledTraceFlag = this.traceFlags.find(tf => {
+
+    // 1. Check for Active
+    const activeTraceFlag = this.traceFlags.find(tf => {
         const startDate = new Date(tf.StartDate);
-        return tf.TracedEntityId === targetUserId && startDate > now;
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.TracedEntityId === targetUserId && startDate <= now && expiration > now;
     });
+
+    if (activeTraceFlag) {
+        const expiration = new Date(activeTraceFlag.ExpirationDate);
+        const remainingMs = expiration - now;
+        const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
+        const debugLevelName = activeTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
+
+        let timeText = formatDurationShort(remainingMinutes) + ' left';
+        indicator.className = 'trace-status-indicator active';
+        text.textContent = `Active: ${timeText} • ${debugLevelName}`;
+        indicator.style.display = 'inline-flex';
+        return;
+    }
+
+    // 2. Check for Scheduled
+    const scheduledTraceFlag = this.traceFlags
+        .filter(tf => {
+            const startDate = new Date(tf.StartDate);
+            return tf.TracedEntityId === targetUserId && startDate > now;
+        })
+        .sort((a, b) => new Date(a.StartDate) - new Date(b.StartDate))[0];
 
     if (scheduledTraceFlag) {
         const startDate = new Date(scheduledTraceFlag.StartDate);
-        const expiration = new Date(scheduledTraceFlag.ExpirationDate);
         const startsInMs = startDate - now;
         const startsInMinutes = Math.max(0, Math.floor(startsInMs / 60000));
         const debugLevelName = scheduledTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
 
-        const startTimeStr = startDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-        const endTimeStr = expiration.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-
-        let timeText = '';
-        if (startsInMinutes >= 60) {
-            const hours = Math.floor(startsInMinutes / 60);
-            const minutes = startsInMinutes % 60;
-            timeText = minutes === 0 ? `starts in ${hours}h` : `starts in ${hours}h ${minutes}m`;
-        } else if (startsInMinutes === 0) {
-            timeText = `starting now`;
-        } else {
-            timeText = `starts in ${startsInMinutes}m`;
-        }
-        timeText += ` <span class="schedule-range">(${startTimeStr} - ${endTimeStr})</span>`;
+        let timeText = `starts in ${formatDurationShort(startsInMinutes)}`;
 
         indicator.className = 'trace-status-indicator scheduled';
         text.innerHTML = `Scheduled: ${timeText} • ${debugLevelName}`;
         indicator.style.display = 'inline-flex';
-    } else {
-        const activeTraceFlag = this.traceFlags.find(tf => {
-            const startDate = new Date(tf.StartDate);
-            const expiration = new Date(tf.ExpirationDate);
-            return tf.TracedEntityId === targetUserId && startDate <= now && expiration > now;
-        });
+        return;
+    }
 
-        if (activeTraceFlag) {
-            const expiration = new Date(activeTraceFlag.ExpirationDate);
-            const remainingMs = expiration - now;
-            const remainingMinutes = Math.max(0, Math.floor(remainingMs / 60000));
-            const debugLevelName = activeTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
+    // 3. Check for recently expired
+    const expiredTraceFlag = this.traceFlags.find(tf => {
+        const expiration = new Date(tf.ExpirationDate);
+        return tf.TracedEntityId === targetUserId && expiration <= now;
+    });
 
-            let timeText = '';
-            if (remainingMinutes >= 60) {
-                const hours = Math.floor(remainingMinutes / 60);
-                const minutes = remainingMinutes % 60;
-                timeText = minutes === 0 ? `${hours}h left` : `${hours}h ${minutes}m left`;
-            } else {
-                timeText = `${remainingMinutes}m left`;
-            }
+    if (expiredTraceFlag) {
+        const expiration = new Date(expiredTraceFlag.ExpirationDate);
+        const expiredMs = now - expiration;
+        const expiredMinutes = Math.floor(expiredMs / 60000);
+        const debugLevelName = expiredTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
 
-            indicator.className = 'trace-status-indicator active';
-            text.textContent = `Active: ${timeText} • ${debugLevelName}`;
-            indicator.style.display = 'inline-flex';
+        let expiredTimeText = '';
+        if (expiredMinutes < 60) {
+            expiredTimeText = expiredMinutes <= 1 ? 'just now' : `${expiredMinutes}m ago`;
+        } else if (expiredMinutes < 1440) {
+            expiredTimeText = `${Math.floor(expiredMinutes / 60)}h ago`;
         } else {
-            const expiredTraceFlag = this.traceFlags.find(tf => {
-                const expiration = new Date(tf.ExpirationDate);
-                return tf.TracedEntityId === targetUserId && expiration <= now;
-            });
-
-            if (expiredTraceFlag) {
-                const expiration = new Date(expiredTraceFlag.ExpirationDate);
-                const expiredMs = now - expiration;
-                const expiredMinutes = Math.floor(expiredMs / 60000);
-                const debugLevelName = expiredTraceFlag.DebugLevel?.DeveloperName || 'Unknown';
-
-                let expiredTimeText = '';
-                if (expiredMinutes < 60) {
-                    expiredTimeText = expiredMinutes <= 1 ? 'just now' : `${expiredMinutes}m ago`;
-                } else if (expiredMinutes < 1440) {
-                    expiredTimeText = `${Math.floor(expiredMinutes / 60)}h ago`;
-                } else {
-                    expiredTimeText = `${Math.floor(expiredMinutes / 1440)}d ago`;
-                }
-
-                indicator.className = 'trace-status-indicator expired';
-                text.textContent = `Expired: ${expiredTimeText} • ${debugLevelName}`;
-                indicator.style.display = 'inline-flex';
-            } else {
-                indicator.className = 'trace-status-indicator no-trace';
-                text.textContent = 'No Active Trace';
-                indicator.style.display = 'inline-flex';
-            }
+            expiredTimeText = `${Math.floor(expiredMinutes / 1440)}d ago`;
         }
+
+        indicator.className = 'trace-status-indicator expired';
+        text.textContent = `Expired: ${expiredTimeText} • ${debugLevelName}`;
+        indicator.style.display = 'inline-flex';
+    } else {
+        indicator.style.display = 'none';
     }
 };
 
@@ -260,8 +258,43 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
 
     container.innerHTML = '';
     const targetUserId = this.getTargetUserId();
+    const now = new Date();
 
-    this.traceFlags.forEach(tf => {
+    // 1. Sort trace flags: Active > Scheduled > Expired
+    // Sub-sorting: Active by expiration (soonest first), Scheduled by start date (soonest first), Expired by expiration (most recent first)
+    const sortedTraceFlags = [...this.traceFlags].sort((a, b) => {
+        const aStart = new Date(a.StartDate), aExp = new Date(a.ExpirationDate);
+        const bStart = new Date(b.StartDate), bExp = new Date(b.ExpirationDate);
+
+        const aIsSch = aStart > new Date(now.getTime() + 5000), aIsExp = aExp <= now, aIsAct = !aIsSch && !aIsExp;
+        const bIsSch = bStart > new Date(now.getTime() + 5000), bIsExp = bExp <= now, bIsAct = !bIsSch && !bIsExp;
+
+        if (aIsAct && !bIsAct) return -1;
+        if (!aIsAct && bIsAct) return 1;
+        if (aIsAct && bIsAct) return aExp - bExp;
+
+        if (aIsSch && bIsExp) return -1;
+        if (aIsExp && bIsSch) return 1;
+        if (aIsSch && bIsSch) return aStart - bStart;
+
+        return bExp - aExp; // Both expired
+    });
+
+    sortedTraceFlags.forEach(tf => {
+        const startDate = new Date(tf.StartDate);
+        const expiration = new Date(tf.ExpirationDate);
+        const isScheduled = startDate > new Date(now.getTime() + 5000);
+        const isExpired = expiration <= now;
+        const isActive = !isScheduled && !isExpired;
+
+        // Apply Status Filter
+        if (this.traceFlagsStatusFilter !== 'All') {
+            if (this.traceFlagsStatusFilter === 'Active' && !isActive) return;
+            if (this.traceFlagsStatusFilter === 'Scheduled' && !isScheduled) return;
+            if (this.traceFlagsStatusFilter === 'Expired' && !isExpired) return;
+        }
+
+        // Apply Search Filter
         if (this.traceFlagsSearchTerm) {
             const userName = (tf.TracedEntity?.Name || '').toLowerCase();
             const debugLevelName = (tf.DebugLevel?.DeveloperName || '').toLowerCase();
@@ -272,31 +305,20 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
         item.className = 'trace-flag-item';
         if (tf.TracedEntityId === targetUserId) item.classList.add('current-user');
 
-        const startDate = new Date(tf.StartDate);
-        const expiration = new Date(tf.ExpirationDate);
-        const now = new Date();
-        const isScheduled = startDate > now;
-        const isExpired = expiration <= now;
-
         let expiresClass = '', expiresText = '', statusIndicator = '';
 
         if (isScheduled) {
             const startsInMinutes = Math.max(0, Math.floor((startDate - now) / 60000));
             expiresClass = 'scheduled';
             statusIndicator = '<span class="trace-status-dot scheduled" title="Scheduled"></span>';
-            const dateRange = startDate.toLocaleDateString() === expiration.toLocaleDateString()
-                ? `${startDate.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - ${expiration.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-                : `${startDate.toLocaleString()} - ${expiration.toLocaleString()}`;
-
-            if (startsInMinutes >= 60) expiresText = `Starts in ${Math.floor(startsInMinutes / 60)}h ${startsInMinutes % 60}m`;
-            else expiresText = `Starts in ${startsInMinutes}m`;
-            expiresText += ` <span class="schedule-range">(${dateRange})</span>`;
+            const startsInText = formatDuration(startsInMinutes);
+            expiresText = `<span class="starts-in-prefix">Starts in ${startsInText}:</span> <span class="schedule-range">(${formatDateTimeNice(startDate)} - ${formatDateTimeNice(expiration)})</span>`;
         } else if (isExpired) {
             expiresClass = 'expired'; expiresText = 'Expired';
             statusIndicator = '<span class="trace-status-dot expired" title="Expired"></span>';
         } else {
             const expiresInMinutes = Math.max(0, Math.floor((expiration - now) / 60000));
-            expiresText = expiresInMinutes >= 60 ? `${Math.floor(expiresInMinutes / 60)}h ${expiresInMinutes % 60}m left` : `${expiresInMinutes}m left`;
+            expiresText = `${formatDurationShort(expiresInMinutes)} left`;
             if (expiresInMinutes < 5) expiresClass = 'expiring-soon';
             statusIndicator = '<span class="trace-status-dot active" title="Active"></span>';
         }
@@ -324,6 +346,46 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
     container.querySelectorAll('.reduce-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleReduceTraceFlag(e.target.dataset.id)));
     container.querySelectorAll('.reactivate-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleReactivateTraceFlag(e.target.dataset.id)));
     container.querySelectorAll('.delete-btn').forEach(btn => btn.addEventListener('click', (e) => this.handleDeleteTraceFlag(e.target.dataset.id)));
+};
+
+DebugLogManagerUI.prototype.updateTraceFlagTimers = function () {
+    const container = document.getElementById('traceFlagsList');
+    if (!container || !this.traceFlags) return;
+
+    this.traceFlags.forEach(tf => {
+        const item = container.querySelector(`[data-id="${tf.Id}"]`);
+        if (!item) return;
+
+        const expiresSpan = item.querySelector('.trace-flag-expires');
+        if (!expiresSpan) return;
+
+        const now = new Date();
+        const start = new Date(tf.StartDate);
+        const expiration = new Date(tf.ExpirationDate);
+        const isExpired = expiration <= now;
+        // Use the same threshold as renderTraceFlags
+        const isScheduled = start > new Date(now.getTime() + 5000);
+
+        let expiresText = '';
+        let expiresClass = '';
+
+        if (isScheduled) {
+            const startsInMinutes = Math.floor((start - now) / 60000);
+            expiresText = startsInMinutes > 60 ? `Starts: ${start.toLocaleTimeString()}` : `Starts in ${startsInMinutes}m`;
+        } else if (isExpired) {
+            expiresText = 'Expired';
+            expiresClass = 'expired';
+        } else {
+            const expiresInMinutes = Math.floor((expiration - now) / 60000);
+            expiresText = formatDurationShort(expiresInMinutes) + ' left';
+            if (expiresInMinutes < 5) expiresClass = 'expiring-soon';
+        }
+
+        if (expiresSpan.textContent !== expiresText) {
+            expiresSpan.textContent = expiresText;
+            expiresSpan.className = `trace-flag-expires ${expiresClass}`;
+        }
+    });
 };
 
 DebugLogManagerUI.prototype.escapeHtml = function (text) {
@@ -401,17 +463,26 @@ DebugLogManagerUI.prototype.handleEnableDebug = async function () {
             const range = this.getCustomDateTimeRange();
             startDate = range.startDate; expirationDate = range.endDate;
             durationMinutes = Math.ceil((expirationDate - startDate) / 60000);
-            durationText = `from ${startDate.toLocaleString()} to ${expirationDate.toLocaleString()}`;
+            durationText = `from ${formatDateTimeNice(startDate)} to ${formatDateTimeNice(expirationDate)}`;
         } else {
             durationMinutes = parseInt(document.getElementById('debugDurationSelect')?.value || '60', 10);
-            durationText = `${durationMinutes / 60} hours`;
+            startDate = new Date();
+            expirationDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+            durationText = `for ${formatDuration(durationMinutes)}`;
         }
 
         const targetUserId = this.getTargetUserId();
-        const existing = this.traceFlags.find(tf => new Date(tf.ExpirationDate) > new Date() && tf.TracedEntityId === targetUserId);
-        if (existing) {
-            await this.showReplaceConfirmation(existing, debugLevelId, durationMinutes, expirationDate, startDate);
-            return;
+        const conflict = this.checkTimeConflict(startDate || new Date(), expirationDate, targetUserId);
+
+        if (conflict) {
+            if (isCustom) {
+                this.showNotification(`Time conflict: Already tracing from ${formatDateTimeNice(conflict.StartDate)} to ${formatDateTimeNice(conflict.ExpirationDate)}`, 'error');
+                return;
+            } else if (new Date(conflict.ExpirationDate) > new Date()) {
+                // Duration mode: Show replacement prompt only if it conflicts with an active/future flag
+                await this.showReplaceConfirmation(conflict, debugLevelId, durationMinutes, expirationDate, startDate);
+                return;
+            }
         }
 
         btn.disabled = true; btn.textContent = 'Creating...';
@@ -446,7 +517,7 @@ DebugLogManagerUI.prototype.showReplaceConfirmation = async function (existingFl
     document.getElementById('confirmCurrentUser').textContent = existingFlag.TracedEntity?.Name || 'Unknown';
     document.getElementById('confirmCurrentDebugLevel').textContent = existingFlag.DebugLevel?.DeveloperName || 'Unknown';
     const remMin = Math.max(0, Math.floor((new Date(existingFlag.ExpirationDate) - new Date()) / 60000));
-    document.getElementById('confirmTimeRemaining').textContent = remMin >= 60 ? `${Math.floor(remMin / 60)}h ${remMin % 60}m` : `${remMin}m`;
+    document.getElementById('confirmTimeRemaining').textContent = formatDurationShort(remMin);
     dialog.classList.remove('hidden');
 
     return new Promise((resolve) => {
@@ -457,7 +528,6 @@ DebugLogManagerUI.prototype.showReplaceConfirmation = async function (existingFl
         cb.addEventListener('click', hC); can.addEventListener('click', hCan);
     });
 };
-
 DebugLogManagerUI.prototype.handleConfirmReplace = async function (exid, nlid, dur, cE = null, cS = null) {
     const isC = !document.getElementById('modeDuration')?.checked;
     const btn = document.getElementById(isC ? 'enableDebugBtnCustom' : 'enableDebugBtn');
@@ -465,7 +535,9 @@ DebugLogManagerUI.prototype.handleConfirmReplace = async function (exid, nlid, d
     try {
         btn.disabled = true; btn.textContent = 'Replacing...';
         await this.deleteTraceFlag(exid);
-        const start = cS || new Date(Date.now() + 5000), exp = cE || new Date(start.getTime() + dur * 60 * 1000);
+        const now = new Date();
+        const start = cS || now;
+        const exp = cE || new Date(start.getTime() + dur * 60 * 1000);
         await this.createTraceFlagWithRetry({ TracedEntityId: this.getTargetUserId(), LogType: 'USER_DEBUG', DebugLevelId: nlid || await this.getOrCreateDefaultDebugLevel(), StartDate: start.toISOString(), ExpirationDate: exp.toISOString() });
         await this.listTraceFlags(); this.renderTraceFlags(); this.startTimer();
         const filter = document.getElementById('logTypeFilter');
@@ -476,13 +548,13 @@ DebugLogManagerUI.prototype.handleConfirmReplace = async function (exid, nlid, d
 };
 
 DebugLogManagerUI.prototype.handleExtendTraceFlag = async function (tid) {
-    try { await this.extendTraceFlag(tid || this.currentTraceFlag?.Id, this.DEFAULT_DURATION_MINUTES); this.renderTraceFlags(); this.showNotification('Extended by 45 minutes', 'success'); }
+    try { await this.extendTraceFlag(tid || this.currentTraceFlag?.Id, this.DEFAULT_DURATION_MINUTES); this.renderTraceFlags(); this.showNotification(`Extended by ${formatDuration(this.DEFAULT_DURATION_MINUTES)}`, 'success'); }
     catch (error) { this.showNotification('Failed: ' + error.message, 'error'); }
 };
 
 DebugLogManagerUI.prototype.handleReduceTraceFlag = async function (tid) {
     if (!tid) return;
-    try { const res = await this.reduceTraceFlag(tid, this.DEFAULT_DURATION_MINUTES); this.renderTraceFlags(); this.showNotification(res?.disabled ? 'Disabled (time reduced to 0)' : 'Reduced by 45 minutes', 'info'); }
+    try { const res = await this.reduceTraceFlag(tid, this.DEFAULT_DURATION_MINUTES); this.renderTraceFlags(); this.showNotification(res?.disabled ? 'Disabled (time reduced to 0)' : `Reduced by ${formatDuration(this.DEFAULT_DURATION_MINUTES)}`, 'info'); }
     catch (error) { this.showNotification('Failed: ' + error.message, 'error'); }
 };
 
@@ -496,7 +568,7 @@ DebugLogManagerUI.prototype.handleReactivateTraceFlag = async function (tid) {
         await this.toolingDelete('TraceFlag', tid);
         const exp = new Date(Date.now() + this.DEFAULT_DURATION_MINUTES * 60 * 1000);
         await this.toolingCreate('TraceFlag', { TracedEntityId: tf.TracedEntityId, LogType: 'USER_DEBUG', DebugLevelId: tf.DebugLevelId, StartDate: new Date().toISOString(), ExpirationDate: exp.toISOString() });
-        await this.listTraceFlags(); this.renderTraceFlags(); this.showNotification('Reactivated for 45 minutes', 'success');
+        await this.listTraceFlags(); this.renderTraceFlags(); this.showNotification(`Reactivated for ${formatDuration(this.DEFAULT_DURATION_MINUTES)}`, 'success');
     } catch (error) { this.showNotification('Failed: ' + error.message, 'error'); }
 };
 
@@ -563,5 +635,6 @@ DebugLogManagerUI.prototype.setupModalEventListeners = function () {
     }
     document.getElementById('userSearchBtn')?.addEventListener('click', () => this.handleUserSearch());
     document.getElementById('clearSelectedUserBtn')?.addEventListener('click', () => this.clearSelectedUser());
-    document.getElementById('traceFlagsSearchInput')?.addEventListener('input', (e) => this.filterTraceFlags(e.target.value));
+    document.getElementById('traceFlagsSearchInput')?.addEventListener('input', (e) => { this.traceFlagsSearchTerm = e.target.value.toLowerCase(); this.renderTraceFlags(); });
+    document.getElementById('traceFlagsStatusFilter')?.addEventListener('change', (e) => { this.traceFlagsStatusFilter = e.target.value; this.renderTraceFlags(); });
 };

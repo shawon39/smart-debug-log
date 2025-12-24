@@ -25,8 +25,9 @@ class DebugLogManagerUI {
     // Debug Level Creator
     this.debugLevelCreator = null;
 
-    // Trace flags search
+    // Trace flags search & filter
     this.traceFlagsSearchTerm = '';
+    this.traceFlagsStatusFilter = 'All';
   }
 
   async initialize(session) {

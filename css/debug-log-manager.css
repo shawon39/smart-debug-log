@@ -16,6 +16,8 @@
   flex-direction: column;
   gap: 12px;
   padding: 16px;
+  padding-bottom: 24px;
+  /* Increased for breathing room */
   max-height: calc(85vh - 52px);
   overflow-y: auto;
   background: var(--bg-panel);
@@ -648,6 +650,10 @@
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex-shrink: 1;
 }
 
 .trace-flags-section .section-header {
@@ -682,6 +688,8 @@
   padding: 8px 12px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  gap: 8px;
 }
 
 .trace-flags-search-input {
@@ -707,9 +715,58 @@
   opacity: 0.7;
 }
 
+.trace-flags-status-filter {
+  padding: 5px 10px;
+  border: 1px solid var(--border-secondary);
+  border-radius: 4px;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  min-width: 100px;
+}
+
+.trace-flags-status-filter:hover {
+  border-color: var(--bg-button);
+}
+
+.trace-flags-status-filter:focus {
+  outline: none;
+  border-color: var(--bg-button);
+  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.15);
+}
+
 .trace-flags-list {
-  max-height: 260px;
-  overflow-y: auto;
+  display: block;
+  max-height: 280px;
+  /* Reduced slightly to ensure it fits better */
+  min-height: 100px;
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  -webkit-overflow-scrolling: touch;
+  flex: 1;
+}
+
+/* Custom scrollbar for premium feel and visibility */
+.trace-flags-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.trace-flags-list::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.trace-flags-list::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 3px;
+}
+
+.trace-flags-list::-webkit-scrollbar-thumb:hover {
+  background: var(--bg-button);
 }
 
 .loading-state,
@@ -820,10 +877,17 @@
   font-weight: 500;
 }
 
+.trace-flag-expires.scheduled .starts-in-prefix {
+  color: #2563eb;
+  font-weight: 600;
+  margin-right: 2px;
+}
+
 .trace-flag-expires.scheduled .schedule-range {
-  color: #94a3b8;
+  color: var(--text-secondary);
   font-weight: 400;
-  font-size: 0.95em;
+  font-size: 0.9em;
+  opacity: 0.8;
 }
 
 .trace-flag-expires.expired {
@@ -871,6 +935,8 @@
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
+  margin-bottom: 4px;
+  /* Ensure space at the very bottom */
 }
 
 .delete-logs-section .button.danger {

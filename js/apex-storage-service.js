@@ -13,13 +13,13 @@ class ApexStorageService {
     if (!orgId) {
       return { success: false, error: 'Organization ID is required' };
     }
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'GET_APEX_CODES',
         orgId: orgId
       });
-      
+
       return response;
     } catch (error) {
       console.error('Failed to load Apex codes:', error);
@@ -38,11 +38,11 @@ class ApexStorageService {
     if (!code || !orgId) {
       return { success: false, error: 'Code and organization ID are required' };
     }
-    
+
     if (!name || !name.trim()) {
       return { success: false, error: 'Code name is required' };
     }
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'SAVE_APEX_CODE',
@@ -50,7 +50,7 @@ class ApexStorageService {
         code: this.sanitizeApexCode(code.trim()),
         orgId: orgId
       });
-      
+
       return response;
     } catch (error) {
       console.error('Failed to save Apex code:', error);
@@ -70,11 +70,11 @@ class ApexStorageService {
     if (!id || !code || !orgId) {
       return { success: false, error: 'ID, code, and organization ID are required' };
     }
-    
+
     if (!name || !name.trim()) {
       return { success: false, error: 'Code name is required' };
     }
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'UPDATE_APEX_CODE',
@@ -83,7 +83,7 @@ class ApexStorageService {
         code: this.sanitizeApexCode(code.trim()),
         orgId: orgId
       });
-      
+
       return response;
     } catch (error) {
       console.error('Failed to update Apex code:', error);
@@ -96,17 +96,18 @@ class ApexStorageService {
    * @param {string} id - Code ID
    * @returns {Promise<{success: boolean, data?: any, error?: string}>}
    */
-  static async deleteApexCode(id) {
+  static async deleteApexCode(id, orgId = null) {
     if (!id) {
       return { success: false, error: 'Code ID is required' };
     }
-    
+
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'DELETE_APEX_CODE',
-        id: id
+        id: id,
+        orgId: orgId
       });
-      
+
       return response;
     } catch (error) {
       console.error('Failed to delete Apex code:', error);
@@ -124,18 +125,18 @@ class ApexStorageService {
     if (!code || !session) {
       return { success: false, error: 'Code and session are required' };
     }
-    
+
     try {
       // Get sfHost from URL for org-aware token selection
       const sfHost = typeof getHostFromUrl === 'function' ? getHostFromUrl() : null;
-      
+
       const response = await chrome.runtime.sendMessage({
         type: 'EXECUTE_ANONYMOUS',
         code: code,
         session: session,
         sfHost: sfHost
       });
-      
+
       return response;
     } catch (error) {
       console.error('Failed to execute Apex code:', error);

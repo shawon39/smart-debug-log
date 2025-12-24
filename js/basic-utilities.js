@@ -3,17 +3,21 @@
 
 // HTML manipulation utilities
 function escapeHtml(text) {
-  if (!text) return '';
+  if (text === null || text === undefined) return '';
+  const textStr = String(text);
   const div = document.createElement('div');
-  div.textContent = text;
+  div.textContent = textStr;
   return div.innerHTML;
 }
 
 function decodeHtmlEntities(text) {
   if (!text) return '';
-  const div = document.createElement('div');
-  div.innerHTML = text;
-  return div.textContent || div.innerText || '';
+  try {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    return doc.documentElement.textContent || '';
+  } catch (e) {
+    return text;
+  }
 }
 
 // URL and host utilities
@@ -21,9 +25,9 @@ const getHostFromUrl = () => new URLSearchParams(window.location.search).get('ho
 
 const getSalesforceTabs = async () => {
   const tabs = await chrome.tabs.query({});
-  return tabs.filter(tab => 
+  return tabs.filter(tab =>
     tab.url && (
-      tab.url.includes('.salesforce.com') || 
+      tab.url.includes('.salesforce.com') ||
       tab.url.includes('.force.com') ||
       tab.url.includes('.lightning.force.com') ||
       tab.url.includes('--c.visualforce.com') ||
@@ -33,7 +37,7 @@ const getSalesforceTabs = async () => {
 };
 
 const isSalesforceUrl = (url) => url && (
-  url.includes('.salesforce.com') || 
+  url.includes('.salesforce.com') ||
   url.includes('.force.com') ||
   url.includes('.lightning.force.com') ||
   url.includes('--c.visualforce.com') ||
@@ -65,11 +69,52 @@ function formatDateTimeWithHighlight(dateTimeString) {
 
 function formatFileSize(bytes) {
   if (!bytes) return '0 B';
-  
+
   const sizes = ['B', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  
+
   return `${(bytes / Math.pow(1024, i)).toFixed(1)} ${sizes[i]}`;
+}
+
+/**
+ * Formats duration in minutes to a human-readable string (e.g., "1 hour 30 minutes", "45 minutes")
+ * @param {number} totalMinutes Minutes to format
+ * @returns {string} Formatted duration string
+ */
+function formatDuration(totalMinutes) {
+  if (totalMinutes === null || totalMinutes === undefined || totalMinutes <= 0) return '0min';
+
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = Math.round(totalMinutes % 60);
+
+  let result = [];
+  if (days > 0) result.push(`${days}d`);
+  if (hours > 0) result.push(`${hours}hr`);
+  if (minutes > 0) result.push(`${minutes}min`);
+
+  return result.length === 0 ? '0min' : result.join(' ');
+}
+
+/**
+ * Formats duration in minutes to a short human-readable string (e.g., "1h 30m", "45m")
+ * @param {number} totalMinutes Minutes to format
+ * @returns {string} Formatted duration string
+ */
+function formatDurationShort(totalMinutes) {
+  if (totalMinutes === null || totalMinutes === undefined || totalMinutes <= 0) return '0min';
+
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor((totalMinutes % 1440) / 60);
+  const minutes = Math.round(totalMinutes % 60);
+
+  let result = [];
+  if (days > 0) result.push(`${days}d`);
+  if (hours > 0) result.push(`${hours}hr`);
+  if (minutes > 0) result.push(`${minutes}min`);
+
+  // For very short display, we might only want the first two units or just non-zero ones
+  return result.length === 0 ? '0min' : result.join(' ');
 }
 
 // Read/Unread status management
@@ -82,12 +127,12 @@ function getReadLogsStorageKey() {
 function loadReadLogsFromStorage() {
   const storageKey = getReadLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     const storedReadLogs = localStorage.getItem(storageKey);
     if (storedReadLogs) {
       const readLogsData = JSON.parse(storedReadLogs);
-      
+
       // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
       if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
         // Old format - just load the log IDs
@@ -105,7 +150,7 @@ function loadReadLogsFromStorage() {
 function saveReadLogsToStorage() {
   const storageKey = getReadLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     // Convert Set to array of objects with timestamps
     const readLogsArray = Array.from(readLogs).map(logId => ({
@@ -116,6 +161,30 @@ function saveReadLogsToStorage() {
   } catch (error) {
     // Ignore storage errors
   }
+}
+
+/**
+ * Formats date and time in a human-friendly way (e.g., "27 Dec 2025, 7:26 PM")
+ * @param {Date|string|number} date Date to format
+ * @returns {string} Formatted string
+ */
+function formatDateTimeNice(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  const dateStr = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `${dateStr} ${timeStr}`;
+}
+
+/**
+ * Formats date in a human-friendly way (e.g., "27 Dec 2025")
+ * @param {Date|string|number} date Date to format
+ * @returns {string} Formatted string
+ */
+function formatDateNice(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 function markLogAsRead(logId) {
@@ -138,12 +207,12 @@ function getClearedLogsStorageKey() {
 function loadClearedLogsFromStorage() {
   const storageKey = getClearedLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     const storedClearedLogs = localStorage.getItem(storageKey);
     if (storedClearedLogs) {
       const clearedLogsData = JSON.parse(storedClearedLogs);
-      
+
       // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
       if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
         // Old format - just load the log IDs
@@ -161,7 +230,7 @@ function loadClearedLogsFromStorage() {
 function saveClearedLogsToStorage() {
   const storageKey = getClearedLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     // Convert Set to array of objects with timestamps
     const clearedLogsArray = Array.from(clearedLogs).map(logId => ({
@@ -188,10 +257,10 @@ function isLogCleared(logId) {
 function cleanupExpiredLogs() {
   const EXPIRY_HOURS = 25; // 24h + 1h buffer
   const expiryTime = Date.now() - (EXPIRY_HOURS * 60 * 60 * 1000);
-  
+
   // Cleanup expired cleared logs
   cleanupExpiredClearedLogs(expiryTime);
-  
+
   // Cleanup expired read logs  
   cleanupExpiredReadLogs(expiryTime);
 }
@@ -199,13 +268,13 @@ function cleanupExpiredLogs() {
 function cleanupExpiredClearedLogs(expiryTime) {
   const storageKey = getClearedLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     const storedClearedLogs = localStorage.getItem(storageKey);
     if (!storedClearedLogs) return;
-    
+
     const clearedLogsData = JSON.parse(storedClearedLogs);
-    
+
     // Handle both old format (array of strings) and new format (array of objects)
     let filteredLogs;
     if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
@@ -215,10 +284,10 @@ function cleanupExpiredClearedLogs(expiryTime) {
       // New format - filter out expired entries
       filteredLogs = clearedLogsData.filter(entry => entry.clearedAt > expiryTime);
     }
-    
+
     // Update localStorage and memory
     localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
-    
+
     // Rebuild clearedLogs Set from filtered data
     if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
       clearedLogs = new Set(filteredLogs);
@@ -233,13 +302,13 @@ function cleanupExpiredClearedLogs(expiryTime) {
 function cleanupExpiredReadLogs(expiryTime) {
   const storageKey = getReadLogsStorageKey();
   if (!storageKey) return;
-  
+
   try {
     const storedReadLogs = localStorage.getItem(storageKey);
     if (!storedReadLogs) return;
-    
+
     const readLogsData = JSON.parse(storedReadLogs);
-    
+
     // Handle both old format (array of strings) and new format (array of objects)
     let filteredLogs;
     if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
@@ -249,10 +318,10 @@ function cleanupExpiredReadLogs(expiryTime) {
       // New format - filter out expired entries
       filteredLogs = readLogsData.filter(entry => entry.readAt > expiryTime);
     }
-    
+
     // Update localStorage and memory
     localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
-    
+
     // Rebuild readLogs Set from filtered data
     if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
       readLogs = new Set(filteredLogs);
@@ -307,10 +376,10 @@ function hasExceptions(logContent) {
 
 function containsSalesforceObjects(text) {
   if (!text) return false;
-  
+
   // Decode HTML entities first for better pattern matching
   const decodedText = decodeHtmlEntities(text);
-  
+
   // Check for common Salesforce object patterns anywhere in the text
   return (
     // Raw map content with Salesforce objects: {key1=Object:{...}, key2=Object:{...}}
@@ -336,7 +405,7 @@ function containsSalesforceObjects(text) {
     // Quoted arrays with key=value: "[key=value, key=value]"
     /"\[[^\]]*=[^\]]*\]"/.test(decodedText)
   );
-} 
+}
 
 // Theme management utilities
 const THEME_STORAGE_KEY = 'smart-debug-log-theme';
@@ -376,7 +445,7 @@ async function saveThemeToStorage(theme) {
 // Apply theme to document
 function applyTheme(theme) {
   const html = document.documentElement;
-  
+
   if (theme === THEME_DARK) {
     html.setAttribute('data-theme', 'dark');
   } else {
@@ -395,10 +464,10 @@ async function initializeTheme() {
 async function toggleTheme() {
   const currentTheme = await getThemeFromStorage();
   const newTheme = currentTheme === THEME_DARK ? THEME_LIGHT : THEME_DARK;
-  
+
   applyTheme(newTheme);
   await saveThemeToStorage(newTheme);
-  
+
   return newTheme;
 }
 
@@ -408,10 +477,10 @@ async function setTheme(theme) {
     console.warn('Invalid theme:', theme, 'Using light theme as fallback');
     theme = THEME_LIGHT;
   }
-  
+
   applyTheme(theme);
   await saveThemeToStorage(theme);
-  
+
   return theme;
 }
 
@@ -421,17 +490,17 @@ function setupThemeToggle(toggleElement) {
     console.warn('Theme toggle element not found');
     return;
   }
-  
+
   // Initialize toggle state
   initializeTheme().then(theme => {
     toggleElement.checked = theme === THEME_DARK;
   });
-  
+
   // Add event listener
   toggleElement.addEventListener('change', async () => {
     const newTheme = toggleElement.checked ? THEME_DARK : THEME_LIGHT;
     await setTheme(newTheme);
-    
+
     // Sync other theme toggles on the same page
     syncThemeToggles(newTheme, toggleElement);
   });
@@ -476,7 +545,7 @@ async function saveViewPreferenceToStorage(viewPreference) {
 function syncThemeToggles(theme, excludeElement) {
   const themeToggles = document.querySelectorAll('input[type="checkbox"][id*="theme"], input[type="checkbox"][id*="Theme"]');
   const isDark = theme === THEME_DARK;
-  
+
   themeToggles.forEach(toggle => {
     if (toggle !== excludeElement) {
       toggle.checked = isDark;

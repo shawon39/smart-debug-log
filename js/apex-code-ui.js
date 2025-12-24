@@ -76,8 +76,8 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
         const date = new Date(apexCode.timestamp);
         item.innerHTML = `
       <div class="apex-code-header">
-        <div class="apex-code-name">${this.escapeHtml(apexCode.name)}</div>
-        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" data-id="${apexCode.id}" title="Delete">Delete</button></div>
+        <div class="apex-code-name">${escapeHtml(apexCode.name)}</div>
+        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" data-id="${escapeHtml(apexCode.id)}" title="Delete">Delete</button></div>
       </div>
       <div class="apex-code-meta">
         <span class="apex-code-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
@@ -256,15 +256,9 @@ ApexCodeManager.prototype.closeModal = function () {
 };
 
 ApexCodeManager.prototype.setupModalEventListeners = function () {
-    document.getElementById('openApexManagerBtn')?.addEventListener('click', () => this.openModal());
     document.getElementById('closeApexManagerBtn')?.addEventListener('click', () => this.closeModal());
     const modal = document.getElementById('apexManagerModal');
     if (modal) modal.addEventListener('click', (e) => { if (e.target === modal) this.closeModal(); });
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal?.style.display === 'flex') this.closeModal(); });
 };
 
-ApexCodeManager.prototype.escapeHtml = function (text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-};

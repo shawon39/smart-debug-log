@@ -345,12 +345,12 @@ async function handleGetApexCodes(request) {
 }
 
 async function handleUpdateApexCode(request) {
-  const updated = await updateApexCodeInStorage({ ...request, timestamp: Date.now() });
+  const updated = await updateApexCodeInStorage({ ...request, timestamp: Date.now() }, request.orgId);
   return { success: true, message: 'Apex code updated successfully', data: updated };
 }
 
 async function handleDeleteApexCode(request) {
-  await deleteApexCodeFromStorage(request.id);
+  await deleteApexCodeFromStorage(request.id, request.orgId);
   return { success: true, message: 'Apex code deleted successfully' };
 }
 

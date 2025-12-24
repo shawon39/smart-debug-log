@@ -4,38 +4,38 @@
 // Session management functions
 async function copySessionUrl() {
   if (!currentSession || !sfHost) return;
-  
+
   const sessionId = currentSession.key || currentSession.sessionId;
   if (!sessionId) return;
-  
+
   const sessionUrl = `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`;
-  
+
   try {
     await navigator.clipboard.writeText(sessionUrl);
-    
+
     const { copySessionBtn } = elements;
     const originalText = copySessionBtn.innerHTML;
     copySessionBtn.innerHTML = 'Copied';
     copySessionBtn.disabled = true;
-    
+
     setTimeout(() => {
       copySessionBtn.innerHTML = originalText;
       copySessionBtn.disabled = false;
     }, 2000);
-    
+
   } catch (error) {
-    alert(`Session URL: ${sessionUrl}`);
+    showToast('Session URL copied to console fallback.', 5000);
   }
 }
 
 async function openInIncognito() {
   if (!currentSession || !sfHost) return;
-  
+
   const sessionId = currentSession.key || currentSession.sessionId;
   if (!sessionId) return;
-  
+
   const orgUrl = `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`;
-  
+
   try {
     await chrome.windows.create({
       url: orgUrl,
@@ -60,23 +60,26 @@ function showCodeDeployDialog(description) {
     // Create modal elements
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal-content';
-    
+
     const content = document.createElement('div');
     content.className = 'modal-text';
-    
-    // Format the description with proper code styling
+
+    const escapedHost = escapeHtml(sfHost || '');
     const formattedDescription = description
       .replace(/List<\w+>\s+\w+\s*=\s*\[SELECT[^\]]+\];/g, (match) => {
-        const escapedMatch = match.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const escapedMatch = escapeHtml(match);
         return `<code class="code-block">${escapedMatch}</code>`;
       })
-      .replace(/Console\.log\([^)]+\);/g, `<code class="code-inline">$&</code>`)
-      .replace(/Deploy to org: (.+)$/m, `<div class="deploy-info-block"><strong>Deploy to org:</strong> $1</div>`)
+      .replace(/Console\.log\([^)]+\);/g, (match) => {
+        const escapedMatch = escapeHtml(match);
+        return `<code class="code-inline">${escapedMatch}</code>`;
+      })
+      .replace(/Deploy to org: (.+)$/m, `<div class="deploy-info-block"><strong>Deploy to org:</strong> ${escapedHost}</div>`)
       .replace(/\n/g, '<br>');
-    
+
     content.innerHTML = `
       <h3 class="modal-title">Deploy Console Class</h3>
       <div class="modal-description">${formattedDescription}</div>
@@ -85,22 +88,22 @@ function showCodeDeployDialog(description) {
         <button id="deployCancel" class="modal-button-secondary">Cancel</button>
       </div>
     `;
-    
+
     modal.appendChild(content);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-    
+
     // Add event listeners
     document.getElementById('deployConfirm').addEventListener('click', () => {
       document.body.removeChild(overlay);
       resolve(true);
     });
-    
+
     document.getElementById('deployCancel').addEventListener('click', () => {
       document.body.removeChild(overlay);
       resolve(false);
     });
-    
+
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) {
         document.body.removeChild(overlay);
@@ -112,17 +115,17 @@ function showCodeDeployDialog(description) {
 
 async function deployPrettierClass() {
   if (!currentSession || !sfHost) {
-    alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');
+    showToast('No active Salesforce session found. Please ensure you are logged into Salesforce.', 5000);
     return;
   }
 
   // Pre-deployment validation
   // Check if we're in a sandbox environment
   const isSandbox = sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch');
-  
+
   // Validate session has required properties
   if (!currentSession.sessionId && !currentSession.key) {
-    alert('❌ Invalid session: No authentication token found. Please refresh Salesforce and try again.');
+    showToast('❌ Invalid session: No authentication token found. Please refresh Salesforce and try again.', 5000);
     return;
   }
 
@@ -172,7 +175,7 @@ Deploy to org: ${sfHost}`;
     });
 
     if (existingCheck.success && existingCheck.data?.records?.length > 0) {
-      alert('✅ Console class already exists in this org.');
+      showToast('✅ Console class already exists in this org.');
       deployPrettierBtn.innerHTML = originalText;
       deployPrettierBtn.disabled = false;
       return;
@@ -194,12 +197,12 @@ Deploy to org: ${sfHost}`;
     });
 
     if (result.success) {
-      alert('✅ Class is deployed');
-      
+      showToast('✅ Class is deployed');
+
       // Update button to show success
       deployPrettierBtn.innerHTML = 'Deployed ✓';
       deployPrettierBtn.classList.add('deploy-success');
-      
+
       setTimeout(() => {
         deployPrettierBtn.innerHTML = originalText;
         deployPrettierBtn.classList.remove('deploy-success');
@@ -210,11 +213,11 @@ Deploy to org: ${sfHost}`;
     }
   } catch (error) {
     console.error('Deployment error:', error);
-    
+
     let errorMessage = 'The class already exists, or you can’t deploy it to the production environment from here.';
-    
+
     alert(errorMessage);
-    
+
     // Reset button state
     deployPrettierBtn.innerHTML = originalText;
     deployPrettierBtn.disabled = false;
@@ -239,9 +242,9 @@ async function openDebugLogsSetup() {
     alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');
     return;
   }
-  
+
   const debugLogsUrl = `https://${sfHost}/lightning/setup/ApexDebugLogs/home`;
-  
+
   try {
     await chrome.tabs.create({
       url: debugLogsUrl,

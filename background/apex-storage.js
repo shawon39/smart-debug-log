@@ -26,12 +26,30 @@ export async function getApexCodesFromStorage(orgId) {
     return result[storageKey] || [];
 }
 
-export async function updateApexCodeInStorage(apexData) {
-    const allKeys = await chrome.storage.local.get();
+export async function updateApexCodeInStorage(apexData, orgId = null) {
+    if (orgId) {
+        const storageKey = `apexCodes_${orgId}`;
+        const result = await chrome.storage.local.get(storageKey);
+        const codes = result[storageKey] || [];
+        const codeIndex = codes.findIndex(code => code.id === apexData.id);
 
-    for (const key of Object.keys(allKeys)) {
+        if (codeIndex !== -1) {
+            const updated = {
+                ...codes[codeIndex],
+                ...apexData,
+                timestamp: Date.now()
+            };
+            codes[codeIndex] = updated;
+            await chrome.storage.local.set({ [storageKey]: codes });
+            return updated;
+        }
+    }
+
+    // Fallback: search all (legacy support or if orgId missing)
+    const allStorage = await chrome.storage.local.get(null);
+    for (const key of Object.keys(allStorage)) {
         if (key.startsWith('apexCodes_')) {
-            const codes = allKeys[key];
+            const codes = allStorage[key];
             const codeIndex = codes.findIndex(code => code.id === apexData.id);
 
             if (codeIndex !== -1) {
@@ -50,12 +68,24 @@ export async function updateApexCodeInStorage(apexData) {
     throw new Error('Apex code not found for update');
 }
 
-export async function deleteApexCodeFromStorage(id) {
-    const allKeys = await chrome.storage.local.get();
+export async function deleteApexCodeFromStorage(id, orgId = null) {
+    if (orgId) {
+        const storageKey = `apexCodes_${orgId}`;
+        const result = await chrome.storage.local.get(storageKey);
+        const codes = result[storageKey] || [];
+        const updatedCodes = codes.filter(code => code.id !== id);
 
-    for (const key of Object.keys(allKeys)) {
+        if (updatedCodes.length !== codes.length) {
+            await chrome.storage.local.set({ [storageKey]: updatedCodes });
+            return;
+        }
+    }
+
+    // Fallback search
+    const allStorage = await chrome.storage.local.get(null);
+    for (const key of Object.keys(allStorage)) {
         if (key.startsWith('apexCodes_')) {
-            const codes = allKeys[key];
+            const codes = allStorage[key];
             const updatedCodes = codes.filter(code => code.id !== id);
 
             if (updatedCodes.length !== codes.length) {

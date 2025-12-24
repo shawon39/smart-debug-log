@@ -240,6 +240,16 @@ export async function getStoredOAuthToken(sfHost = null) {
             return null;
         }
 
+        // Final safety check: if we have a host, the token must match the host's domain
+        if (sfHost) {
+            const orgDomain = extractOrgDomain(sfHost);
+            const tokenDomain = extractOrgDomain(token.instanceUrl);
+            if (tokenDomain !== orgDomain) {
+                console.debug('Token domain mismatch for host:', sfHost);
+                return null;
+            }
+        }
+
         if (isTokenExpired(token)) {
             try {
                 token = await refreshAccessToken(token);

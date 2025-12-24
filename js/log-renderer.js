@@ -48,7 +48,7 @@ class LogRenderer {
 
     // Filter out cleared logs
     const visibleLogs = logs.filter(log => !isLogCleared(log.Id));
-    
+
     if (visibleLogs.length === 0 && !append) {
       this.showEmptyState();
       return;
@@ -56,14 +56,14 @@ class LogRenderer {
 
     // Render logs
     const logsHtml = visibleLogs.map(log => this._renderLogItem(log)).join('');
-    
+
     if (append) {
       // Remove existing "See more" button if it exists
       const existingSeeMoreBtn = document.getElementById('seeMoreLogsBtn');
       if (existingSeeMoreBtn) {
         existingSeeMoreBtn.remove();
       }
-      
+
       // Append new logs
       logsList.insertAdjacentHTML('beforeend', logsHtml);
     } else {
@@ -107,7 +107,7 @@ class LogRenderer {
   selectDebugLog(logId) {
     // Mark log as read
     markLogAsRead(logId);
-    
+
     // Remove unread indicator from this log
     const logElement = document.querySelector(`[data-log-id="${logId}"]`);
     if (logElement) {
@@ -116,16 +116,16 @@ class LogRenderer {
         unreadIndicator.remove();
       }
     }
-    
+
     // Update selected state
     this.selectedLogId = logId;
-    
+
     // Update visual selection
     document.querySelectorAll('.log-item').forEach(item => {
       item.classList.remove('selected');
     });
     logElement?.classList.add('selected');
-    
+
     // Show log details
     this.showLogDetails(logId);
   }
@@ -138,9 +138,9 @@ class LogRenderer {
     const log = debugLogs.find(l => l.Id === logId);
     if (!log) return;
 
-    const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel, 
-            debugContent, limitsContent, errorAndLimitsContent, errorContent } = elements;
-    
+    const { selectedLogIdElement, welcomeState, limitsWelcomeState, debugContentPanel,
+      debugContent, limitsContent, errorAndLimitsContent, errorContent } = elements;
+
     if (selectedLogIdElement) {
       selectedLogIdElement.textContent = `Loading user info...`;
     }
@@ -148,10 +148,10 @@ class LogRenderer {
     welcomeState.classList.add('hidden');
     limitsWelcomeState.classList.add('hidden');
     debugContentPanel.classList.remove('hidden');
-    
+
     // Clear raw response while loading
     clearRawResponse();
-    
+
     // Show loading states
     debugContent.innerHTML = '<div class="loading-message">Loading debug messages...</div>';
     if (errorAndLimitsContent) {
@@ -167,32 +167,32 @@ class LogRenderer {
     try {
       // Get log content
       const content = await logLoader.getLogContent(logId);
-      
+
       // Extract and display user email
       if (selectedLogIdElement) {
         const userEmail = extractUserEmailFromLog(content);
         selectedLogIdElement.textContent = userEmail ? `Log User: ${userEmail}` : `Log ID: ${logId}`;
       }
-      
+
       // Store raw response data
       currentRawResponse = content;
-      
+
       // Cache debug, error, and exception status for this log
       const hasDebugMsgs = hasDebugMessages(content);
       const hasFatalErrorMsgs = hasFatalErrors(content);
       const hasExceptionMsgs = hasExceptions(content);
-      
+
       logCache.setDebugStatus(logId, hasDebugMsgs);
       logCache.setErrorStatus(logId, hasFatalErrorMsgs);
       logCache.setExceptionStatus(logId, hasExceptionMsgs);
-      
+
       // Update the log display to show the new indicators
       this.displayDebugLogs(debugLogs);
-      
+
       // Show toggle button and set up view controls
       const { toggleViewBtn } = elements;
       toggleViewBtn?.classList.remove('hidden');
-      
+
       // Apply the view based on current state (isRawView)
       if (isRawView) {
         showRawResponse();
@@ -217,31 +217,31 @@ class LogRenderer {
   updateLogIndicator(logId) {
     const logElement = document.querySelector(`[data-log-id="${logId}"]`);
     if (!logElement) return;
-    
+
     const logTimeElement = logElement.querySelector('.log-time');
     if (!logTimeElement) return;
-    
+
     // Get current status from caches
     const debugStatus = logCache.getDebugStatus(logId) || false;
     const errorStatus = logCache.getErrorStatus(logId) || false;
     const exceptionStatus = logCache.getExceptionStatus(logId) || false;
-    
+
     // Remove existing indicators
     const existingDebugIndicator = logTimeElement.querySelector('.has-debug-indicator');
     if (existingDebugIndicator) {
       existingDebugIndicator.remove();
     }
-    
+
     const existingErrorIndicator = logTimeElement.querySelector('.has-error-indicator');
     if (existingErrorIndicator) {
       existingErrorIndicator.remove();
     }
-    
+
     const existingExceptionIndicator = logTimeElement.querySelector('.has-exception-indicator');
     if (existingExceptionIndicator) {
       existingExceptionIndicator.remove();
     }
-    
+
     // Build indicators HTML (order: error, exception, debug)
     let indicatorsHtml = '';
     if (errorStatus) {
@@ -253,11 +253,11 @@ class LogRenderer {
     if (debugStatus) {
       indicatorsHtml += '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
     }
-    
+
     // Add indicators if any exist
     if (indicatorsHtml) {
       const expiredIndicator = logTimeElement.querySelector('.expired-indicator');
-      
+
       if (expiredIndicator) {
         // Insert after expired indicator
         expiredIndicator.insertAdjacentHTML('afterend', indicatorsHtml);
@@ -303,12 +303,12 @@ class LogRenderer {
   initializeSearch() {
     const searchInput = document.getElementById('logSearchInput');
     const searchResults = document.getElementById('logSearchResults');
-    
+
     if (!searchInput) return;
 
     searchInput.addEventListener('input', (e) => {
       const searchTerm = e.target.value.trim();
-      
+
       // Clear previous debounce timer
       if (this.searchDebounceTimer) {
         clearTimeout(this.searchDebounceTimer);
@@ -365,7 +365,7 @@ class LogRenderer {
     let matchCount = 0;
     results.forEach(({ hasMatch, element }) => {
       if (!element) return;
-      
+
       if (hasMatch) {
         element.classList.add('search-match');
         matchCount++;
@@ -396,12 +396,12 @@ class LogRenderer {
     try {
       // Try to get content from cache first
       let content = this.logContentCache.get(logId);
-      
+
       // If not cached, fetch it
       if (!content) {
         content = await logLoader.getLogContent(logId);
         this.logContentCache.set(logId, content);
-        
+
         // Limit cache size to prevent memory issues
         if (this.logContentCache.size > 50) {
           const firstKey = this.logContentCache.keys().next().value;
@@ -411,14 +411,14 @@ class LogRenderer {
 
       // Extract debug messages
       const debugMessages = extractUserDebugBlocks(content);
-      
+
       // Search through debug messages
       for (const message of debugMessages) {
         if (message.toLowerCase().includes(searchTerm)) {
           return true;
         }
       }
-      
+
       return false;
     } catch (error) {
       // If we can't get content, treat as no match
@@ -431,7 +431,7 @@ class LogRenderer {
    */
   clearSearch() {
     this.searchTerm = '';
-    
+
     // Remove all search-match classes
     document.querySelectorAll('.log-item.search-match').forEach(item => {
       item.classList.remove('search-match');
@@ -455,35 +455,35 @@ class LogRenderer {
     const now = new Date();
     const hoursSinceLog = (now - logTime) / (1000 * 60 * 60);
     const isLikelyExpired = hoursSinceLog > 24;
-    
+
     const expiredClass = isLikelyExpired ? 'log-item-expired' : '';
     const expiredIndicator = isLikelyExpired ? '<span class="expired-indicator" title="This log may have expired (older than 24 hours)">⚠️</span>' : '';
-    
+
     // Check if this log is unread
     const isUnread = !isLogRead(log.Id);
     const unreadIndicator = isUnread ? '<span class="unread-indicator" title="Unread log"></span>' : '';
-    
+
     // Check cache for indicators
     const debugStatus = logCache.getDebugStatus(log.Id);
     const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">📋</span>' : '';
-    
+
     const errorStatus = logCache.getErrorStatus(log.Id);
     const hasErrorIndicator = (errorStatus === true) ? '<span class="has-error-indicator" title="Contains fatal errors">❗</span>' : '';
-    
+
     const exceptionStatus = logCache.getExceptionStatus(log.Id);
     const hasExceptionIndicator = (exceptionStatus === true) ? '<span class="has-exception-indicator" title="Contains exceptions">⚠️</span>' : '';
-    
+
     return `
     <div class="log-item ${this.selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
       <div class="log-header">
-        <div class="log-id">${log.Id}${unreadIndicator}</div>
+        <div class="log-id">${escapeHtml(log.Id)}${unreadIndicator}</div>
         <div class="log-time">
           ${expiredIndicator}${hasErrorIndicator}${hasExceptionIndicator}${hasDebugIndicator}
           ${formatDateTimeWithHighlight(log.StartTime)}
         </div>
       </div>
       <div class="log-details">
-        <span class="log-operation">${log.Operation || 'Unknown'}</span>
+        <span class="log-operation">${escapeHtml(log.Operation || 'Unknown')}</span>
         <span class="log-duration">${log.DurationMilliseconds || 0}ms</span>
         <span class="log-size">${formatFileSize(log.LogLength || 0)}</span>
       </div>
@@ -516,10 +516,10 @@ class LogRenderer {
         <span class="loading-spinner hidden">Loading...</span>
       </button>
     `;
-    
+
     // Insert the button after the logs list
     logsList.parentNode.insertBefore(seeMoreBtn, logsList.nextSibling);
-    
+
     // Add click event listener
     const loadMoreBtn = seeMoreBtn.querySelector('#loadMoreBtn');
     loadMoreBtn.addEventListener('click', async () => {
@@ -570,18 +570,22 @@ class LogRenderer {
    */
   _handleLogDetailsError(error, logId) {
     const { debugContent, errorContent, limitsContent } = elements;
-    
+
+    const escapedMessage = escapeHtml(error.message || '');
     let errorMessage = 'Failed to load debug log content.';
+
     if (error.message && error.message.includes('not found or expired')) {
-      errorMessage = '<div class="error-message-block">' +
-        '<strong>Debug Log Expired</strong><br>' +
-        'This debug log is no longer available. Debug logs in Salesforce automatically expire after 24 hours or may be deleted.<br>' +
-        '<small>Try generating a new debug log to view recent execution details.</small>' +
-        '</div>';
-    } else if (error.message) {
-      errorMessage = `<div class="error-message">Error: ${escapeHtml(error.message)}</div>`;
+      errorMessage = `
+        <div class="error-message-block">
+          <strong>Debug Log Expired</strong><br>
+          This debug log is no longer available. Debug logs in Salesforce automatically expire after 24 hours or may be deleted.<br>
+          <small>Try generating a new debug log to view recent execution details.</small>
+        </div>
+      `;
+    } else if (escapedMessage) {
+      errorMessage = `<div class="error-message">Error: ${escapedMessage}</div>`;
     }
-    
+
     debugContent.innerHTML = errorMessage;
     if (errorContent) {
       errorContent.innerHTML = '<div class="error-message">Unable to analyze errors.</div>';
@@ -589,10 +593,10 @@ class LogRenderer {
     if (limitsContent) {
       limitsContent.innerHTML = '<div class="error-message">Unable to load governor limits.</div>';
     }
-    
+
     // Clear raw response and hide button on error
     clearRawResponse();
-    
+
     // Cache that this log was checked but has no accessible debug messages  
     logCache.setDebugStatus(logId, false);
     logCache.setErrorStatus(logId, false);

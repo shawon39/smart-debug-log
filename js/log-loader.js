@@ -7,7 +7,7 @@ class LogLoader {
     this.maxConcurrentChecks = 3;
     this.checkTimeout = 5000;
     this.MAX_CACHED_LOGS = 1000; // Prevent unlimited growth
-    
+
     // Cleanup old cache entries on initialization
     setTimeout(() => this.cleanupOldCaches(), 1000);
   }
@@ -113,7 +113,7 @@ class LogLoader {
   clearCache() {
     const cacheKey = this._getCachedLogsKey();
     const timeKey = this._getLastFetchTimeKey();
-    
+
     if (cacheKey) localStorage.removeItem(cacheKey);
     if (timeKey) localStorage.removeItem(timeKey);
   }
@@ -124,7 +124,7 @@ class LogLoader {
   cleanupOldCaches() {
     try {
       const keysToRemove = [];
-      
+
       // Scan all localStorage keys
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
@@ -132,7 +132,7 @@ class LogLoader {
           keysToRemove.push(key);
         }
       }
-      
+
       // Keep only recent ones (limit to 10 orgs)
       if (keysToRemove.length > 20) { // 10 orgs * 2 keys each
         keysToRemove.slice(0, keysToRemove.length - 20).forEach(key => {
@@ -186,7 +186,7 @@ class LogLoader {
   _getCachedLogs() {
     const cacheKey = this._getCachedLogsKey();
     if (!cacheKey) return null;
-    
+
     try {
       const cached = localStorage.getItem(cacheKey);
       return cached ? JSON.parse(cached) : null;
@@ -198,7 +198,7 @@ class LogLoader {
   _getLastFetchTime() {
     const timeKey = this._getLastFetchTimeKey();
     if (!timeKey) return null;
-    
+
     try {
       const timestamp = localStorage.getItem(timeKey);
       return timestamp ? timestamp : null;
@@ -210,7 +210,7 @@ class LogLoader {
   _updateCache(allLogs, newLogs) {
     const cacheKey = this._getCachedLogsKey();
     const timeKey = this._getLastFetchTimeKey();
-    
+
     if (!cacheKey || !timeKey) return;
 
     try {
@@ -239,7 +239,7 @@ class LogLoader {
     const logType = this._getLogTypeFilter();
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
-                   WHERE StartTime > ${isoString} AND Location = '${logType}'
+                   WHERE StartTime >= ${isoString} AND Location = '${logType}'
                    ORDER BY StartTime DESC
                    LIMIT 500`;
 
@@ -270,24 +270,24 @@ class LogLoader {
 
   _mergeNewLogs(newLogs, cachedLogs) {
     if (!cachedLogs || cachedLogs.length === 0) return newLogs;
-    
+
     // Create set of existing log IDs to avoid duplicates
     const existingIds = new Set(cachedLogs.map(log => log.Id));
     const uniqueNewLogs = newLogs.filter(log => !existingIds.has(log.Id));
-    
+
     // Merge: new logs first, then cached logs
     return [...uniqueNewLogs, ...cachedLogs];
   }
 
   _paginateResults(allLogs, offset, checkForMore) {
     const limit = offset === 0 ? parseInt(elements.logLimit?.value || 25) : 10;
-    
+
     if (checkForMore && offset === 0) {
       const hasMore = allLogs.length > limit;
       const logs = allLogs.slice(0, limit);
       return { logs, hasMore };
     }
-    
+
     return allLogs.slice(offset, offset + limit);
   }
 
@@ -296,7 +296,7 @@ class LogLoader {
     if (!cachedLogs) {
       return checkForMore ? { logs: [], hasMore: false } : [];
     }
-    
+
     return this._paginateResults(cachedLogs, offset, checkForMore);
   }
 
@@ -356,7 +356,7 @@ class LogLoader {
    */
   async checkDebugStatusProgressive(logs, updateCallback) {
     const uncachedLogs = logCache.getUncachedLogs(logs);
-    
+
     if (uncachedLogs.length === 0) {
       return;
     }
@@ -364,7 +364,7 @@ class LogLoader {
     // Process logs in batches to avoid overwhelming the system
     for (let i = 0; i < uncachedLogs.length; i += this.batchSize) {
       const batch = uncachedLogs.slice(i, i + this.batchSize);
-      
+
       // Process each log in the batch using Promise.all for proper async handling
       const batchPromises = batch.map(async (log) => {
         try {
@@ -372,11 +372,11 @@ class LogLoader {
           const hasDebugMsgs = hasDebugMessages(content);
           const hasFatalErrorMsgs = hasFatalErrors(content);
           const hasExceptionMsgs = hasExceptions(content);
-          
+
           logCache.setDebugStatus(log.Id, hasDebugMsgs);
           logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
           logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
-          
+
           // Update UI immediately for this specific log
           if (updateCallback) {
             updateCallback(log.Id);
@@ -386,16 +386,16 @@ class LogLoader {
           logCache.setDebugStatus(log.Id, false);
           logCache.setErrorStatus(log.Id, false);
           logCache.setExceptionStatus(log.Id, false);
-          
+
           if (updateCallback) {
             updateCallback(log.Id);
           }
         }
       });
-      
+
       // Wait for all promises in the batch to complete
       await Promise.all(batchPromises);
-      
+
       // Add delay between batches
       if (i + this.batchSize < uncachedLogs.length) {
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -409,20 +409,20 @@ class LogLoader {
    */
   async checkDebugStatusLimited(logs) {
     const uncachedLogs = logCache.getUncachedLogs(logs);
-    
+
     if (uncachedLogs.length === 0) {
       return;
     }
 
     const logsToCheck = uncachedLogs.slice(0, this.maxConcurrentChecks);
-    
+
     const checkPromises = logsToCheck.map(async (log) => {
       try {
         const content = await this.getLogContent(log.Id);
         const hasDebugMsgs = hasDebugMessages(content);
         const hasFatalErrorMsgs = hasFatalErrors(content);
         const hasExceptionMsgs = hasExceptions(content);
-        
+
         logCache.setDebugStatus(log.Id, hasDebugMsgs);
         logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
         logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
@@ -486,7 +486,7 @@ class LogLoader {
     } catch (error) {
       // Failed
     }
-    
+
     return null;
   }
 
@@ -511,7 +511,7 @@ class LogLoader {
     } catch (error) {
       // Failed
     }
-    
+
     return null;
   }
 }

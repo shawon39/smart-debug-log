@@ -9,6 +9,7 @@ class LogCache {
     this.maxCacheSize = 1000; // Maximum number of entries per cache
     this.cleanupThreshold = 800; // When to start cleanup
     this._loadedOrgId = null;
+    this._saveTimeout = null;
   }
 
   /**
@@ -92,6 +93,16 @@ class LogCache {
     }
   }
 
+  _saveDebounced() {
+    if (this._saveTimeout) {
+      clearTimeout(this._saveTimeout);
+    }
+    this._saveTimeout = setTimeout(() => {
+      this._saveStatusesToStorage();
+      this._saveTimeout = null;
+    }, 500); // 500ms debounce
+  }
+
   /**
    * Save in-memory caches to localStorage for current org
    * @private
@@ -150,7 +161,7 @@ class LogCache {
     this._ensureOrgLoaded();
     this._ensureCacheSize(this.debugStatusCache);
     this.debugStatusCache.set(logId, hasDebugMessages);
-    this._saveStatusesToStorage();
+    this._saveDebounced();
   }
 
   /**
@@ -172,7 +183,7 @@ class LogCache {
     this._ensureOrgLoaded();
     this._ensureCacheSize(this.errorStatusCache);
     this.errorStatusCache.set(logId, hasErrors);
-    this._saveStatusesToStorage();
+    this._saveDebounced();
   }
 
   /**
@@ -214,7 +225,7 @@ class LogCache {
     this._ensureOrgLoaded();
     this._ensureCacheSize(this.exceptionStatusCache);
     this.exceptionStatusCache.set(logId, hasExceptions);
-    this._saveStatusesToStorage();
+    this._saveDebounced();
   }
 
   /**
@@ -246,7 +257,7 @@ class LogCache {
   _cleanupCache(cache) {
     const entriesArray = Array.from(cache.entries());
     const entriesToKeep = entriesArray.slice(-this.cleanupThreshold);
-    
+
     cache.clear();
     entriesToKeep.forEach(([key, value]) => {
       cache.set(key, value);
@@ -260,7 +271,7 @@ class LogCache {
    */
   getUncachedLogs(logs) {
     this._ensureOrgLoaded();
-    return logs.filter(log => 
+    return logs.filter(log =>
       (!this.hasDebugStatus(log.Id) || !this.hasErrorStatus(log.Id) || !this.hasExceptionStatus(log.Id)) &&
       !isLogCleared(log.Id)
     );

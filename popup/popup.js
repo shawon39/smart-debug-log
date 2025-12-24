@@ -67,17 +67,9 @@ class SmartDebugLogPopup {
       // If the active tab is an extension page (like our dashboard), find a Salesforce tab instead
       if (tab && tab.url && tab.url.startsWith('chrome-extension://')) {
         // Find Salesforce tabs, sorted by most recently accessed
-        const allTabs = await chrome.tabs.query({});
-        const salesforceTabs = allTabs.filter(t => {
+        const salesforceTabs = (await chrome.tabs.query({})).filter(t => {
           if (!t.url) return false;
-          // Check if it's a Salesforce URL
-          return t.url.includes('salesforce.com') ||
-            t.url.includes('salesforce-setup.com') ||
-            t.url.includes('force.com') ||
-            t.url.includes('cloudforce.com') ||
-            t.url.includes('salesforce.mil') ||
-            t.url.includes('cloudforce.mil') ||
-            t.url.includes('sfcrmproducts.cn');
+          return isSalesforceUrl(t.url);
         });
 
 

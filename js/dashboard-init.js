@@ -351,7 +351,7 @@ async function handleSaveApex() {
   // Use the new save or update logic
   const success = await window.apexCodeManager.saveOrUpdateCurrentCode();
   if (success) {
-    const isUpdate = window.apexCodeManager.getCurrentSelectedCode()?.id;
+    const isUpdate = window.apexCodeManager.currentSelectedCode?.id;
     const message = isUpdate ? 'Apex code updated successfully!' : 'Apex code saved successfully!';
     showToast(message);
   } else {

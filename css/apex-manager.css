@@ -246,6 +246,14 @@
   caret-color: var(--text-primary);
   opacity: 0.8;
   box-sizing: border-box;
+  /* Hide scrollbar to match overlay width - fixes cursor positioning */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Hide scrollbar in Chrome/Safari/Edge */
+.apex-code-editor::-webkit-scrollbar {
+  display: none;
 }
 
 .apex-code-editor:focus {
@@ -269,6 +277,16 @@
   color: var(--text-secondary);
   opacity: 0.8;
   font-style: italic;
+}
+
+/* Dark mode specific styling for better contrast and eye comfort */
+[data-theme="dark"] .code-editor-container {
+  background: #1e1e1e;
+}
+
+[data-theme="dark"] .line-numbers {
+  background: #1e1e1e;
+  border-right-color: #2d2d2d;
 }
 
 /* Line Numbers */

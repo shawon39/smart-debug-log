@@ -1,90 +1,90 @@
-/* CSS Custom Properties for Theming */
+/* CSS Custom Properties for Theming - Eye Comfortable */
 :root {
   /* Light Theme Colors */
   --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-gradient-start: #00A1E0;
-  --bg-gradient-end: #008FC7;
+  --bg-secondary: #f6f8fa;
+  --bg-gradient-start: #0969da;
+  --bg-gradient-end: #0550ae;
   --bg-card: #ffffff;
-  --bg-card-hover: #f1f5f9;
-  --bg-feature-desc: linear-gradient(135deg, #E6F7FD 0%, #CCF2FA 100%);
-  --bg-org-info: #f1f5f9;
-  --bg-connection-status: #f1f5f9;
+  --bg-card-hover: #f6f8fa;
+  --bg-feature-desc: linear-gradient(135deg, #ddf4ff 0%, #cfe9ff 100%);
+  --bg-org-info: #f6f8fa;
+  --bg-connection-status: #f6f8fa;
   
-  --text-primary: #2d3748;
-  --text-secondary: #64748b;
+  --text-primary: #24292f;
+  --text-secondary: #57606a;
   --text-header: #ffffff;
-  --text-org-label: #475569;
-  --text-org-name: #1e293b;
-  --text-description: #006B9A;
-  --text-status: #374151;
-  --text-footer: #64748b;
-  --text-footer-highlight: #00A1E0;
+  --text-org-label: #656d76;
+  --text-org-name: #1b1f23;
+  --text-description: #0550ae;
+  --text-status: #24292f;
+  --text-footer: #57606a;
+  --text-footer-highlight: #0969da;
   
-  --border-primary: #e2e8f0;
-  --border-secondary: #cbd5e1;
-  --border-feature: #e2e8f0;
-  --border-feature-hover: #00A1E0;
-  --border-description: #B3E5F5;
+  --border-primary: #d0d7de;
+  --border-secondary: #d8dee4;
+  --border-feature: #d0d7de;
+  --border-feature-hover: #0969da;
+  --border-description: #9cd7ff;
   
-  --shadow-card: 0 6px 20px rgba(0, 161, 224, 0.15);
-  --shadow-button: 0 4px 12px rgba(0, 161, 224, 0.3);
-  --shadow-button-hover: 0 6px 16px rgba(0, 161, 224, 0.4);
+  --shadow-card: 0 6px 20px rgba(9, 105, 218, 0.12);
+  --shadow-button: 0 4px 12px rgba(9, 105, 218, 0.25);
+  --shadow-button-hover: 0 6px 16px rgba(9, 105, 218, 0.35);
   
-  --status-dot-connected: #10b981;
-  --status-dot-disconnected: #f59e0b;
-  --status-dot-error: #ef4444;
+  --status-dot-connected: #1a7f37;
+  --status-dot-disconnected: #bf8700;
+  --status-dot-error: #cf222e;
 
   /* Notification Colors */
-  --notification-bg: #FEF3C7;
-  --notification-border: #F59E0B;
-  --notification-icon: #D97706;
-  --notification-title: #92400E;
-  --notification-message: #B45309;
-  --notification-hint: #A16207;
+  --notification-bg: #fff8c5;
+  --notification-border: #d4a72c;
+  --notification-icon: #9a6700;
+  --notification-title: #7d4e00;
+  --notification-message: #633c01;
+  --notification-hint: #7d4e00;
 }
 
-/* Dark Theme Colors */
+/* Dark Theme Colors - Eye Comfortable */
 [data-theme="dark"] {
-  --bg-primary: #1a202c;
-  --bg-secondary: #2d3748;
-  --bg-gradient-start: #33B3E8;
-  --bg-gradient-end: #00A1E0;
-  --bg-card: #2d3748;
-  --bg-card-hover: #4a5568;
-  --bg-feature-desc: linear-gradient(135deg, #1A365D 0%, #2A4A6B 100%);
-  --bg-org-info: #4a5568;
-  --bg-connection-status: #4a5568;
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-gradient-start: #58a6ff;
+  --bg-gradient-end: #539bf5;
+  --bg-card: #161b22;
+  --bg-card-hover: #1c1f26;
+  --bg-feature-desc: linear-gradient(135deg, #0d2d4f 0%, #1a3a57 100%);
+  --bg-org-info: #1c1f26;
+  --bg-connection-status: #1c1f26;
   
-  --text-primary: #e2e8f0;
-  --text-secondary: #a0aec0;
-  --text-header: #ffffff;
-  --text-org-label: #a0aec0;
-  --text-org-name: #f7fafc;
-  --text-description: #7DD3FC;
-  --text-status: #e2e8f0;
-  --text-footer: #a0aec0;
-  --text-footer-highlight: #5DBEEA;
+  --text-primary: #c9d1d9;
+  --text-secondary: #8b949e;
+  --text-header: #f0f6fc;
+  --text-org-label: #8b949e;
+  --text-org-name: #e6edf3;
+  --text-description: #79c0ff;
+  --text-status: #c9d1d9;
+  --text-footer: #8b949e;
+  --text-footer-highlight: #58a6ff;
   
-  --border-primary: #4a5568;
-  --border-secondary: #718096;
-  --border-feature: #4a5568;
-  --border-feature-hover: #5DBEEA;
-  --border-description: #2A4A6B;
+  --border-primary: #30363d;
+  --border-secondary: #21262d;
+  --border-feature: #30363d;
+  --border-feature-hover: #58a6ff;
+  --border-description: #1a3a57;
   
-  --shadow-card: 0 6px 20px rgba(93, 190, 234, 0.15);
-  --shadow-button: 0 4px 12px rgba(93, 190, 234, 0.3);
-  --shadow-button-hover: 0 6px 16px rgba(93, 190, 234, 0.4);
+  --shadow-card: 0 6px 20px rgba(88, 166, 255, 0.15);
+  --shadow-button: 0 4px 12px rgba(88, 166, 255, 0.3);
+  --shadow-button-hover: 0 6px 16px rgba(88, 166, 255, 0.4);
   
-  --status-dot-connected: #48bb78;
-  --status-dot-disconnected: #ed8936;
-  --status-dot-error: #f56565;
+  --status-dot-connected: #3fb950;
+  --status-dot-disconnected: #d18616;
+  --status-dot-error: #f85149;
 
   /* Dark Theme Notification Colors */
-  --notification-bg: #44403C;
-  --notification-border: #F59E0B;
-  --notification-icon: #FCD34D;
-  --notification-title: #FDE68A;
-  --notification-message: #F3E8FF;
-  --notification-hint: #E0E7FF;
+  --notification-bg: #292522;
+  --notification-border: #bb8009;
+  --notification-icon: #f0b72f;
+  --notification-title: #f0b72f;
+  --notification-message: #e6edf3;
+  --notification-hint: #c9d1d9;
 }

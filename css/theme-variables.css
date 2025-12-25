@@ -147,9 +147,9 @@
   --bg-log-item-expired: #5a3e24;
   --bg-log-item-expired-hover: #6e4c2e;
   --bg-log-id: #161b22;
-  --bg-debug-message: #3a3a3a;
-  --bg-debug-message-hover: #404040;
-  --bg-limits-content: #3a3a3a;
+  --bg-debug-message: #252525;
+  --bg-debug-message-hover: #2d2d2d;
+  --bg-limits-content: #252525;
   --bg-dev-warning: linear-gradient(135deg, #5a3e24, #6e4c2e);
   --bg-dev-warning-btn: #bb8009;
   --bg-dev-warning-btn-hover: #9a6700;

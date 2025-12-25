@@ -4,12 +4,12 @@
   --bg-primary: #ffffff;
   --bg-secondary: #f6f8fa;
   --bg-body: #f6f8fa;
-  --bg-gradient-start: #0969da;
-  --bg-gradient-end: #0550ae;
+  --bg-gradient-start: #009EDB;
+  --bg-gradient-end: #0088BB;
   --bg-panel: #ffffff;
   --bg-panel-header: #f6f8fa;
-  --bg-button: #0969da;
-  --bg-button-hover: #0550ae;
+  --bg-button: #009EDB;
+  --bg-button-hover: #0088BB;
   --bg-button-danger: #cf222e;
   --bg-button-secondary: #57606a;
   --bg-button-header: rgba(255, 255, 255, 0.2);
@@ -30,8 +30,8 @@
   --bg-dismiss-btn-hover: #fae17d;
   --bg-toggle-off: #afb8c1;
   --bg-toggle-off-hover: #8c959f;
-  --bg-toggle-on: #0969da;
-  --bg-toggle-on-hover: #0550ae;
+  --bg-toggle-on: #009EDB;
+  --bg-toggle-on-hover: #0088BB;
   --bg-spinner: #d0d7de;
   --bg-error-message: #ffebe9;
   --bg-code: #f6f8fa;
@@ -68,9 +68,9 @@
   --text-limits-percentage: #1a7f37;
   --text-error: #cf222e;
   --text-info: #656d76;
-  --text-code: #0969da;
+  --text-code: #009EDB;
   --text-code-error: #cf222e;
-  --text-time-highlight: #0969da;
+  --text-time-highlight: #009EDB;
   --text-prefix: #57606a;
   --text-modal: #24292f;
   --text-modal-title: #1b1f23;
@@ -94,13 +94,13 @@
   --border-secondary: #d8dee4;
   --border-panel: #d0d7de;
   --border-log-item: #d8dee4;
-  --border-log-item-hover: #0969da;
-  --border-log-item-selected: #0969da;
+  --border-log-item-hover: #009EDB;
+  --border-log-item-selected: #009EDB;
   --border-log-item-expired: #d4a72c;
   --border-log-item-expired-hover: #bf8700;
   --border-debug-message: #d0d7de;
-  --border-debug-message-left: #0969da;
-  --border-debug-message-hover: #0550ae;
+  --border-debug-message-left: #009EDB;
+  --border-debug-message-hover: #0088BB;
   --border-limits-content: #d8dee4;
   --border-dev-warning: #d4a72c;
   --border-dev-warning-left: #bf8700;
@@ -120,9 +120,9 @@
   
   --status-dot-default: #57606a;
   --status-dot-connected: #1a7f37;
-  --status-dot-monitoring: #0969da;
+  --status-dot-monitoring: #009EDB;
   --status-dot-error: #cf222e;
-  --unread-indicator: #0969da;
+  --unread-indicator: #009EDB;
   --no-debug-indicator: #8c959f;
 }
 
@@ -131,12 +131,12 @@
   --bg-primary: #161b22;
   --bg-secondary: #1c1f26;
   --bg-body: #0d1117;
-  --bg-gradient-start: #58a6ff;
-  --bg-gradient-end: #539bf5;
+  --bg-gradient-start: #009EDB;
+  --bg-gradient-end: #0088BB;
   --bg-panel: #161b22;
   --bg-panel-header: #1c1f26;
-  --bg-button: #58a6ff;
-  --bg-button-hover: #539bf5;
+  --bg-button: #009EDB;
+  --bg-button-hover: #0088BB;
   --bg-button-danger: #da3633;
   --bg-button-secondary: #6e7681;
   --bg-button-header: rgba(255, 255, 255, 0.15);
@@ -157,8 +157,8 @@
   --bg-dismiss-btn-hover: #6e4c2e;
   --bg-toggle-off: #6e7681;
   --bg-toggle-off-hover: #8b949e;
-  --bg-toggle-on: #58a6ff;
-  --bg-toggle-on-hover: #539bf5;
+  --bg-toggle-on: #009EDB;
+  --bg-toggle-on-hover: #0088BB;
   --bg-spinner: #6e7681;
   --bg-error-message: #3a2424;
   --bg-code: #1e1e1e;
@@ -166,7 +166,7 @@
   --bg-modal: #161b22;
   --bg-deploy-info: #0d2d4f;
   
-  --text-primary: #d0d0d0;
+  --text-primary: #b0b0b0;
   --text-secondary: #8b949e;
   --text-header: #e8e8e8;
   --text-panel-title: #e0e0e0;
@@ -176,7 +176,7 @@
   --text-log-duration: #7d8590;
   --text-log-size: #7d8590;
   --text-log-details: #7d8590;
-  --text-debug-message: #d0d0d0;
+  --text-debug-message: #a8a8a8;
   --text-org-info: #8b949e;
   --text-status: #7d8590;
   --text-loading: #8b949e;
@@ -187,7 +187,7 @@
   --text-dev-warning-btn: #0d1117;
   --text-dismiss-btn: #d18616;
   --text-dismiss-btn-hover: #bb8009;
-  --text-limits-header: #539bf5;
+  --text-limits-header: #009EDB;
   --text-limits-category: #7d8590;
   --text-limits-value: #79c0ff;
   --text-limits-used: #f0b72f;
@@ -195,9 +195,9 @@
   --text-limits-percentage: #3fb950;
   --text-error: #f85149;
   --text-info: #8b949e;
-  --text-code: #539bf5;
+  --text-code: #009EDB;
   --text-code-error: #f85149;
-  --text-time-highlight: #539bf5;
+  --text-time-highlight: #009EDB;
   --text-prefix: #8b949e;
   --text-modal: #d0d0d0;
   --text-modal-title: #e0e0e0;
@@ -221,13 +221,13 @@
   --border-secondary: #21262d;
   --border-panel: #30363d;
   --border-log-item: #30363d;
-  --border-log-item-hover: #58a6ff;
-  --border-log-item-selected: #58a6ff;
+  --border-log-item-hover: #009EDB;
+  --border-log-item-selected: #009EDB;
   --border-log-item-expired: #bb8009;
   --border-log-item-expired-hover: #9a6700;
   --border-debug-message: #30363d;
-  --border-debug-message-left: #58a6ff;
-  --border-debug-message-hover: #58a6ff;
+  --border-debug-message-left: #009EDB;
+  --border-debug-message-hover: #009EDB;
   --border-limits-content: #30363d;
   --border-dev-warning: #bb8009;
   --border-dev-warning-left: #d18616;
@@ -247,8 +247,8 @@
   
   --status-dot-default: #8b949e;
   --status-dot-connected: #3fb950;
-  --status-dot-monitoring: #58a6ff;
+  --status-dot-monitoring: #009EDB;
   --status-dot-error: #f85149;
-  --unread-indicator: #58a6ff;
+  --unread-indicator: #009EDB;
   --no-debug-indicator: #6e7681;
 }

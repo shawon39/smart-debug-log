@@ -562,7 +562,15 @@ DebugLogManagerUI.prototype.handleReactivateTraceFlag = async function (tid) {
     if (!tid) return;
     try {
         const tf = this.traceFlags.find(x => x.Id === tid); if (!tf) return;
-        if (this.traceFlags.find(x => x.Id !== tid && x.TracedEntityId === tf.TracedEntityId && new Date(x.ExpirationDate) > new Date())) {
+        const now = new Date();
+        if (this.traceFlags.find(x => {
+            const startDate = new Date(x.StartDate);
+            const expirationDate = new Date(x.ExpirationDate);
+            return x.Id !== tid 
+                && x.TracedEntityId === tf.TracedEntityId 
+                && startDate <= now  // Must have started
+                && expirationDate > now;  // And not yet expired
+        })) {
             this.showNotification('User already has an active trace flag', 'error'); return;
         }
         await this.toolingDelete('TraceFlag', tid);

@@ -94,7 +94,7 @@ chrome.commands.onCommand.addListener(async (command) => {
 
             if (levelResult.records && levelResult.records.length > 0) {
               const debugLevelId = levelResult.records[0].Id;
-              const checkQuery = `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
+              const checkQuery = `SELECT Id, StartDate, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
               const checkResult = await directToolingQuery(checkQuery, sfHost);
 
               let needsAction = true;
@@ -102,8 +102,10 @@ chrome.commands.onCommand.addListener(async (command) => {
 
               if (checkResult.records && checkResult.records.length > 0) {
                 const traceFlagExpiration = new Date(checkResult.records[0].ExpirationDate);
+                const traceFlagStart = new Date(checkResult.records[0].StartDate);
                 existingTraceFlagId = checkResult.records[0].Id;
-                if (traceFlagExpiration > now) needsAction = false;
+                const isCurrentlyActive = traceFlagStart <= now && traceFlagExpiration > now;
+                if (isCurrentlyActive) needsAction = false;
               }
 
               if (needsAction) {
@@ -407,13 +409,14 @@ async function handleEnsureTraceFlag(request) {
     else return { success: false, error: 'No debug level found' };
   }
 
-  const checkQuery = `SELECT Id, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
+  const checkQuery = `SELECT Id, StartDate, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
   const checkResult = await directToolingQuery(checkQuery, sfHost);
 
   let traceFlagId;
   if (checkResult.records && checkResult.records.length > 0) {
     const tf = checkResult.records[0];
-    if (new Date(tf.ExpirationDate) > now) return { success: true, data: { existing: true, traceFlagId: tf.Id } };
+    const isCurrentlyActive = new Date(tf.StartDate) <= now && new Date(tf.ExpirationDate) > now;
+    if (isCurrentlyActive) return { success: true, data: { existing: true, traceFlagId: tf.Id } };
     await directToolingUpdate('TraceFlag', tf.Id, { StartDate: now.toISOString(), ExpirationDate: expiration.toISOString(), DebugLevelId: debugLevelId }, sfHost);
     traceFlagId = tf.Id;
   } else {

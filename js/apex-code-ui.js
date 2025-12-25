@@ -205,6 +205,18 @@ ApexCodeManager.prototype.setupSyntaxHighlighting = function () {
         if (ed.value.length < 500) this.updateSyntaxHighlighting();
         else { clearTimeout(inputTimeout); inputTimeout = setTimeout(() => this.updateSyntaxHighlighting(), 50); }
     });
+    // Add keydown listener to handle Enter key specifically
+    ed.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            // When Enter is pressed, we want to ensure the next line starts from the left
+            // especially if we were scrolled to the right on a long line
+            requestAnimationFrame(() => {
+                ed.scrollLeft = 0;
+                ho.scrollLeft = 0;
+                this.updateSyntaxHighlighting();
+            });
+        }
+    });
     ed.addEventListener('scroll', () => {
         ho.scrollTop = ed.scrollTop; ho.scrollLeft = ed.scrollLeft;
         this.syncLineNumberScroll();

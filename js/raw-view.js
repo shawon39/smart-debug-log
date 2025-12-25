@@ -400,8 +400,8 @@ function applyCleanSearchHighlighting(container, originalText, matches) {
     const afterText = textWithHighlights.substring(match.index + match.length);
 
     // Use simpler markers without timestamp for better performance
-    const startMarker = `§§SEARCH_START_${matchIndex}§§`;
-    const endMarker = `§§SEARCH_END_${matchIndex}§§`;
+    const startMarker = `§§SEARCH_HIGHLIGHT_START_${matchIndex}§§`;
+    const endMarker = `§§SEARCH_HIGHLIGHT_END_${matchIndex}§§`;
 
     textWithHighlights = beforeText + startMarker + matchText + endMarker + afterText;
   });
@@ -422,8 +422,8 @@ function applyCleanSearchHighlighting(container, originalText, matches) {
   let finalContent = syntaxHighlightedContent;
 
   for (let i = 0; i < matches.length; i++) {
-    const startMarker = `§§SEARCH_START_${i}§§`;
-    const endMarker = `§§SEARCH_END_${i}§§`;
+    const startMarker = `§§SEARCH_HIGHLIGHT_START_${i}§§`;
+    const endMarker = `§§SEARCH_HIGHLIGHT_END_${i}§§`;
     const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
     const endSpan = `</span>`;
 
@@ -431,7 +431,7 @@ function applyCleanSearchHighlighting(container, originalText, matches) {
   }
 
   // Fallback: Clean up any remaining markers
-  finalContent = finalContent.replace(/§§SEARCH_(START|END)_\d+§§/g, '');
+  finalContent = finalContent.replace(/§§SEARCH_HIGHLIGHT_(START|END)_\d+§§/g, '');
 
   // Update the container
   container.innerHTML = finalContent;

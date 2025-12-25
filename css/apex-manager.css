@@ -234,12 +234,12 @@
   color: var(--text-primary);
   font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 22px;
   resize: none;
   outline: none;
   tab-size: 4;
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
+  white-space: pre;
+  overflow-wrap: normal;
   overflow: auto;
   overflow-y: scroll;
   z-index: 2;
@@ -282,8 +282,9 @@
   background: var(--bg-code);
   border-right: 1px solid var(--border-line-number);
   font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace !important;
-  font-size: 12px !important; /* 1px smaller than editor for subtlety */
-  line-height: 1.6 !important;
+  font-size: 12px !important;
+  /* 1px smaller than editor for subtlety */
+  line-height: 22px !important;
   color: var(--text-line-number);
   white-space: pre;
   overflow: hidden;
@@ -301,11 +302,13 @@
 
 .line-numbers .line-number {
   display: block;
-  height: 20.8px;
+  height: 22px;
   padding: 0 !important;
   margin: 0 !important;
-  font-size: 12px !important; /* match container */
-  line-height: 20.8px !important; /* align perfectly to editor line height */
+  font-size: 12px !important;
+  /* match container */
+  line-height: 22px !important;
+  /* align perfectly to editor line height */
   color: var(--text-line-number) !important;
   opacity: 1;
   border: none !important;
@@ -320,7 +323,7 @@
 .apex-code-editor {
   left: 50px;
   width: calc(100% - 50px);
-  padding-left: 16px;
+  padding-left: 10px;
 }
 
 /* Syntax Highlighting Overlay */
@@ -332,13 +335,15 @@
   height: 100%;
   padding: 16px;
   padding-bottom: 32px;
-  padding-left: 16px;
+  padding-left: 10px;
   font-family: 'Fira Code', 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+  line-height: 22px;
+  white-space: pre;
   overflow: auto;
   overflow-y: scroll;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
   pointer-events: none;
   z-index: 1;
   color: var(--text-primary);
@@ -346,10 +351,14 @@
   border: none;
   outline: none;
   tab-size: 4;
-  word-wrap: break-word;
+  overflow-wrap: normal;
   overflow-wrap: normal;
   transition: color 0.3s ease;
   box-sizing: border-box;
+}
+
+.syntax-highlight-overlay::-webkit-scrollbar {
+  display: none;
 }
 
 /* Highlight.js styling overrides for Apex Manager */
@@ -360,7 +369,7 @@
   font-family: inherit;
   font-size: inherit;
   line-height: inherit;
-  white-space: pre-wrap;
+  white-space: pre;
   overflow: visible;
 }
 
@@ -487,8 +496,13 @@
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 /* Execution Results - Compact */
@@ -660,9 +674,17 @@
 }
 
 @keyframes pulse {
-  0% { opacity: 1; }
-  50% { opacity: 0.5; }
-  100% { opacity: 1; }
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
 /* New Code Block Title Input */
@@ -721,7 +743,7 @@
 }
 
 /* Right-align panel-actions when it's the only child */
-.panel-header > .panel-actions:only-child {
+.panel-header>.panel-actions:only-child {
   margin-left: auto;
 }
 
@@ -841,23 +863,23 @@
     min-height: 600px;
     max-height: calc(100vh - 20px);
   }
-  
+
   .apex-manager-content {
     flex-direction: column;
     height: calc(85vh - 60px);
     min-height: 540px;
   }
-  
+
   .apex-list-panel {
     flex: 0 0 25%;
     min-height: 120px;
   }
-  
+
   .apex-editor-panel {
     flex: 1;
     min-height: 350px;
   }
-  
+
   .code-editor-container {
     flex: 0 0 75%;
     min-height: calc(40vh - 80px);
@@ -872,46 +894,46 @@
     min-height: 400px;
     max-height: 100vh;
   }
-  
+
   .apex-manager-content {
     height: calc(95vh - 60px);
     min-height: 340px;
   }
-  
+
   .modal-header {
     padding: 12px 16px;
   }
-  
+
   .modal-title {
     font-size: 16px;
   }
-  
+
   .apex-list-panel {
     flex: 0 0 20%;
     min-height: 100px;
   }
-  
+
   .code-editor-container {
     flex: 0 0 75%;
     min-height: calc(35vh - 70px);
   }
-  
+
   .execution-results {
     min-height: calc(12vh - 30px);
     max-height: calc(20vh - 20px);
   }
-  
+
   /* Enhanced mobile touch targets */
   .apex-code-item {
     padding: 12px 16px;
     margin-bottom: 4px;
   }
-  
+
   .button {
     padding: 10px 16px;
     min-height: 44px;
   }
-  
+
   .modal-close-btn {
     padding: 8px 12px;
     font-size: 20px;
@@ -924,35 +946,35 @@
     height: 98vh;
     min-height: 350px;
   }
-  
+
   .apex-manager-content {
     height: calc(98vh - 60px);
     min-height: 290px;
   }
-  
+
   .apex-list-panel {
     flex: 0 0 15%;
     min-height: 60px;
   }
-  
+
   .code-editor-container {
     flex: 0 0 70%;
     min-height: calc(30vh - 60px);
   }
-  
+
   .execution-results {
     min-height: calc(15vh - 30px);
     max-height: calc(25vh - 20px);
   }
-  
+
   .modal-header {
     padding: 8px 12px;
   }
-  
+
   .modal-title {
     font-size: 14px;
   }
-  
+
   .apex-code-editor {
     font-size: 12px;
     padding: 12px;

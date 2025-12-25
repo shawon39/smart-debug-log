@@ -346,6 +346,99 @@ function extractUserDebugBlocks(rawLog) {
   return msgs;
 }
 
+// Extract searchable content from raw log with smart filtering
+// Includes relevant execution details while excluding noisy log entries
+function extractSearchableContent(rawLog) {
+  if (!rawLog || typeof rawLog !== 'string') {
+    return '';
+  }
+
+  // Event types to INCLUDE in search (user-relevant execution details)
+  const includePatterns = [
+    'USER_DEBUG',
+    'SOQL_EXECUTE_BEGIN',
+    'SOQL_EXECUTE_END',
+    'METHOD_ENTRY',
+    'METHOD_EXIT',
+    'CODE_UNIT_STARTED',
+    'CODE_UNIT_FINISHED',
+    'FATAL_ERROR',
+    'EXCEPTION_THROWN',
+    'DML_BEGIN',
+    'DML_END',
+    'VALIDATION_RULE',
+    'VALIDATION_FORMULA',
+    'VALIDATION_PASS',
+    'VALIDATION_FAIL',
+    'FLOW_START',
+    'FLOW_CREATE',
+    'CALLOUT_REQUEST',
+    'CALLOUT_RESPONSE',
+    'USER_INFO',
+    'SYSTEM_METHOD_ENTRY',
+    'SYSTEM_METHOD_EXIT',
+    'CONSTRUCTOR_ENTRY',
+    'CONSTRUCTOR_EXIT'
+  ];
+
+  // Event types to EXCLUDE from search (noisy, low-value entries)
+  const excludePatterns = [
+    'HEAP_ALLOCATE',
+    'STATEMENT_EXECUTE',
+    'VARIABLE_ASSIGNMENT',
+    'VARIABLE_SCOPE_BEGIN',
+    'VARIABLE_SCOPE_END',
+    'CUMULATIVE_LIMIT_USAGE',
+    'CUMULATIVE_PROFILING',
+    'LIMIT_USAGE_FOR_NS',
+    'EXECUTION_STARTED',
+    'EXECUTION_FINISHED'
+  ];
+
+  const lines = rawLog.split('\n');
+  const searchableLines = [];
+
+  for (const line of lines) {
+    // Skip empty lines
+    if (!line.trim()) continue;
+
+    // Check if line contains a pipe delimiter (Salesforce log format)
+    if (!line.includes('|')) {
+      // Include non-pipe lines (headers, limits data, etc.)
+      searchableLines.push(line);
+      continue;
+    }
+
+    // Check if line should be excluded
+    let shouldExclude = false;
+    for (const excludePattern of excludePatterns) {
+      if (line.includes(`|${excludePattern}|`)) {
+        shouldExclude = true;
+        break;
+      }
+    }
+
+    if (shouldExclude) continue;
+
+    // Check if line should be included (or include by default if no match)
+    let shouldInclude = false;
+    for (const includePattern of includePatterns) {
+      if (line.includes(`|${includePattern}|`)) {
+        shouldInclude = true;
+        break;
+      }
+    }
+
+    // Include the line if it matches an include pattern OR if it doesn't match any pattern
+    // (this catches custom events and other potentially useful lines)
+    if (shouldInclude || !excludePatterns.some(p => line.includes(`|${p}|`))) {
+      searchableLines.push(line);
+    }
+  }
+
+  return searchableLines.join('\n');
+}
+
 // Helper function to check if log content contains debug messages
 function hasDebugMessages(logContent) {
   if (!logContent) return false;

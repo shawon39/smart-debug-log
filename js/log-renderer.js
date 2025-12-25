@@ -7,6 +7,7 @@ class LogRenderer {
     this.searchTerm = '';
     this.searchDebounceTimer = null;
     this.logContentCache = new Map(); // Cache for log contents during search
+    this.SEARCH_MIN_CHARS = 2; // Minimum characters required to search
   }
 
   /**
@@ -320,6 +321,17 @@ class LogRenderer {
         return;
       }
 
+      // Check minimum character requirement to prevent performance issues
+      if (searchTerm.length < this.SEARCH_MIN_CHARS) {
+        // Show hint that minimum characters are required
+        if (searchResults) {
+          searchResults.textContent = `Type at least ${this.SEARCH_MIN_CHARS} characters`;
+        }
+        // Clear any existing matches
+        this.clearSearch();
+        return;
+      }
+
       // Debounce search for 300ms
       this.searchDebounceTimer = setTimeout(async () => {
         await this.searchInLogs(searchTerm);
@@ -387,7 +399,8 @@ class LogRenderer {
   }
 
   /**
-   * Checks if a log contains the search term in its debug messages
+   * Checks if a log contains the search term in its searchable content
+   * Uses smart filtering to search relevant log content while excluding noise
    * @param {string} logId - Log ID to check
    * @param {string} searchTerm - Search term (already lowercased)
    * @returns {Promise<boolean>} True if log contains search term
@@ -409,17 +422,28 @@ class LogRenderer {
         }
       }
 
-      // Extract debug messages
-      const debugMessages = extractUserDebugBlocks(content);
+      // Adaptive performance optimization based on content size
+      const contentSize = content.length;
+      const SMALL_LOG_SIZE = 50 * 1024; // 50KB
+      const LARGE_LOG_SIZE = 500 * 1024; // 500KB
 
-      // Search through debug messages
-      for (const message of debugMessages) {
-        if (message.toLowerCase().includes(searchTerm)) {
-          return true;
-        }
+      let searchableContent;
+
+      if (contentSize < SMALL_LOG_SIZE) {
+        // Tier 1: Small logs - search full smart-filtered content
+        searchableContent = extractSearchableContent(content);
+      } else if (contentSize < LARGE_LOG_SIZE) {
+        // Tier 2: Medium logs - search smart-filtered content
+        searchableContent = extractSearchableContent(content);
+      } else {
+        // Tier 3: Large logs - limit search to first 500KB to prevent UI freeze
+        const limitedContent = content.substring(0, LARGE_LOG_SIZE);
+        searchableContent = extractSearchableContent(limitedContent);
       }
 
-      return false;
+      // Perform case-insensitive search
+      return searchableContent.toLowerCase().includes(searchTerm);
+
     } catch (error) {
       // If we can't get content, treat as no match
       return false;

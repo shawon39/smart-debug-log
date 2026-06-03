@@ -60,4 +60,4 @@ If this policy changes, the updated version will be published in this repository
 
 ## Contact
 
-For questions about this policy, contact the developer at: `<your-contact-email>`
+For questions about this policy, contact the developer at: shshawon416@gmail.com

@@ -677,6 +677,36 @@
   opacity: 0.7;
 }
 
+/* Left list panel header: stack the search bar (full width) above the action
+   buttons so Add / Export / Import never squeeze the search box. */
+.apex-list-panel .panel-header {
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.apex-list-panel .apex-search-container {
+  max-width: none;
+  width: 100%;
+}
+
+/* Compact, equal-width toolbar: Add | Export | Import in one tidy row */
+.apex-list-panel .panel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.apex-list-panel .panel-actions .button {
+  flex: 1 1 0;
+  font-size: 11px;
+  padding: 4px 6px;
+  min-height: 26px;
+  justify-content: center;
+  text-align: center;
+  white-space: nowrap;
+}
+
 
 
 /* Unsaved Changes Indicator */
@@ -732,16 +762,16 @@
   letter-spacing: 0.5px;
 }
 
-/* Small pencil button for inline rename */
+/* Small pencil button for inline rename — visible by default so it's discoverable */
 .title-edit-btn {
   margin-left: 8px;
-  background: none;
-  border: 1px solid transparent;
-  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-secondary);
+  color: var(--text-primary);
   font-size: 12px;
   line-height: 1;
-  padding: 2px 6px;
-  border-radius: 3px;
+  padding: 3px 7px;
+  border-radius: 4px;
   cursor: pointer;
   text-transform: none;
   display: inline-flex;
@@ -749,9 +779,9 @@
 }
 
 .title-edit-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
+  background: var(--bg-button);
+  border-color: var(--bg-button);
+  color: #fff;
 }
 
 .panel-actions {

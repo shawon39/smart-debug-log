@@ -90,10 +90,7 @@ function clearAllLogs() {
       }
     });
   }
-  
-  // Clear selected log state
-  selectedLogId = null;
-  
+
   // Clear the logs list UI
   const { logsList, welcomeState, limitsWelcomeState, debugContentPanel, 
           errorAndLimitsContent, selectedLogIdElement } = elements;

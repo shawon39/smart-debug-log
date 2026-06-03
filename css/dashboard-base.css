@@ -7,6 +7,18 @@
   scrollbar-color: var(--border-secondary) transparent;
 }
 
+/* Accessibility: visible keyboard focus indicator for interactive controls.
+   Uses :focus-visible so it appears for keyboard users without showing on mouse click. */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--focus-ring, #009EDB);
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
   width: 3px;
   height: 3px;

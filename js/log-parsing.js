@@ -16,11 +16,9 @@ function addLineNumbers(messageContent) {
   const numberedLines = lines.map((line, index) => {
     const lineNumber = String(index + 1).padStart(maxLineLength, ' ');
 
-    // Check if the line is already escaped/highlighted (contains HTML)
-    // If not, escape it to prevent XSS when rendering line patterns
-    const escapedLine = (line.includes('<span') || line.includes('<div')) ? line : escapeHtml(line);
-
-    return `<span class="line-number">${lineNumber}</span><span class="line-content">${escapedLine || ''}</span>`;
+    // Content is already HTML-escaped and highlighted by the caller
+    // (applyDebugLogHighlighting / extractAndParseSalesforceObjects); wrap, don't re-escape.
+    return `<span class="line-number">${lineNumber}</span><span class="line-content">${line || ''}</span>`;
   });
 
   return numberedLines.join('\n');
@@ -33,47 +31,45 @@ function parseDebugLogContent(content) {
     // Extract error information
     const errorData = extractErrorsFromDebugLog(content);
 
-    // Extract limits section
+    // Extract the governor-limits section.
+    // Anchor on the LAST CUMULATIVE_LIMIT_USAGE block (the final transaction's totals),
+    // collect each LIMIT_USAGE_FOR_NS namespace within it, and show the (default)
+    // namespace (falling back to the first namespace if there is no default).
     const lines = content.split('\n');
     let limitsSection = '';
-    let inLimitsSection = false;
-    let lastLimitsStartIndex = -1;
 
-    // First pass: find the LAST LIMIT_USAGE_FOR_NS section
+    // Find the opening of the last CUMULATIVE_LIMIT_USAGE block.
+    // (The _END line also contains "|CUMULATIVE_LIMIT_USAGE", so exclude it explicitly.)
+    let blockStart = -1;
     for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].includes('LIMIT_USAGE_FOR_NS')) {
-        lastLimitsStartIndex = i;
+      if (lines[i].includes('|CUMULATIVE_LIMIT_USAGE') && !lines[i].includes('CUMULATIVE_LIMIT_USAGE_END')) {
+        blockStart = i;
         break;
       }
     }
 
-    // Extract the LAST LIMIT_USAGE_FOR_NS section
-    if (lastLimitsStartIndex >= 0) {
-      for (let i = lastLimitsStartIndex; i < lines.length; i++) {
+    if (blockStart >= 0) {
+      // Group the block's lines by namespace, until its END (or end of log if truncated).
+      const sections = [];
+      let current = null;
+      for (let i = blockStart + 1; i < lines.length; i++) {
         const line = lines[i];
+        if (line.includes('CUMULATIVE_LIMIT_USAGE_END')) break;
 
-        if (line.includes('LIMIT_USAGE_FOR_NS')) {
-          inLimitsSection = true;
-          // Extract the namespace from the line
-          const namespaceMatch = line.match(/LIMIT_USAGE_FOR_NS\|([^|]+)\|/);
-          const namespace = namespaceMatch ? namespaceMatch[1] : 'unknown';
-          limitsSection = `LIMIT_USAGE_FOR_NS|${namespace}|\n`;
-          continue;
+        const namespaceMatch = line.match(/LIMIT_USAGE_FOR_NS\|([^|]+)\|/);
+        if (namespaceMatch) {
+          current = { namespace: namespaceMatch[1], details: [] };
+          sections.push(current);
+        } else if (current && line.trim() && !/^\d{2}:\d{2}:\d{2}\./.test(line)) {
+          // Indented detail line (not a timestamped event) belongs to the current namespace.
+          current.details.push(line);
         }
+      }
 
-        if (inLimitsSection) {
-          // Stop collecting when we hit another section (any line with |) or empty line followed by another section
-          if (line.includes('|') && !line.match(/^\s+/)) {
-            break;
-          }
-
-          // Stop collecting when we hit CUMULATIVE_LIMIT_USAGE_END
-          if (line.includes('CUMULATIVE_LIMIT_USAGE_END')) {
-            break;
-          }
-
-          limitsSection += line + '\n';
-        }
+      // Prefer the (default) namespace; fall back to the first one present.
+      const chosen = sections.find(s => s.namespace === '(default)') || sections[0];
+      if (chosen) {
+        limitsSection = `LIMIT_USAGE_FOR_NS|${chosen.namespace}|\n` + chosen.details.join('\n');
       }
     }
 

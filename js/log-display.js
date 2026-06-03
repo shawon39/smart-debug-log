@@ -3,7 +3,6 @@
 
 // Global state variables (maintaining compatibility with existing code)
 let debugLogs = [];
-let selectedLogId = null;
 let readLogs = new Set();
 let clearedLogs = new Set();
 
@@ -94,7 +93,6 @@ function showEmptyState() {
  * @param {string} logId - Log ID to select
  */
 function selectDebugLog(logId) {
-  selectedLogId = logId;
   logRenderer.selectDebugLog(logId);
 }
 

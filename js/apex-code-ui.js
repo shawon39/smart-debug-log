@@ -168,11 +168,11 @@ ApexCodeManager.prototype.updateSyntaxHighlighting = function () {
             highlightOverlay.innerHTML = `<pre><code class="hljs java">${highlightedCode}</code></pre>`;
             codeEditor.style.color = 'transparent';
         } catch (error) {
-            highlightOverlay.innerHTML = `<pre><code>${this.escapeHtml(code)}</code></pre>`;
+            highlightOverlay.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
             codeEditor.style.color = 'inherit';
         }
     } else {
-        highlightOverlay.innerHTML = `<pre><code>${this.escapeHtml(code)}</code></pre>`;
+        highlightOverlay.innerHTML = `<pre><code>${escapeHtml(code)}</code></pre>`;
     }
     this.updateLineNumbers();
     requestAnimationFrame(() => {
@@ -249,15 +249,63 @@ ApexCodeManager.prototype.addNewCodeBlock = function () {
     this.setEditorReadOnly(false); this.isNewCodeBlock = true; this.newCodeBlockTitle = 'New Code Block';
 };
 
+ApexCodeManager.prototype.exportApexCodes = function () {
+    if (!this.apexCodes || this.apexCodes.length === 0) {
+        alert('No saved code blocks to export.');
+        return;
+    }
+    const payload = {
+        type: 'salesforce-debug-log-beautifier/apex-snippets',
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        snippets: this.apexCodes.map(c => ({ name: c.name, code: c.code }))
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `apex-snippets-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+};
+
+ApexCodeManager.prototype.importApexCodes = async function (file) {
+    if (!file) return;
+    try {
+        const data = JSON.parse(await file.text());
+        // Accept either a bare array of snippets or the { snippets: [...] } export shape.
+        const snippets = Array.isArray(data) ? data : (Array.isArray(data?.snippets) ? data.snippets : null);
+        if (!snippets) throw new Error('Unrecognized file format');
+
+        let imported = 0, skipped = 0;
+        for (const s of snippets) {
+            const code = (s && typeof s.code === 'string') ? s.code.trim() : '';
+            if (!code) { skipped++; continue; }
+            const name = (s && typeof s.name === 'string' && s.name.trim()) ? s.name.trim() : 'Imported Snippet';
+            // saveApexCode assigns a fresh id/timestamp, so imports never clobber existing snippets.
+            if (await this.saveApexCode(name, code)) imported++; else skipped++;
+        }
+        alert(`Imported ${imported} code block(s)` + (skipped ? `, skipped ${skipped}.` : '.'));
+    } catch (e) {
+        alert('Import failed: ' + (e.message || 'invalid file'));
+    }
+};
+
 ApexCodeManager.prototype.openModal = function () {
     const modal = document.getElementById('apexManagerModal');
     if (modal) {
+        this._lastFocused = document.activeElement;
         modal.style.display = 'flex';
+        document.getElementById('closeApexManagerBtn')?.focus();
         if (!this.isInitialized && this.currentOrgId) { this.loadApexCodes(); this.isInitialized = true; }
         setTimeout(() => {
             this.setupSyntaxHighlighting(); this.setupSearchEventListeners();
             const editBtn = document.getElementById('editApexTitleBtn');
             if (editBtn && !editBtn.dataset.bound) { editBtn.dataset.bound = '1'; editBtn.addEventListener('click', () => this.beginInlineTitleEdit()); }
+            const titleEl = document.getElementById('apexCodeTitle');
+            if (titleEl && !titleEl.dataset.bound) { titleEl.dataset.bound = '1'; titleEl.title = 'Double-click to rename'; titleEl.addEventListener('dblclick', () => this.beginInlineTitleEdit()); }
         }, 100);
     }
 };
@@ -265,6 +313,7 @@ ApexCodeManager.prototype.openModal = function () {
 ApexCodeManager.prototype.closeModal = function () {
     const modal = document.getElementById('apexManagerModal');
     if (modal) modal.style.display = 'none';
+    this._lastFocused?.focus?.();
 };
 
 ApexCodeManager.prototype.setupModalEventListeners = function () {

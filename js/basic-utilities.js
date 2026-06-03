@@ -13,8 +13,13 @@ function escapeHtml(text) {
 function decodeHtmlEntities(text) {
   if (!text) return '';
   try {
-    const doc = new DOMParser().parseFromString(text, 'text/html');
-    return doc.documentElement.textContent || '';
+    // Use a detached <textarea> (an "escapable raw text" element): it decodes
+    // character references (e.g. &lt; &amp; &quot;) but treats <tags> as literal
+    // text and never instantiates/executes elements. DOMParser+textContent was
+    // used before and silently dropped any <...> markup (e.g. Map<String,Object>).
+    const ta = document.createElement('textarea');
+    ta.innerHTML = text;
+    return ta.value;
   } catch (e) {
     return text;
   }

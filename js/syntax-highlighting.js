@@ -2,6 +2,17 @@
 // This file handles syntax highlighting for different content types
 // Note: escapeHtml() is defined in basic-utilities.js (loaded first)
 
+// Security: when highlighting text that already contains HTML, only the benign,
+// app-generated structural tags are allowed to pass through un-escaped. Anything
+// else originating from log content (e.g. <img src=x onerror=...>,
+// <a href="javascript:...">, or any tag carrying on*= event handlers) is treated
+// as plain text and HTML-escaped, preventing DOM-based XSS in the extension page.
+function isSafePassthroughTag(part) {
+  return /^<(?:span|div|pre)(?:\s+class="[\w \-]*")?>$/i.test(part)
+    || /^<br\s*\/?>$/i.test(part)
+    || /^<\/(?:span|div|pre)>$/i.test(part);
+}
+
 function applyDebugLogHighlighting(text) {
   // Check if text already contains actual HTML tags (not debug content like <init>)
   // Only match proper HTML tags with valid tag names, not arbitrary angle bracket content
@@ -36,8 +47,8 @@ function applyDebugLogSyntaxToHTML(htmlText) {
   const parts = result.split(/(<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>|<\/\w+>)/i);
 
   const processedParts = parts.map(part => {
-    // If this part is a real HTML tag, return as-is
-    if (part.match(/^<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>$|^<\/\w+>$/i)) {
+    // If this part is a benign, app-generated tag, pass it through; otherwise escape it.
+    if (isSafePassthroughTag(part)) {
       return part;
     }
 
@@ -55,13 +66,9 @@ function applyDebugLogSyntaxToHTML(htmlText) {
   return finalResult;
 }
 
-function applyDebugLogPatterns(text) {
-  // Apply debug log specific highlighting patterns
-  return text
-    // Highlight timestamps
-    .replace(/^(\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\))/gm, '<span class="debug-timestamp">$1</span>')
-    // Highlight log levels and operations
-    .replace(new RegExp('\\|(' + [
+// The debug-operation alternation is large (~200 names); compile the regex once at
+// module load instead of rebuilding it on every applyDebugLogPatterns() call.
+const DEBUG_OPERATION_PATTERN = new RegExp('\\|(' + [
       'USER_INFO', 'CODE_UNIT_STARTED', 'USER_DEBUG', 'HEAP_ALLOCATE',
       'SOQL_EXECUTE_BEGIN', 'SOQL_EXECUTE_END', 'SOQL_EXECUTE_EXPLAIN', 'SOSL_EXECUTE_BEGIN', 'SOSL_EXECUTE_END',
       'QUERY_MORE_ITERATIONS', 'QUERY_MORE_BEGIN', 'QUERY_MORE_END', 'DML_BEGIN', 'DML_END', 'FOR_UPDATE_LOCKS_RELEASE',
@@ -126,7 +133,15 @@ function applyDebugLogPatterns(text) {
       'RULES_EXECUTION_SUMMARY', 'ASSET_DIFF_SUMMARY', 'JSON_DIFF_SUMMARY', 'RULES_EXECUTION_DETAIL',
       'ASSET_DIFF_DETAIL', 'JSON_DIFF_DETAIL', 'NBA_STRATEGY_BEGIN', 'NBA_STRATEGY_END', 'NBA_NODE_BEGIN',
       'NBA_NODE_END', 'NBA_STRATEGY_ERROR', 'NBA_NODE_ERROR', 'NBA_OFFER_INVALID', 'NBA_NODE_DETAIL'
-    ].join('|') + ')\\|', 'g'), '|<span class="debug-operation">$1</span>|')
+    ].join('|') + ')\\|', 'g');
+
+function applyDebugLogPatterns(text) {
+  // Apply debug log specific highlighting patterns
+  return text
+    // Highlight timestamps
+    .replace(/^(\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\))/gm, '<span class="debug-timestamp">$1</span>')
+    // Highlight log levels and operations
+    .replace(DEBUG_OPERATION_PATTERN, '|<span class="debug-operation">$1</span>|')
     // Highlight EXECUTION_STARTED in green and EXECUTION_FINISHED in red (no ending pipe)
     .replace(/\|EXECUTION_STARTED/g, '|<span class="debug-execution-started">EXECUTION_STARTED</span>')
     .replace(/\|EXECUTION_FINISHED/g, '|<span class="debug-execution-finished">EXECUTION_FINISHED</span>')
@@ -191,8 +206,8 @@ function applyJsonSyntaxToHTML(htmlText) {
   const parts = result.split(/(<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>|<\/\w+>)/i);
 
   const processedParts = parts.map(part => {
-    // If this part is a real HTML tag, return as-is
-    if (part.match(/^<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>$|^<\/\w+>$/i)) {
+    // If this part is a benign, app-generated tag, pass it through; otherwise escape it.
+    if (isSafePassthroughTag(part)) {
       return part;
     }
 

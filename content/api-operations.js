@@ -242,13 +242,6 @@
       throw new Error('No Apex code provided');
     }
 
-    console.log('ExecuteAnonymous called with session:', {
-      hasKey: !!session.key,
-      hasSessionId: !!session.sessionId,
-      instanceUrl: session.instanceUrl,
-      orgId: session.orgId
-    });
-
     const url = `${session.instanceUrl}/services/data/${SalesforceAPIHandler.API_VERSION}/tooling/executeAnonymous/?anonymousBody=${encodeURIComponent(apexCode)}`;
 
     try {

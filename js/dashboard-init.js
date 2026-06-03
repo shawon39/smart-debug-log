@@ -211,6 +211,16 @@ function setupApexManagerEventListeners() {
   runApexBtn?.addEventListener('click', handleRunApex);
   saveApexBtn?.addEventListener('click', handleSaveApex);
   addCodeBlockBtn?.addEventListener('click', handleAddCodeBlock);
+
+  // Export / import saved Apex snippets (backup / share / move between browsers).
+  const importFile = document.getElementById('importApexFile');
+  document.getElementById('exportApexBtn')?.addEventListener('click', () => window.apexCodeManager?.exportApexCodes());
+  document.getElementById('importApexBtn')?.addEventListener('click', () => importFile?.click());
+  importFile?.addEventListener('change', (e) => {
+    const file = e.target.files?.[0];
+    if (file) window.apexCodeManager?.importApexCodes(file);
+    e.target.value = ''; // reset so the same file can be re-imported
+  });
 }
 
 

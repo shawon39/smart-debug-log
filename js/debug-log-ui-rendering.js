@@ -389,9 +389,8 @@ DebugLogManagerUI.prototype.updateTraceFlagTimers = function () {
 };
 
 DebugLogManagerUI.prototype.escapeHtml = function (text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
+    // Delegate to the shared escapeHtml() in basic-utilities.js (single source of truth)
+    return window.escapeHtml(text);
 };
 
 DebugLogManagerUI.prototype.filterTraceFlags = function (searchTerm) {
@@ -604,7 +603,9 @@ DebugLogManagerUI.prototype.handleDeleteAllLogs = async function () {
 
 DebugLogManagerUI.prototype.openModal = async function () {
     const m = document.getElementById('debugLogManagerModal'); if (!m) return;
+    this._lastFocused = document.activeElement;
     m.style.display = 'flex';
+    document.getElementById('closeDebugLogManagerBtn')?.focus();
     if (!this.userId) await this.loadUserInfo();
     if (!this.debugLevelCreator && window.DebugLevelCreator) { this.debugLevelCreator = new window.DebugLevelCreator(this); this.debugLevelCreator.setupEventListeners(); }
     try { await this.listDebugLevels(); await this.listTraceFlags(); this.renderDebugLevels(); this.renderTraceFlags(); this.startTimer(); }
@@ -614,6 +615,7 @@ DebugLogManagerUI.prototype.openModal = async function () {
 DebugLogManagerUI.prototype.closeModal = function () {
     const m = document.getElementById('debugLogManagerModal'); if (m) m.style.display = 'none';
     this.stopTimer();
+    this._lastFocused?.focus?.();
 };
 
 DebugLogManagerUI.prototype.setupModalEventListeners = function () {

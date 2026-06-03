@@ -7,6 +7,23 @@
     return;
   }
 
+  // Salesforce domains the extension operates on (single source of truth).
+  const SALESFORCE_DOMAINS = [
+    'salesforce.com',
+    'force.com',
+    'cloudforce.com',
+    'salesforce.mil',
+    'cloudforce.mil',
+    'sfcrmproducts.cn',
+    'visual.force.com',
+    'lightning.force.com',
+    'my.salesforce.com',
+    'sandbox.my.salesforce.com',
+    'develop.my.salesforce.com',
+    'scratch.my.salesforce.com',
+    'salesforce-setup.com'
+  ];
+
   class SalesforceAPIHandler {
     constructor() {
       this.sessionId = null;
@@ -75,23 +92,7 @@
       const pathname = window.location.pathname;
 
       // Check for all Salesforce domains
-      const salesforceDomains = [
-        'salesforce.com',
-        'force.com',
-        'cloudforce.com',
-        'salesforce.mil',
-        'cloudforce.mil',
-        'sfcrmproducts.cn',
-        'visual.force.com',
-        'lightning.force.com',
-        'my.salesforce.com',
-        'sandbox.my.salesforce.com',
-        'develop.my.salesforce.com',
-        'scratch.my.salesforce.com',
-        'salesforce-setup.com'
-      ];
-
-      const isDomainMatch = salesforceDomains.some(domain => hostname.includes(domain));
+      const isDomainMatch = SALESFORCE_DOMAINS.some(domain => hostname.includes(domain));
 
       // Additional check for Lightning Experience paths
       const isLightningPath = pathname.includes('/lightning/');
@@ -107,23 +108,7 @@
   const hostname = window.location.hostname;
   const pathname = window.location.pathname;
 
-  const salesforceDomains = [
-    'salesforce.com',
-    'force.com',
-    'cloudforce.com',
-    'salesforce.mil',
-    'cloudforce.mil',
-    'sfcrmproducts.cn',
-    'visual.force.com',
-    'lightning.force.com',
-    'my.salesforce.com',
-    'sandbox.my.salesforce.com',
-    'develop.my.salesforce.com',
-    'scratch.my.salesforce.com',
-    'salesforce-setup.com'
-  ];
-
-  const isDomainMatch = salesforceDomains.some(domain => hostname.includes(domain));
+  const isDomainMatch = SALESFORCE_DOMAINS.some(domain => hostname.includes(domain));
   const isLightningPath = pathname.includes('/lightning/');
 
   if (isDomainMatch || isLightningPath) {

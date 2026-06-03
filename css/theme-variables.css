@@ -124,6 +124,9 @@
   --status-dot-error: #cf222e;
   --unread-indicator: #009EDB;
   --no-debug-indicator: #8c959f;
+
+  /* Accessibility: keyboard focus ring (inherited by dark theme) */
+  --focus-ring: #009EDB;
 }
 
 /* Dark Theme Colors - Eye Comfortable */

@@ -642,3 +642,29 @@ input:checked + .toggle-slider:hover {
     opacity: 0.5;
   }
 }
+
+/* Toast notifications (created by showToast() in dashboard-init.js) */
+.toast-notification {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 10002; /* above modal-overlay (10000) and the 10001 element */
+  max-width: 320px;
+  padding: 10px 16px;
+  background: var(--bg-panel, #161b22);
+  color: var(--text-primary, #24292f);
+  border: 1px solid var(--border-primary, #d0d7de);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.toast-notification.show {
+  opacity: 1;
+  transform: translateY(0);
+}

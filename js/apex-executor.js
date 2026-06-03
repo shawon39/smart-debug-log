@@ -161,9 +161,8 @@ class ApexExecutor {
   }
 
   escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text == null ? '' : String(text);
-    return div.innerHTML;
+    // Delegate to the shared escapeHtml() in basic-utilities.js (single source of truth)
+    return window.escapeHtml(text);
   }
 }
 

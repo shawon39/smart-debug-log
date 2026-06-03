@@ -75,16 +75,15 @@ class LogRenderer {
     // Add "See more logs" button if there are potentially more logs
     this._addSeeMoreButton();
 
-    // Add click event listeners to new log items
-    document.querySelectorAll('.log-item').forEach(item => {
-      if (!item.hasAttribute('data-listener-added')) {
-        item.addEventListener('click', () => {
-          const logId = item.getAttribute('data-log-id');
-          this.selectDebugLog(logId);
-        });
-        item.setAttribute('data-listener-added', 'true');
-      }
-    });
+    // Event delegation: one click listener on the list (added once) handles all
+    // items, so appended logs don't need per-item listeners or re-querying.
+    if (logsList && !logsList.dataset.delegated) {
+      logsList.dataset.delegated = 'true';
+      logsList.addEventListener('click', (e) => {
+        const item = e.target.closest('.log-item');
+        if (item) this.selectDebugLog(item.getAttribute('data-log-id'));
+      });
+    }
 
     // Re-apply search highlighting if there's an active search
     if (this.searchTerm) {

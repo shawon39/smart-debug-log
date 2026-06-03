@@ -101,7 +101,7 @@
       <button class="dev-console-btn" id="openDevConsoleBtn">
         🔐 Generate Token
       </button>
-      <button class="dismiss-btn" id="dismissWarningBtn">×</button>
+      <button class="dismiss-btn" id="dismissWarningBtn" aria-label="Dismiss">×</button>
     </div>
   </div>
 
@@ -151,7 +151,7 @@
           <button class="button primary hidden" id="toggleViewBtn" style="font-size: 10px; padding: 3px 8px;"
             title="Toggle between debug messages and raw response">Show Raw Response</button>
           <button class="copy-icon-btn hidden" id="copyRawBtn" style="font-size: 10px; padding: 3px 6px;"
-            title="Copy raw response">📋</button>
+            aria-label="Copy raw response" title="Copy raw response">📋</button>
           <div id="selectedLogId" style="font-family: monospace; font-size: 10px; color: #6c757d;"></div>
         </div>
       </div>
@@ -161,9 +161,9 @@
           <input type="text" id="rawSearchInput" placeholder="Search in raw response..." />
           <div class="search-controls">
             <span id="searchResultsInfo" class="search-info">0 matches</span>
-            <button id="searchPrevBtn" class="search-nav-btn" title="Previous match">↑</button>
-            <button id="searchNextBtn" class="search-nav-btn" title="Next match">↓</button>
-            <button id="clearSearchBtn" class="search-clear-btn" title="Clear search">✕</button>
+            <button id="searchPrevBtn" class="search-nav-btn" aria-label="Previous match" title="Previous match">↑</button>
+            <button id="searchNextBtn" class="search-nav-btn" aria-label="Next match" title="Next match">↓</button>
+            <button id="clearSearchBtn" class="search-clear-btn" aria-label="Clear search" title="Clear search">✕</button>
           </div>
         </div>
       </div>
@@ -231,11 +231,11 @@
   </div>
 
   <!-- Apex Manager Modal -->
-  <div class="modal-overlay" id="apexManagerModal" style="display: none;">
+  <div class="modal-overlay" id="apexManagerModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="apexManagerTitle">
     <div class="modal-content apex-manager-modal">
       <div class="modal-header">
-        <div class="modal-title">Saved Anonymous Code Block</div>
-        <button class="modal-close-btn" id="closeApexManagerBtn">×</button>
+        <div class="modal-title" id="apexManagerTitle">Saved Anonymous Code Block</div>
+        <button class="modal-close-btn" id="closeApexManagerBtn" aria-label="Close">×</button>
       </div>
 
       <div class="apex-manager-content">
@@ -246,7 +246,10 @@
               <input type="text" id="apexSearchInput" class="apex-search-input" placeholder="Search code blocks..." />
             </div>
             <div class="panel-actions">
-              <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add Code Block</button>
+              <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add</button>
+              <button class="button secondary" id="exportApexBtn" title="Export all saved code blocks to a JSON file">Export</button>
+              <button class="button secondary" id="importApexBtn" title="Import code blocks from a JSON file">Import</button>
+              <input type="file" id="importApexFile" accept=".json,application/json" hidden />
             </div>
           </div>
           <div class="apex-list-content">
@@ -260,7 +263,7 @@
             <div class="panel-title">
               <span id="apexCodeTitle">Select Apex Code</span>
               <span id="unsavedIndicator" class="unsaved-indicator hidden">●</span>
-              <button id="editApexTitleBtn" class="title-edit-btn" title="Rename code">✎</button>
+              <button id="editApexTitleBtn" class="title-edit-btn" aria-label="Rename code" title="Rename code">✎</button>
             </div>
             <div class="panel-actions">
               <button class="button primary" id="runApexBtn" title="Execute Apex code">Execute</button>
@@ -295,11 +298,11 @@
   </div>
 
   <!-- Debug Log Manager Modal -->
-  <div class="modal-overlay" id="debugLogManagerModal" style="display: none;">
+  <div class="modal-overlay" id="debugLogManagerModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="debugLogManagerTitle">
     <div class="modal-content debug-log-manager-modal">
       <div class="modal-header">
-        <div class="modal-title">Manage Debug Logs</div>
-        <button class="modal-close-btn" id="closeDebugLogManagerBtn">×</button>
+        <div class="modal-title" id="debugLogManagerTitle">Manage Debug Logs</div>
+        <button class="modal-close-btn" id="closeDebugLogManagerBtn" aria-label="Close">×</button>
       </div>
 
       <div class="debug-log-manager-content">
@@ -322,13 +325,13 @@
             <div class="user-search-input-wrapper">
               <input type="text" id="userSearchInput" class="user-search-input"
                 placeholder="Search by name or username...">
-              <button class="button secondary" id="userSearchBtn" title="Search users">🔍</button>
+              <button class="button secondary" id="userSearchBtn" aria-label="Search users" title="Search users">🔍</button>
             </div>
             <div class="user-search-results hidden" id="userSearchResults"></div>
             <div class="selected-user hidden" id="selectedUserDisplay">
               <span class="selected-user-label">Selected:</span>
               <span class="selected-user-name" id="selectedUserName"></span>
-              <button class="clear-user-btn" id="clearSelectedUserBtn" title="Clear selection">×</button>
+              <button class="clear-user-btn" id="clearSelectedUserBtn" aria-label="Clear selection" title="Clear selection">×</button>
             </div>
           </div>
         </div>
@@ -348,7 +351,7 @@
           <div class="create-debug-level-form hidden" id="createDebugLevelForm">
             <div class="form-header">
               <span class="form-title">Create New Debug Level</span>
-              <button class="form-close-btn" id="closeCreateFormBtn" title="Close form">×</button>
+              <button class="form-close-btn" id="closeCreateFormBtn" aria-label="Close form" title="Close form">×</button>
             </div>
 
             <div class="form-row">

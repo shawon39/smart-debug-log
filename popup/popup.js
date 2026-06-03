@@ -1,5 +1,8 @@
 class SmartDebugLogPopup {
   constructor() {
+    this.sfHost = null;
+    this.hasToken = false;
+    this.countdownInterval = null;
     this.init();
   }
 
@@ -47,16 +50,11 @@ class SmartDebugLogPopup {
       goToSetupBtn.addEventListener('click', () => this.goToSetup());
     }
 
-    // Add simple hover effects for feature cards
-    document.querySelectorAll('.feature-card').forEach(card => {
-      card.addEventListener('mouseenter', () => {
-        card.style.transform = 'translateY(-1px)';
-      });
-
-      card.addEventListener('mouseleave', () => {
-        card.style.transform = 'translateY(0)';
-      });
-    });
+    // Event listener for Enable/Extend debug logging
+    const enableBtn = document.getElementById('enableLoggingBtn');
+    if (enableBtn) {
+      enableBtn.addEventListener('click', () => this.enableLogging());
+    }
   }
 
   async checkConnection() {
@@ -124,7 +122,9 @@ class SmartDebugLogPopup {
 
 
       this.hideNotOnSalesforceNotification();
+      this.sfHost = sfHost;
       this.showOrgInfo(orgName);
+      await this.refreshLoggingStatus();
 
       // Check if we are currently on the dashboard page
       const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -306,27 +306,29 @@ class SmartDebugLogPopup {
       });
 
       if (response && response.success) {
-        tokenBtn.textContent = 'Token Generated!';
-        tokenBtn.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+        this.hasToken = true;
+        tokenBtn.textContent = 'Generated';
+        tokenBtn.classList.add('is-success');
 
-        // Reset after a short delay
+        // Reset after a short delay, then reflect the new token state in the row
         setTimeout(() => {
           tokenBtn.textContent = originalText;
-          tokenBtn.style.background = '';
+          tokenBtn.classList.remove('is-success');
           tokenBtn.disabled = false;
-        }, 2000);
+          this.renderTokenRow(true);
+        }, 1400);
       } else {
         throw new Error(response?.error || 'Failed to generate token');
       }
 
     } catch (error) {
       console.error('Token generation failed:', error);
-      tokenBtn.textContent = 'Failed - Try Again';
-      tokenBtn.style.background = 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+      tokenBtn.textContent = 'Failed';
+      tokenBtn.classList.add('is-error');
 
       setTimeout(() => {
         tokenBtn.textContent = originalText;
-        tokenBtn.style.background = '';
+        tokenBtn.classList.remove('is-error');
         tokenBtn.disabled = false;
       }, 2000);
     }
@@ -369,26 +371,29 @@ class SmartDebugLogPopup {
       });
 
       if (response && response.success) {
-        revokeBtn.textContent = 'Token Revoked!';
-        revokeBtn.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
+        this.hasToken = false;
+        revokeBtn.textContent = 'Revoked';
+        revokeBtn.classList.add('is-success');
 
-        // Hide revoke button after short delay
+        // After feedback, flip the token row back to the "no token" state
         setTimeout(() => {
-          revokeBtn.style.display = 'none';
           revokeBtn.textContent = originalText;
-          revokeBtn.style.background = '';
+          revokeBtn.classList.remove('is-success');
           revokeBtn.disabled = false;
-        }, 1500);
+          this.renderTokenRow(false);
+        }, 1400);
       } else {
         throw new Error(response?.error || 'Failed to revoke token');
       }
 
     } catch (error) {
       console.error('Token revocation failed:', error);
-      revokeBtn.textContent = 'Failed - Try Again';
+      revokeBtn.textContent = 'Failed';
+      revokeBtn.classList.add('is-error');
 
       setTimeout(() => {
         revokeBtn.textContent = originalText;
+        revokeBtn.classList.remove('is-error');
         revokeBtn.disabled = false;
       }, 2000);
     }
@@ -415,26 +420,30 @@ class SmartDebugLogPopup {
         sfHost: sfHost
       });
 
-      const revokeBtn = document.getElementById('revokeTokenBtn');
-
       if (response && response.success && response.data && response.data.hasToken && !response.data.isExpired) {
-        // Token exists and is valid - show revoke button
-        if (revokeBtn) {
-          revokeBtn.style.display = 'block';
-        }
+        this.hasToken = true;
       } else {
-        // No token or expired - hide revoke button
-        if (revokeBtn) {
-          revokeBtn.style.display = 'none';
-        }
+        this.hasToken = false;
       }
+      this.renderTokenRow(this.hasToken);
     } catch (error) {
-      // Hide button on error
-      const revokeBtn = document.getElementById('revokeTokenBtn');
-      if (revokeBtn) {
-        revokeBtn.style.display = 'none';
-      }
+      this.hasToken = false;
+      this.renderTokenRow(false);
     }
+  }
+
+  renderTokenRow(hasToken) {
+    const pill = document.getElementById('tokenPill');
+    const genBtn = document.getElementById('generateTokenBtn');
+    const revokeBtn = document.getElementById('revokeTokenBtn');
+
+    if (pill) {
+      pill.textContent = hasToken ? 'Active' : 'None';
+      pill.classList.toggle('active', hasToken);
+    }
+    // Show exactly one action: Generate when no token, Revoke when present
+    if (genBtn) genBtn.style.display = hasToken ? 'none' : 'block';
+    if (revokeBtn) revokeBtn.style.display = hasToken ? 'block' : 'none';
   }
 
   updateStatus(status, message) {
@@ -455,25 +464,147 @@ class SmartDebugLogPopup {
   }
 
   showOrgInfo(orgName) {
-    const orgInfo = document.getElementById('orgInfo');
+    const statusCard = document.getElementById('statusCard');
     const orgNameElement = document.getElementById('orgName');
 
-    if (!orgInfo || !orgNameElement) return;
+    if (!statusCard || !orgNameElement) return;
 
     if (orgName) {
       // Clean up the org name (remove protocol and paths)
       const cleanOrgName = orgName.replace(/^https?:\/\//, '').split('/')[0];
       orgNameElement.textContent = cleanOrgName;
-      orgInfo.style.display = 'block';
+      statusCard.style.display = 'block';
     } else {
-      orgInfo.style.display = 'none';
+      statusCard.style.display = 'none';
     }
   }
 
   hideOrgInfo() {
-    const orgInfo = document.getElementById('orgInfo');
-    if (orgInfo) {
-      orgInfo.style.display = 'none';
+    const statusCard = document.getElementById('statusCard');
+    if (statusCard) {
+      statusCard.style.display = 'none';
+    }
+    this.stopCountdown();
+  }
+
+  // --- Debug-logging status + countdown ---
+
+  async refreshLoggingStatus() {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'GET_TRACE_FLAG_STATUS',
+        sfHost: this.sfHost
+      });
+      const data = (response && response.success) ? response.data : { active: false };
+      this.renderLoggingStatus(data);
+    } catch (error) {
+      this.renderLoggingStatus({ active: false });
+    }
+  }
+
+  renderLoggingStatus(data) {
+    const dot = document.getElementById('loggingDot');
+    const label = document.getElementById('loggingStatusText');
+    const enableBtn = document.getElementById('enableLoggingBtn');
+    const countdown = document.getElementById('loggingCountdown');
+
+    this.stopCountdown();
+
+    if (data && data.active && data.expirationDate) {
+      if (dot) { dot.classList.add('active'); dot.classList.remove('warning'); }
+      if (label) label.textContent = 'Logging active';
+      if (enableBtn) enableBtn.textContent = 'Extend';
+      this.startCountdown(new Date(data.expirationDate).getTime());
+    } else {
+      if (dot) { dot.classList.remove('active'); dot.classList.remove('warning'); }
+      if (label) label.textContent = 'Logging off';
+      if (enableBtn) enableBtn.textContent = 'Enable';
+      if (countdown) { countdown.textContent = ''; countdown.classList.remove('warning'); }
+    }
+  }
+
+  startCountdown(expirationMs) {
+    const countdown = document.getElementById('loggingCountdown');
+    if (!countdown) return;
+
+    const dot = document.getElementById('loggingDot');
+    const tick = () => {
+      const remaining = expirationMs - Date.now();
+      if (remaining <= 0) {
+        this.renderLoggingStatus({ active: false });
+        return;
+      }
+      const totalSeconds = Math.floor(remaining / 1000);
+      const mins = Math.floor(totalSeconds / 60);
+      const secs = totalSeconds % 60;
+      countdown.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+
+      // Amber warning when under 5 minutes remain
+      const warn = remaining < 5 * 60 * 1000;
+      countdown.classList.toggle('warning', warn);
+      if (dot) dot.classList.toggle('warning', warn);
+    };
+
+    tick();
+    this.countdownInterval = setInterval(tick, 1000);
+  }
+
+  stopCountdown() {
+    if (this.countdownInterval) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+  }
+
+  async enableLogging() {
+    const btn = document.getElementById('enableLoggingBtn');
+    if (!btn) return;
+
+    // Enabling/extending requires an OAuth token - nudge the user instead of failing silently
+    if (!this.hasToken) {
+      this.nudgeGenerateToken();
+      return;
+    }
+
+    const durationSelect = document.getElementById('durationSelect');
+    const durationMinutes = durationSelect ? parseInt(durationSelect.value, 10) : 15;
+    const originalText = btn.textContent;
+
+    try {
+      btn.disabled = true;
+      btn.textContent = '...';
+
+      const response = await chrome.runtime.sendMessage({
+        type: 'ENSURE_TRACE_FLAG',
+        sfHost: this.sfHost,
+        durationMinutes: durationMinutes,
+        force: true
+      });
+
+      if (response && response.success) {
+        await this.refreshLoggingStatus();
+      } else if (response && response.error && response.error.includes('OAuth token')) {
+        this.hasToken = false;
+        this.nudgeGenerateToken();
+      } else {
+        throw new Error(response?.error || 'Failed to enable logging');
+      }
+    } catch (error) {
+      console.error('Failed to enable logging:', error);
+    } finally {
+      btn.disabled = false;
+      // refreshLoggingStatus resets the label; restore it if that path didn't run
+      if (btn.textContent === '...') btn.textContent = originalText;
+    }
+  }
+
+  nudgeGenerateToken() {
+    const genBtn = document.getElementById('generateTokenBtn');
+    const label = document.getElementById('loggingStatusText');
+    if (label) label.textContent = 'Generate a token first';
+    if (genBtn) {
+      genBtn.classList.add('nudge');
+      setTimeout(() => genBtn.classList.remove('nudge'), 1600);
     }
   }
 

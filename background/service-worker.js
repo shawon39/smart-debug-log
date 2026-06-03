@@ -177,6 +177,13 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleMessageWrapper(request, sender, sendResponse) {
   try {
+    // Defense-in-depth: only handle messages from this extension's own pages and content
+    // scripts. There is no externally_connectable, so external pages cannot reach this
+    // listener, but we reject anything with an unexpected sender id explicitly.
+    if (sender.id !== chrome.runtime.id) {
+      sendResponse({ success: false, error: 'Unauthorized sender' });
+      return;
+    }
     const result = await handleMessage(request, sender);
     sendResponse(result);
   } catch (error) {
@@ -205,6 +212,7 @@ async function handleMessage(request, sender) {
     case 'GET_USER_INFO': return await handleGetUserInfo(request, sender);
     case 'CHECK_TOKEN_STATUS': return await handleCheckTokenStatus(request, sender);
     case 'ENSURE_TRACE_FLAG': return await handleEnsureTraceFlag(request, sender);
+    case 'GET_TRACE_FLAG_STATUS': return await handleGetTraceFlagStatus(request, sender);
     case 'REVOKE_OAUTH_TOKEN': return await handleRevokeOAuthToken(request, sender);
     case 'SEARCH_USERS': return await handleSearchUsers(request, sender);
     case 'CLEAR_ALL_LOGS_CACHE': return await handleClearAllLogsCache(request, sender);
@@ -384,7 +392,8 @@ async function handleCheckTokenStatus(request) {
 }
 
 async function handleEnsureTraceFlag(request) {
-  const { sfHost } = request;
+  const { sfHost, force } = request;
+  const durationMinutes = Number(request.durationMinutes) > 0 ? Number(request.durationMinutes) : 45;
   const token = await getStoredOAuthToken(sfHost);
   if (!token) return { success: false, error: 'No OAuth token available' };
 
@@ -396,7 +405,7 @@ async function handleEnsureTraceFlag(request) {
   if (!userId) return { success: false, error: 'Could not determine user ID' };
 
   const now = new Date();
-  const expiration = new Date(now.getTime() + 45 * 60 * 1000);
+  const expiration = new Date(now.getTime() + durationMinutes * 60 * 1000);
   const levelQuery = `SELECT Id FROM DebugLevel WHERE DeveloperName = 'SFDC_DevConsole' LIMIT 1`;
   const levelResult = await directToolingQuery(levelQuery, sfHost);
 
@@ -416,7 +425,7 @@ async function handleEnsureTraceFlag(request) {
   if (checkResult.records && checkResult.records.length > 0) {
     const tf = checkResult.records[0];
     const isCurrentlyActive = new Date(tf.StartDate) <= now && new Date(tf.ExpirationDate) > now;
-    if (isCurrentlyActive) return { success: true, data: { existing: true, traceFlagId: tf.Id } };
+    if (isCurrentlyActive && !force) return { success: true, data: { existing: true, traceFlagId: tf.Id } };
     await directToolingUpdate('TraceFlag', tf.Id, { StartDate: now.toISOString(), ExpirationDate: expiration.toISOString(), DebugLevelId: debugLevelId }, sfHost);
     traceFlagId = tf.Id;
   } else {
@@ -425,13 +434,52 @@ async function handleEnsureTraceFlag(request) {
   }
 
   const orgDomain = extractOrgDomain(sfHost || token.instanceUrl);
+  // Remove any stale metadata for this flag first so the stored expiration always
+  // reflects the latest StartDate/ExpirationDate (store is a no-op when the id already exists).
+  await removeAutoTraceFlagMetadata(traceFlagId);
   await storeAutoTraceFlagMetadata({ traceFlagId, userId, startTime: now.toISOString(), expirationDate: expiration.toISOString(), orgDomain });
   chrome.alarms.create(`cleanup_traceflag_${traceFlagId}`, { when: expiration.getTime() });
-  return { success: true, data: { traceFlagId } };
+  return { success: true, data: { traceFlagId, expirationDate: expiration.toISOString() } };
+}
+
+// Returns the active auto trace flag metadata for the given org (if any), so the popup
+// can show a live "logging active / expires in" countdown without hitting the network.
+async function handleGetTraceFlagStatus(request) {
+  try {
+    const { sfHost } = request;
+    const orgDomain = sfHost ? extractOrgDomain(sfHost) : null;
+    const flags = await getAutoTraceFlagMetadata();
+    const now = Date.now();
+
+    const matching = flags.filter(tf => {
+      if (orgDomain && tf.orgDomain && tf.orgDomain !== orgDomain) return false;
+      return true;
+    });
+
+    // Pick the one expiring latest that is still in the future.
+    const active = matching
+      .filter(tf => new Date(tf.expirationDate).getTime() > now)
+      .sort((a, b) => new Date(b.expirationDate) - new Date(a.expirationDate))[0];
+
+    if (!active) return { success: true, data: { active: false } };
+
+    return {
+      success: true,
+      data: {
+        active: true,
+        startTime: active.startTime,
+        expirationDate: active.expirationDate
+      }
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 async function handleSearchUsers(request) {
-  const escapedTerm = request.searchTerm.replace(/'/g, "\\'");
+  // Escape backslash first, then single quote, so a trailing/embedded backslash in the
+  // user's search term cannot break out of the SOQL string literal.
+  const escapedTerm = String(request.searchTerm || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const query = `SELECT Id, Name, Username, Email FROM User WHERE (Name LIKE '%${escapedTerm}%' OR Username LIKE '%${escapedTerm}%') AND IsActive = true ORDER BY Name LIMIT 10`;
   const result = await directQuery(query, request.sfHost);
   return { success: true, data: result.records || [] };

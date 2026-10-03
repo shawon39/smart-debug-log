@@ -5,7 +5,6 @@ class DebugLevelCreator {
   constructor(managerUI) {
     this.managerUI = managerUI;
     this.picklistValues = null;
-    this.isFormOpen = false;
     
     // Field mappings for picklist population
     this.fieldMappings = {
@@ -16,7 +15,10 @@ class DebugLevelCreator {
       'Workflow': 'workflowLevel',
       'Validation': 'validationLevel',
       'Callout': 'calloutLevel',
-      'Visualforce': 'visualforceLevel'
+      'Visualforce': 'visualforceLevel',
+      'DataAccess': 'dataAccessLevel',
+      'Nba': 'nbaLevel',
+      'Wave': 'waveLevel'
     };
   }
 
@@ -59,7 +61,6 @@ class DebugLevelCreator {
     const form = document.getElementById('createDebugLevelForm');
     if (!form) return;
 
-    this.isFormOpen = true;
     form.classList.remove('hidden');
 
     // Reset form
@@ -74,7 +75,6 @@ class DebugLevelCreator {
     const form = document.getElementById('createDebugLevelForm');
     if (!form) return;
 
-    this.isFormOpen = false;
     form.classList.add('hidden');
     this.resetForm();
   }
@@ -130,12 +130,14 @@ class DebugLevelCreator {
 
     Object.entries(this.fieldMappings).forEach(([fieldName, elementId]) => {
       const field = this.picklistValues.fields.find(f => f.name === fieldName);
-      if (!field || !field.picklistValues) {
-        return;
-      }
-
       const select = document.getElementById(elementId);
       if (!select) return;
+
+      // A category this org does not offer is hidden and left out of the new debug level
+      const available = !!(field && field.picklistValues);
+      select.disabled = !available;
+      select.closest('.form-field')?.classList.toggle('hidden', !available);
+      if (!available) return;
 
       // Clear loading message
       select.innerHTML = '';
@@ -182,7 +184,10 @@ class DebugLevelCreator {
       'Workflow': 'INFO',
       'Validation': 'INFO',
       'Callout': 'INFO',
-      'Visualforce': 'INFO'
+      'Visualforce': 'INFO',
+      'DataAccess': 'INFO',
+      'Nba': 'INFO',
+      'Wave': 'INFO'
     };
 
     const defaultValue = defaults[fieldName];
@@ -212,18 +217,22 @@ class DebugLevelCreator {
   generateApiName(label) {
     if (!label) return '';
 
-    // Replace spaces with underscores
-    let apiName = label.replace(/\s+/g, '_');
-
-    // Remove special characters (keep only letters, numbers, underscores)
-    apiName = apiName.replace(/[^A-Za-z0-9_]/g, '');
+    // Spaces and other characters become one underscore; no underscore at the start or end
+    let apiName = label.replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 
     // Ensure it starts with a letter
     if (apiName && !/^[A-Za-z]/.test(apiName)) {
       apiName = 'Debug_' + apiName;
     }
 
-    return apiName;
+    // Salesforce allows 40 characters
+    return apiName.substring(0, 40).replace(/_+$/, '');
+  }
+
+  // Salesforce DeveloperName rules: starts with a letter, only letters, numbers and single
+  // underscores, does not end with an underscore, at most 40 characters
+  isValidApiName(apiName) {
+    return typeof apiName === 'string' && apiName.length <= 40 && /^[A-Za-z](?:_?[A-Za-z0-9])*$/.test(apiName);
   }
 
   // Validate API name
@@ -231,10 +240,10 @@ class DebugLevelCreator {
     const apiNameInput = document.getElementById('debugLevelApiName');
     if (!apiNameInput) return false;
 
-    const isValid = /^[A-Za-z][A-Za-z0-9_]*$/.test(apiName);
+    const isValid = this.isValidApiName(apiName);
 
     if (!isValid && apiName.length > 0) {
-      apiNameInput.setCustomValidity('API Name must start with a letter and contain only letters, numbers, and underscores');
+      apiNameInput.setCustomValidity('API Name must start with a letter, use only letters, numbers and single underscores, and not end with an underscore');
       apiNameInput.classList.add('invalid');
     } else {
       apiNameInput.setCustomValidity('');
@@ -258,14 +267,14 @@ class DebugLevelCreator {
     if (!apiName) {
       errors.push('API Name is required');
     } else if (!this.validateApiName(apiName)) {
-      errors.push('API Name is invalid');
+      errors.push('API Name must start with a letter, use only letters, numbers and single underscores, and not end with an underscore');
     }
 
-    // Check if all picklists have values
+    // Check if all picklists have values (categories this org does not offer are disabled)
     const missingFields = [];
     Object.entries(this.fieldMappings).forEach(([fieldName, elementId]) => {
       const select = document.getElementById(elementId);
-      if (!select || !select.value) {
+      if (!select || (!select.disabled && !select.value)) {
         missingFields.push(fieldName);
       }
     });
@@ -304,16 +313,12 @@ class DebugLevelCreator {
 
     const debugLevelData = {
       MasterLabel: label,
-      DeveloperName: apiName,
-      ApexCode: document.getElementById('apexCodeLevel').value,
-      ApexProfiling: document.getElementById('apexProfilingLevel').value,
-      Database: document.getElementById('databaseLevel').value,
-      System: document.getElementById('systemLevel').value,
-      Workflow: document.getElementById('workflowLevel').value,
-      Validation: document.getElementById('validationLevel').value,
-      Callout: document.getElementById('calloutLevel').value,
-      Visualforce: document.getElementById('visualforceLevel').value
+      DeveloperName: apiName
     };
+    Object.entries(this.fieldMappings).forEach(([fieldName, elementId]) => {
+      const select = document.getElementById(elementId);
+      if (select && !select.disabled) debugLevelData[fieldName] = select.value;
+    });
 
     try {
       if (submitBtn) {
@@ -351,12 +356,10 @@ class DebugLevelCreator {
     } catch (error) {
       console.error('Failed to create debug level:', error);
       
-      let message = 'Failed to create debug level.';
-      if (error.message.includes('DUPLICATE')) {
-        message = `Debug Level "${apiName}" already exists`;
-      } else if (error.message.includes('Access token required')) {
-        message = 'Please generate an access token first.';
-      }
+      // Show the reason Salesforce gave
+      const message = error.message.includes('DUPLICATE')
+        ? `Debug Level "${apiName}" already exists`
+        : `Failed to create debug level: ${this.managerUI.errorText(error)}`;
       
       this.managerUI.showNotification(message, 'error');
       

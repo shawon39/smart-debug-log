@@ -269,18 +269,6 @@
   outline-offset: -2px;
 }
 
-.apex-code-editor.read-only {
-  background: rgba(128, 128, 128, 0.1);
-  cursor: not-allowed;
-  color: var(--text-secondary);
-  opacity: 0.7;
-}
-
-.apex-code-editor.read-only:focus {
-  outline: 1px solid var(--border-secondary);
-  outline-offset: -1px;
-}
-
 .apex-code-editor::placeholder {
   color: var(--text-secondary);
   opacity: 0.8;
@@ -343,6 +331,13 @@
   padding-right: 0 !important;
   min-width: auto !important;
   letter-spacing: 0.2px;
+}
+
+/* Line of the last compile error */
+.line-numbers .line-number.error-line {
+  color: var(--danger) !important;
+  background: var(--danger-soft);
+  font-weight: 700;
 }
 
 /* Adjust editor and overlay to make space for line numbers */

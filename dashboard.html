@@ -379,9 +379,9 @@
             <div class="form-row">
               <label for="debugLevelApiName">API Name: <span class="required">*</span></label>
               <input type="text" id="debugLevelApiName" class="form-input" placeholder="My_Debug_Level" maxlength="40"
-                pattern="^[A-Za-z][A-Za-z0-9_]*$" />
-              <span class="input-hint">Auto-generated from label. Must start with letter, only letters, numbers, and
-                underscores.</span>
+                pattern="[A-Za-z](_?[A-Za-z0-9])*" />
+              <span class="input-hint">Auto-generated from label. Start with a letter. Use letters, numbers and single
+                underscores. Do not end with an underscore.</span>
             </div>
 
             <div class="form-grid">
@@ -437,6 +437,27 @@
               <div class="form-field">
                 <label for="visualforceLevel">Visualforce:</label>
                 <select id="visualforceLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="dataAccessLevel">DataAccess:</label>
+                <select id="dataAccessLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="nbaLevel" title="Next Best Action">Nba:</label>
+                <select id="nbaLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="waveLevel" title="CRM Analytics">Wave:</label>
+                <select id="waveLevel" class="form-select">
                   <option value="">Loading...</option>
                 </select>
               </div>
@@ -525,8 +546,23 @@
 
         <!-- Delete Logs Section -->
         <div class="delete-logs-section">
-          <button class="button danger" id="deleteAllLogsBtn"><span data-icon="trash"></span>Delete All Debug Logs</button>
-          <span class="delete-hint">This will delete all debug logs for your user</span>
+          <div class="log-storage-meter hidden" id="logStorageMeter">
+            <div class="log-storage-text" id="logStorageText">Org log storage</div>
+            <div class="log-storage-bar"><div class="log-storage-fill" id="logStorageFill"></div></div>
+            <div class="log-storage-warning hidden" id="logStorageWarning">Salesforce blocks new trace flags when debug logs use more than 1,000 MB. Delete old logs to free space.</div>
+          </div>
+          <div class="delete-logs-row">
+            <button class="button danger" id="deleteAllLogsBtn"><span data-icon="trash"></span>Delete All Debug Logs</button>
+            <span class="delete-hint">Deletes all debug logs of the selected user in this org</span>
+          </div>
+          <div class="auto-cleanup-row">
+            <label class="toggle-label" for="autoCleanupToggle">Auto-delete logs from temporary trace flags when they expire</label>
+            <div class="toggle-switch">
+              <input type="checkbox" id="autoCleanupToggle">
+              <span class="toggle-slider"></span>
+            </div>
+          </div>
+          <span class="delete-hint">Only deletes Monitoring logs from that time window.</span>
         </div>
       </div>
 
@@ -534,10 +570,10 @@
       <div class="replace-confirmation-overlay hidden" id="replaceConfirmationDialog">
         <div class="replace-confirmation-dialog">
           <div class="confirmation-header">
-            <span class="confirmation-title">Replace Active Debug Log?</span>
+            <span class="confirmation-title" id="confirmTitle">Replace Active Debug Log?</span>
           </div>
           <div class="confirmation-body">
-            <p class="confirmation-message">An active debug log already exists:</p>
+            <p class="confirmation-message" id="confirmMessage">An active debug log already exists:</p>
             <div class="current-trace-info">
               <div class="trace-info-row">
                 <span class="trace-info-label">User:</span>
@@ -548,11 +584,11 @@
                 <span class="trace-info-value" id="confirmCurrentDebugLevel"></span>
               </div>
               <div class="trace-info-row">
-                <span class="trace-info-label">Time Remaining:</span>
+                <span class="trace-info-label" id="confirmTimeLabel">Time Remaining:</span>
                 <span class="trace-info-value" id="confirmTimeRemaining"></span>
               </div>
             </div>
-            <p class="confirmation-question">Do you want to expire the current debug log and create a new one?</p>
+            <p class="confirmation-question">Do you want to replace it with the new debug level and time?</p>
           </div>
           <div class="confirmation-actions">
             <button class="button secondary" id="confirmCancelBtn">No, Keep Current</button>

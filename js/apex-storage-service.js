@@ -59,6 +59,31 @@ class ApexStorageService {
   }
 
   /**
+   * Save several Apex snippets with one storage write (used by import)
+   * @param {Array<{name: string, code: string}>} items - Snippets to save
+   * @param {string} orgId - Organization ID
+   * @returns {Promise<{success: boolean, data?: Array, error?: string}>}
+   */
+  static async saveApexCodes(items, orgId) {
+    if (!orgId) {
+      return { success: false, error: 'Organization ID is required' };
+    }
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SAVE_APEX_CODE',
+        items: items.map(item => ({ name: item.name.trim(), code: this.sanitizeApexCode(item.code) })),
+        orgId: orgId
+      });
+
+      return response;
+    } catch (error) {
+      console.error('Failed to save Apex codes:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Update existing Apex code in storage
    * @param {string} id - Code ID
    * @param {string} name - Code name
@@ -116,14 +141,13 @@ class ApexStorageService {
   }
 
   /**
-   * Execute Apex code via anonymous execution
+   * Execute Apex code via anonymous execution (uses the OAuth token of the dashboard's org)
    * @param {string} code - Apex code to execute
-   * @param {object} session - Salesforce session
    * @returns {Promise<{success: boolean, data?: any, error?: string}>}
    */
-  static async executeApexCode(code, session) {
-    if (!code || !session) {
-      return { success: false, error: 'Code and session are required' };
+  static async executeApexCode(code) {
+    if (!code) {
+      return { success: false, error: 'Code is required' };
     }
 
     try {
@@ -133,7 +157,6 @@ class ApexStorageService {
       const response = await chrome.runtime.sendMessage({
         type: 'EXECUTE_ANONYMOUS',
         code: code,
-        session: session,
         sfHost: sfHost
       });
 

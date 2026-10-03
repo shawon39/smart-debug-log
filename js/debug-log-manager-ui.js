@@ -11,7 +11,6 @@ class DebugLogManagerUI {
     this.sfHost = null; // Salesforce host for multi-org support
     this.debugLevels = [];
     this.traceFlags = [];
-    this.currentTraceFlag = null;
     this.timerInterval = null;
     this.statusIndicatorTimer = null; // Timer for status indicator updates
     this.DEFAULT_DURATION_MINUTES = 45;
@@ -32,21 +31,12 @@ class DebugLogManagerUI {
 
   async initialize(session) {
     this.currentSession = session;
-    this.sfHost = this.extractSfHostFromUrl();
-    await this.loadUserInfo();
+    // The org comes from the dashboard URL (?host=), never from whichever org logged in last.
+    this.sfHost = getHostFromUrl();
+    if (this.sfHost) await this.loadUserInfo();
     // Default to current user
     this.selectedUserId = this.userId;
     this.selectedUserName = 'Current User';
-  }
-
-  // Extract sfHost from URL parameter
-  extractSfHostFromUrl() {
-    try {
-      const urlParams = new URLSearchParams(window.location.search);
-      return urlParams.get('host') || null;
-    } catch {
-      return null;
-    }
   }
 
   async loadUserInfo() {
@@ -63,8 +53,9 @@ class DebugLogManagerUI {
     }
   }
 
+  // With "Other User" chosen but nobody picked yet this is null (never the current user).
   getTargetUserId() {
-    return this.useOtherUser && this.selectedUserId ? this.selectedUserId : this.userId;
+    return this.useOtherUser ? this.selectedUserId : this.userId;
   }
 
   isDebugLevelDevConsole(debugLevelId) {
@@ -74,8 +65,6 @@ class DebugLogManagerUI {
 
   async refreshTraceFlagsForSelectedUser() {
     await this.listTraceFlags();
-    const targetUserId = this.getTargetUserId();
-    this.currentTraceFlag = this.traceFlags.find(tf => tf.TracedEntityId === targetUserId);
     this.renderTraceFlags();
   }
 }

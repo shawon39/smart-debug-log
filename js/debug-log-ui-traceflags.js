@@ -4,8 +4,8 @@
  */
 
 DebugLogManagerUI.prototype.listDebugLevels = async function () {
-    const query = `SELECT Id, DeveloperName, MasterLabel, ApexCode, Database, System, Workflow, Visualforce, Callout 
-                 FROM DebugLevel 
+    const query = `SELECT Id, DeveloperName, MasterLabel, ApexCode, Database, System, Workflow, Visualforce, Callout
+                 FROM DebugLevel
                  ORDER BY MasterLabel
                  LIMIT 100`;
     const result = await this.toolingQuery(query);
@@ -13,104 +13,30 @@ DebugLogManagerUI.prototype.listDebugLevels = async function () {
     return this.debugLevels;
 };
 
-DebugLogManagerUI.prototype.getOrCreateDefaultDebugLevel = async function () {
-    const existing = this.debugLevels.find(d => d.DeveloperName === 'SFDC_DevConsole');
-    if (existing) return existing.Id;
-    if (this.debugLevels.length > 0) return this.debugLevels[0].Id;
-
-    const data = {
-        DeveloperName: 'ExtensionDebug',
-        MasterLabel: 'Extension Debug',
-        ApexCode: 'FINEST',
-        ApexProfiling: 'INFO',
-        Database: 'INFO',
-        System: 'DEBUG',
-        Workflow: 'INFO',
-        Validation: 'INFO',
-        Callout: 'INFO',
-        Visualforce: 'INFO'
-    };
-
-    const created = await this.toolingCreate('DebugLevel', data);
-    await this.listDebugLevels();
-    return created.id;
-};
-
+// Lists user, Developer Console and class/trigger trace flags. Salesforce allows one trace flag at a
+// time per traced entity and log type, so conflict checks only compare flags of the same LogType.
 DebugLogManagerUI.prototype.listTraceFlags = async function () {
-    const query = `SELECT Id, TracedEntityId, TracedEntity.Name, LogType, 
-                 StartDate, ExpirationDate, DebugLevelId, DebugLevel.DeveloperName
-                 FROM TraceFlag 
-                 WHERE LogType = 'USER_DEBUG'
+    const query = `SELECT Id, TracedEntityId, TracedEntity.Name, LogType,
+                 StartDate, ExpirationDate, DebugLevelId, DebugLevel.DeveloperName, CreatedBy.Name
+                 FROM TraceFlag
+                 WHERE LogType IN ('USER_DEBUG', 'DEVELOPER_LOG', 'CLASS_TRACING')
                  ORDER BY ExpirationDate DESC
                  LIMIT 100`;
     const result = await this.toolingQuery(query);
     this.traceFlags = result.records || [];
 
-    const targetUserId = this.getTargetUserId();
-    this.currentTraceFlag = this.traceFlags.find(tf => tf.TracedEntityId === targetUserId);
-
     await this.updateStatusIndicator();
     return this.traceFlags;
 };
 
-DebugLogManagerUI.prototype.createOrExtendTraceFlag = async function (debugLevelId, durationMinutes = 45) {
-    const targetUserId = this.getTargetUserId();
-    if (!targetUserId) throw new Error('User ID not available');
-
-    const now = new Date();
-    const expiration = new Date(now.getTime() + durationMinutes * 60 * 1000);
-    const isDevConsole = this.isDebugLevelDevConsole(debugLevelId);
-
-    if (isDevConsole) {
-        const existingFlag = this.traceFlags.find(tf =>
-            tf.TracedEntityId === targetUserId && tf.DebugLevelId === debugLevelId
-        );
-        if (existingFlag) {
-            if (new Date(existingFlag.ExpirationDate) > now) {
-                await this.extendTraceFlag(existingFlag.Id, durationMinutes);
-                return { extended: true };
-            } else {
-                await this.toolingUpdate('TraceFlag', existingFlag.Id, {
-                    StartDate: now.toISOString(),
-                    ExpirationDate: expiration.toISOString(),
-                    DebugLevelId: debugLevelId
-                });
-                await this.listTraceFlags();
-                return { updated: true };
-            }
-        }
-    }
-
-    const data = {
-        TracedEntityId: targetUserId,
-        LogType: 'USER_DEBUG',
-        DebugLevelId: debugLevelId,
-        StartDate: now.toISOString(),
-        ExpirationDate: expiration.toISOString()
-    };
-
-    try {
-        const result = await this.toolingCreate('TraceFlag', data);
-        await this.listTraceFlags();
-        return result;
-    } catch (error) {
-        if (error.message && error.message.includes('already being traced')) {
-            await this.listTraceFlags();
-            const refreshedFlag = this.traceFlags.find(tf =>
-                tf.TracedEntityId === targetUserId && tf.DebugLevelId === debugLevelId
-            );
-            if (refreshedFlag) {
-                await this.toolingUpdate('TraceFlag', refreshedFlag.Id, {
-                    StartDate: now.toISOString(),
-                    ExpirationDate: expiration.toISOString(),
-                    DebugLevelId: debugLevelId
-                });
-                await this.listTraceFlags();
-                return { updated: true };
-            }
-        }
-        throw error;
-    }
+// A USER_DEBUG flag of this user and debug level may be reused only when changing it cannot cut
+// other tracing short: it has expired, or it overlaps the requested time anyway.
+DebugLogManagerUI.prototype.findReusableTraceFlag = function (userId, debugLevelId, start, end, now = new Date()) {
+    return this.traceFlags.find(tf => {
+        if (tf.LogType !== 'USER_DEBUG' || tf.TracedEntityId !== userId || tf.DebugLevelId !== debugLevelId) return false;
+        const tfStart = new Date(tf.StartDate), tfEnd = new Date(tf.ExpirationDate);
+        return tfEnd <= now || (start < tfEnd && end > tfStart);
+    });
 };
 
 DebugLogManagerUI.prototype.createOrExtendTraceFlagWithExpiration = async function (debugLevelId, durationMinutes = 45, customExpiration = null, customStartDate = null) {
@@ -120,94 +46,91 @@ DebugLogManagerUI.prototype.createOrExtendTraceFlagWithExpiration = async functi
     const now = new Date();
     const startDate = customStartDate || now;
     const expiration = customExpiration || new Date(now.getTime() + durationMinutes * 60 * 1000);
-    const isDevConsole = this.isDebugLevelDevConsole(debugLevelId);
-
-    if (isDevConsole) {
-        const existingFlag = this.traceFlags.find(tf =>
-            tf.TracedEntityId === targetUserId && tf.DebugLevelId === debugLevelId
-        );
-        if (existingFlag) {
-            await this.toolingUpdate('TraceFlag', existingFlag.Id, {
-                StartDate: startDate.toISOString(),
-                ExpirationDate: expiration.toISOString(),
-                DebugLevelId: debugLevelId
-            });
-            await this.listTraceFlags();
-            return { extended: true };
-        }
-    }
-
-    const data = {
-        TracedEntityId: targetUserId,
-        LogType: 'USER_DEBUG',
-        DebugLevelId: debugLevelId,
+    const dates = {
         StartDate: startDate.toISOString(),
-        ExpirationDate: expiration.toISOString()
+        ExpirationDate: expiration.toISOString(),
+        DebugLevelId: debugLevelId
     };
 
+    if (this.isDebugLevelDevConsole(debugLevelId)) {
+        const existingFlag = this.findReusableTraceFlag(targetUserId, debugLevelId, startDate, expiration, now);
+        if (existingFlag) return await this.updateTraceFlagDates(existingFlag, dates, now);
+    }
+
     try {
-        const result = await this.toolingCreate('TraceFlag', data);
+        const result = await this.toolingCreate('TraceFlag', { TracedEntityId: targetUserId, LogType: 'USER_DEBUG', ...dates });
         await this.listTraceFlags();
         return result;
     } catch (error) {
         if (error.message && error.message.includes('already being traced')) {
             await this.listTraceFlags();
-            const refreshedFlag = this.traceFlags.find(tf =>
-                tf.TracedEntityId === targetUserId && tf.DebugLevelId === debugLevelId
-            );
-            if (refreshedFlag) {
-                await this.toolingUpdate('TraceFlag', refreshedFlag.Id, {
-                    StartDate: startDate.toISOString(),
-                    ExpirationDate: expiration.toISOString(),
-                    DebugLevelId: debugLevelId
-                });
-                await this.listTraceFlags();
-                return { updated: true };
-            }
+            const refreshedFlag = this.findReusableTraceFlag(targetUserId, debugLevelId, startDate, expiration, now);
+            if (refreshedFlag) return await this.updateTraceFlagDates(refreshedFlag, dates, now);
         }
         throw error;
     }
+};
+
+// Moves an existing flag to new dates. `replaced` tells the caller a flag that was still running
+// or scheduled was changed (not just an expired one reused).
+DebugLogManagerUI.prototype.updateTraceFlagDates = async function (traceFlag, dates, now) {
+    const wasExpired = new Date(traceFlag.ExpirationDate) <= now;
+    await this.toolingUpdate('TraceFlag', traceFlag.Id, dates);
+    await this.listTraceFlags();
+    return { updated: true, replaced: !wasExpired };
+};
+
+// Salesforce rejects a trace flag that ends more than 24 hours after its StartDate. When an
+// extension would pass that, the flag restarts now and ends at most 24 hours from now.
+DebugLogManagerUI.prototype.computeExtension = function (traceFlag, additionalMinutes, now = new Date()) {
+    const MAX_SPAN_MS = 24 * 60 * 60 * 1000;
+    const currentExpiration = new Date(traceFlag.ExpirationDate);
+    const baseTime = currentExpiration > now ? currentExpiration : now;
+    const expiration = new Date(baseTime.getTime() + additionalMinutes * 60 * 1000);
+
+    if (expiration - new Date(traceFlag.StartDate) <= MAX_SPAN_MS) {
+        return { data: { ExpirationDate: expiration.toISOString() }, expiration, capped: false };
+    }
+    const cappedExpiration = new Date(Math.min(expiration.getTime(), now.getTime() + MAX_SPAN_MS));
+    return {
+        data: { StartDate: now.toISOString(), ExpirationDate: cappedExpiration.toISOString() },
+        expiration: cappedExpiration,
+        capped: cappedExpiration < expiration
+    };
 };
 
 DebugLogManagerUI.prototype.extendTraceFlag = async function (traceFlagId, additionalMinutes = 45) {
     const traceFlag = this.traceFlags.find(tf => tf.Id === traceFlagId);
     if (!traceFlag) throw new Error('Trace flag not found');
 
-    const currentExpiration = new Date(traceFlag.ExpirationDate);
-    const now = new Date();
-    const baseTime = currentExpiration > now ? currentExpiration : now;
-    const newExpiration = new Date(baseTime.getTime() + additionalMinutes * 60 * 1000);
-
-    await this.toolingUpdate('TraceFlag', traceFlagId, { ExpirationDate: newExpiration.toISOString() });
+    const extension = this.computeExtension(traceFlag, additionalMinutes);
+    await this.toolingUpdate('TraceFlag', traceFlagId, extension.data);
     await this.listTraceFlags();
+    return extension;
 };
 
-DebugLogManagerUI.prototype.expireTraceFlag = async function (traceFlagId) {
-    const traceFlag = this.traceFlags.find(tf => tf.Id === traceFlagId);
-    if (!traceFlag) throw new Error('Trace flag not found');
-    await this.toolingUpdate('TraceFlag', traceFlagId, { ExpirationDate: new Date().toISOString() });
-    await this.listTraceFlags();
-};
-
+// When less time is left than the reduction, the flag ends now (never a time in the past).
 DebugLogManagerUI.prototype.reduceTraceFlag = async function (traceFlagId, reduceMinutes = 45) {
     const traceFlag = this.traceFlags.find(tf => tf.Id === traceFlagId);
     if (!traceFlag) throw new Error('Trace flag not found');
 
-    const currentExpiration = new Date(traceFlag.ExpirationDate);
     const now = new Date();
-    const remainingMs = currentExpiration - now;
-    const reduceMs = reduceMinutes * 60 * 1000;
-
-    if (remainingMs <= reduceMs) {
-        await this.toolingUpdate('TraceFlag', traceFlagId, { ExpirationDate: now.toISOString() });
-        await this.listTraceFlags();
-        return { disabled: true };
-    }
-
-    const newExpiration = new Date(currentExpiration.getTime() - reduceMs);
-    await this.toolingUpdate('TraceFlag', traceFlagId, { ExpirationDate: newExpiration.toISOString() });
+    const newExpiration = new Date(new Date(traceFlag.ExpirationDate).getTime() - reduceMinutes * 60 * 1000);
+    const endsNow = newExpiration <= now;
+    await this.toolingUpdate('TraceFlag', traceFlagId, { ExpirationDate: (endsNow ? now : newExpiration).toISOString() });
     await this.listTraceFlags();
-    return { disabled: false };
+    return { disabled: endsNow };
+};
+
+// Changes a flag in place (debug level and time). Unlike delete + create, a failed
+// change leaves the old flag as it was, so tracing never stops by accident.
+DebugLogManagerUI.prototype.replaceTraceFlag = async function (traceFlagId, debugLevelId, startDate, expirationDate) {
+    await this.toolingUpdate('TraceFlag', traceFlagId, {
+        DebugLevelId: debugLevelId,
+        StartDate: startDate.toISOString(),
+        ExpirationDate: expirationDate.toISOString()
+    });
+    await this.listTraceFlags();
 };
 
 DebugLogManagerUI.prototype.deleteTraceFlag = async function (traceFlagId) {
@@ -215,44 +138,9 @@ DebugLogManagerUI.prototype.deleteTraceFlag = async function (traceFlagId) {
     await this.listTraceFlags();
 };
 
-DebugLogManagerUI.prototype.createTraceFlagWithRetry = async function (data, maxRetries = 2) {
-    let lastError = null;
-    for (let attempt = 0; attempt <= maxRetries; attempt++) {
-        try {
-            return await this.toolingCreate('TraceFlag', data);
-        } catch (error) {
-            lastError = error;
-            if (error.message && error.message.includes('already being traced') && attempt < maxRetries) {
-                await new Promise(resolve => setTimeout(resolve, 500));
-                await this.listTraceFlags();
-                continue;
-            }
-            throw error;
-        }
-    }
-    throw lastError;
-};
-
-DebugLogManagerUI.prototype.deleteAllDebugLogs = async function () {
-    if (!this.userId) throw new Error('User ID not available');
-    const query = `SELECT Id FROM ApexLog WHERE LogUserId = '${this.userId}' ORDER BY StartTime DESC LIMIT 500`;
-    const result = await this.toolingQuery(query);
-    const logs = result.records || [];
-    if (logs.length === 0) return { deleted: 0 };
-
-    const logIds = logs.map(log => log.Id);
-    const BATCH_SIZE = 5;
-    let deleted = 0;
-    let errors = [];
-
-    for (let i = 0; i < logs.length; i += BATCH_SIZE) {
-        const batch = logs.slice(i, i + BATCH_SIZE);
-        const deletePromises = batch.map(log =>
-            this.toolingDelete('ApexLog', log.Id)
-                .then(() => { deleted++; return true; })
-                .catch(err => { errors.push(err.message); return false; })
-        );
-        await Promise.all(deletePromises);
-    }
-    return { deleted, total: logs.length, errors, logIds };
+// Deletes every debug log of one user in this org with one background call.
+// Returns { deleted, failed, errors, deletedIds }.
+DebugLogManagerUI.prototype.deleteAllDebugLogs = async function (userId) {
+    if (!userId) throw new Error('User ID not available');
+    return await this.deleteApexLogs(userId);
 };

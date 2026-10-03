@@ -10,7 +10,6 @@ class ApexCodeManager {
     this.currentOrgId = null;
     this.isInitialized = false;
     this.hasUnsavedChanges = false;
-    this.isReadOnly = false;
     this.searchTerm = '';
     this.filteredCodes = [];
     this.currentSelectedCode = null;
@@ -24,7 +23,7 @@ class ApexCodeManager {
   }
 
   async loadApexCodes() {
-    if (!this.currentOrgId) return;
+    if (!this.currentOrgId) { this.renderApexCodeList(); return; }
     const response = await ApexStorageService.loadApexCodes(this.currentOrgId);
     if (response.success) {
       this.apexCodes = response.data;
@@ -34,57 +33,66 @@ class ApexCodeManager {
     }
   }
 
+  // Throws with the reason when a snippet cannot be saved, so the UI can show it.
+  checkCanSave(name, code) {
+    if (!this.currentOrgId) throw new Error('Salesforce org not found. Reopen the dashboard from a Salesforce tab.');
+    if (!code?.trim()) throw new Error('No Apex code to save');
+    if (!name?.trim()) throw new Error('Code name is required');
+  }
+
+  // Storage errors come from chrome.storage; make the quota error readable.
+  storageErrorText(message) {
+    if (/quota/i.test(message || '')) return 'Extension storage is full. Export and delete some snippets, then try again.';
+    return message || 'Unknown error';
+  }
+
   async saveApexCode(name, code) {
-    if (!code || !this.currentOrgId || !name?.trim()) return null;
+    this.checkCanSave(name, code);
     const response = await ApexStorageService.saveApexCode(name.trim(), code.trim(), this.currentOrgId);
-    if (response.success) {
-      const saved = response.data || null;
-      await this.loadApexCodes();
-      return saved;
-    }
-    return null;
+    if (!response?.success) throw new Error(this.storageErrorText(response?.error));
+    await this.loadApexCodes();
+    return response.data;
+  }
+
+  // Saves imported snippets ([{ name, code }]) with one storage write
+  async saveApexCodes(items) {
+    if (!this.currentOrgId) throw new Error('Salesforce org not found. Reopen the dashboard from a Salesforce tab.');
+    const response = await ApexStorageService.saveApexCodes(items, this.currentOrgId);
+    if (!response?.success) throw new Error(this.storageErrorText(response?.error));
+    await this.loadApexCodes();
+    return response.data || [];
   }
 
   async updateApexCode(id, name, code) {
-    if (!id || !code || !this.currentOrgId || !name?.trim()) return null;
+    this.checkCanSave(name, code);
     const response = await ApexStorageService.updateApexCode(id, name.trim(), code.trim(), this.currentOrgId);
-    if (response.success) {
-      const updated = response.data || null;
-      await this.loadApexCodes();
-      return updated;
-    }
-    return null;
+    if (!response?.success) throw new Error(this.storageErrorText(response?.error));
+    await this.loadApexCodes();
+    return response.data;
   }
 
+  // Saves the editor content (update when a snippet is selected, else a new snippet). Throws on failure.
   async saveOrUpdateCurrentCode() {
     const code = this.getCurrentCode();
-    if (!code?.trim()) return false;
 
-    let success = false;
     if (this.currentSelectedCode?.id) {
       const title = this.getCurrentTitle() || this.currentSelectedCode.name;
-      const updated = await this.updateApexCode(this.currentSelectedCode.id, title, code.trim());
-      success = !!updated;
-      if (success) {
-        this.currentSelectedCode = updated;
-        const ct = document.getElementById('apexCodeTitle');
-        if (ct) ct.textContent = updated.name;
-        this.selectApexCodeById(updated.id);
-      }
+      const updated = await this.updateApexCode(this.currentSelectedCode.id, title, code);
+      this.currentSelectedCode = updated;
+      const ct = document.getElementById('apexCodeTitle');
+      if (ct) ct.textContent = updated.name;
+      this.selectApexCodeById(updated.id);
     } else {
       const title = (this.isNewCodeBlock && this.newCodeBlockTitle) ? this.newCodeBlockTitle : this.inferNewCodeTitle();
-      const saved = await this.saveApexCode(title, code.trim());
-      success = !!saved;
-      if (success) {
-        this.isNewCodeBlock = false; this.newCodeBlockTitle = null;
-        const ct = document.getElementById('apexCodeTitle');
-        if (ct) ct.textContent = saved.name;
-        this.selectApexCodeById(saved.id);
-      }
+      const saved = await this.saveApexCode(title, code);
+      this.isNewCodeBlock = false; this.newCodeBlockTitle = null;
+      const ct = document.getElementById('apexCodeTitle');
+      if (ct) ct.textContent = saved.name;
+      this.selectApexCodeById(saved.id);
     }
 
-    if (success) { this.hasUnsavedChanges = false; this.updateUnsavedIndicator(); }
-    return success;
+    this.hasUnsavedChanges = false; this.updateUnsavedIndicator();
+    return true;
   }
 
   getCurrentTitle() {
@@ -96,20 +104,20 @@ class ApexCodeManager {
     return (!text || text === 'Select Apex Code') ? 'New Code Block' : text;
   }
 
+  // The selected snippet stays selected even when the editor is emptied,
+  // so Save updates it instead of creating a duplicate.
   handleEditorContentChange() {
-    const code = this.getCurrentCode();
     this.checkForUnsavedChanges();
-    if (!code?.trim() && this.currentSelectedCode) {
-      this.currentSelectedCode = null;
-      const ct = document.getElementById('apexCodeTitle');
-      if (ct) ct.textContent = 'Select Apex Code';
-      document.querySelectorAll('.apex-code-item').forEach(i => i.classList.remove('selected'));
-    }
   }
 
   checkForUnsavedChanges() {
     this.hasUnsavedChanges = this.getCurrentCode() !== (this.currentSelectedCode?.code || '');
     this.updateUnsavedIndicator();
+  }
+
+  // Asks before unsaved editor changes are thrown away. Returns true when it is OK to continue.
+  confirmDiscardChanges() {
+    return !this.hasUnsavedChanges || confirm('You have unsaved changes in the editor. Discard them?');
   }
 
   async deleteApexCode(id) {
@@ -118,11 +126,11 @@ class ApexCodeManager {
     return false;
   }
 
-  async executeApexCode(code, session) {
-    if (!code || !session) return null;
-    const response = await ApexStorageService.executeApexCode(code, session);
-    if (response.success) return response.data;
-    throw new Error(response.error || 'Failed to execute Apex code');
+  async executeApexCode(code) {
+    if (!code) return null;
+    const response = await ApexStorageService.executeApexCode(code);
+    if (response?.success) return response.data;
+    throw new Error(response?.error || 'Failed to execute Apex code');
   }
 
   async handleDeleteClick(id) {
@@ -136,9 +144,10 @@ class ApexCodeManager {
   clearEditor() {
     const ed = document.getElementById('apexCodeEditor'), ct = document.getElementById('apexCodeTitle');
     if (ct) ct.textContent = 'Select Apex Code';
-    if (ed) { ed.value = ''; this.updateLineNumbers(); }
-    this.setEditorReadOnly(false);
+    if (ed) { ed.value = ''; this.updateSyntaxHighlighting(); }
     this.currentSelectedCode = null;
+    this.hasUnsavedChanges = false;
+    this.updateUnsavedIndicator();
   }
 
   getCurrentCode() {

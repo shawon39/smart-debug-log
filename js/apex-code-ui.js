@@ -41,21 +41,26 @@ ApexCodeManager.prototype.setupSearchEventListeners = function () {
 ApexCodeManager.prototype.updateUnsavedIndicator = function () {
     const indicator = document.getElementById('unsavedIndicator');
     if (indicator) indicator.classList.toggle('hidden', !this.hasUnsavedChanges);
-};
 
-ApexCodeManager.prototype.setEditorReadOnly = function (readOnly) {
-    const codeEditor = document.getElementById('apexCodeEditor');
-    if (codeEditor) {
-        codeEditor.readOnly = readOnly;
-        codeEditor.classList.toggle('read-only', readOnly);
+    // Ask before the tab is closed or reloaded, but only while there are unsaved changes.
+    if (this.hasUnsavedChanges && !this.beforeUnloadGuard) {
+        this.beforeUnloadGuard = (e) => { e.preventDefault(); e.returnValue = ''; };
+        window.addEventListener('beforeunload', this.beforeUnloadGuard);
+    } else if (!this.hasUnsavedChanges && this.beforeUnloadGuard) {
+        window.removeEventListener('beforeunload', this.beforeUnloadGuard);
+        this.beforeUnloadGuard = null;
     }
-    this.isReadOnly = readOnly;
 };
 
 ApexCodeManager.prototype.renderApexCodeList = function () {
     const listContainer = document.getElementById('apexCodeList');
     if (!listContainer) return;
     listContainer.innerHTML = '';
+
+    if (!this.currentOrgId) {
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 28)}</div><h4>Org not found</h4><p>Open the dashboard from a Salesforce tab to see your saved snippets</p></div>`;
+        return;
+    }
 
     if (this.apexCodes.length === 0) {
         listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 28)}</div><h4>No saved snippets</h4><p>Click "New" to create your first code snippet</p></div>`;
@@ -76,18 +81,19 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
         const date = new Date(apexCode.timestamp);
         item.innerHTML = `
       <div class="apex-code-header">
-        <div class="apex-code-name">${escapeHtml(apexCode.name)}</div>
-        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" data-id="${escapeHtml(apexCode.id)}" title="Delete">Delete</button></div>
+        <div class="apex-code-name"></div>
+        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" title="Delete">Delete</button></div>
       </div>
       <div class="apex-code-meta">
         <span class="apex-code-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
         <span class="apex-code-size">${apexCode.code.split('\n').length} lines</span>
       </div>`;
+        item.querySelector('.apex-code-name').textContent = apexCode.name;
 
         item.addEventListener('click', (e) => {
             if (e.target.classList.contains('delete-btn')) {
-                this.handleDeleteClick(e.target.dataset.id);
-            } else {
+                this.handleDeleteClick(apexCode.id);
+            } else if (this.confirmDiscardChanges()) {
                 this.selectApexCode(apexCode);
             }
         });
@@ -96,9 +102,7 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
 };
 
 ApexCodeManager.prototype.selectApexCode = function (apexCode) {
-    document.querySelectorAll('.apex-code-item').forEach(item => item.classList.remove('selected'));
-    const selectedItem = document.querySelector(`[data-id="${apexCode.id}"]`);
-    if (selectedItem) selectedItem.classList.add('selected');
+    document.querySelectorAll('.apex-code-item').forEach(item => item.classList.toggle('selected', item.dataset.id === apexCode.id));
     this.displayApexCode(apexCode);
 };
 
@@ -115,7 +119,6 @@ ApexCodeManager.prototype.displayApexCode = function (apexCode) {
     this.currentSelectedCode = apexCode;
     this.hasUnsavedChanges = false;
     this.updateUnsavedIndicator();
-    this.setEditorReadOnly(false);
 };
 
 ApexCodeManager.prototype.beginInlineTitleEdit = function () {
@@ -141,9 +144,11 @@ ApexCodeManager.prototype.beginInlineTitleEdit = function () {
         if (hasSelection) {
             try {
                 const updated = await this.updateApexCode(this.currentSelectedCode.id, newName, this.getCurrentCode());
-                if (updated) { this.currentSelectedCode = updated; this.selectApexCodeById(updated.id); }
-                else codeTitle.textContent = original;
-            } catch (e) { codeTitle.textContent = original; }
+                this.currentSelectedCode = updated; this.selectApexCodeById(updated.id);
+            } catch (e) {
+                codeTitle.textContent = original;
+                alert('Could not rename: ' + e.message);
+            }
         } else {
             this.isNewCodeBlock = true; this.newCodeBlockTitle = newName;
         }
@@ -225,6 +230,7 @@ ApexCodeManager.prototype.setupSyntaxHighlighting = function () {
 };
 
 ApexCodeManager.prototype.addNewCodeBlock = function () {
+    if (!this.confirmDiscardChanges()) return;
     this.currentSelectedCode = null;
     const ed = document.getElementById('apexCodeEditor'), ct = document.getElementById('apexCodeTitle');
     if (ed) { ed.value = ''; this.updateSyntaxHighlighting(); }
@@ -246,7 +252,7 @@ ApexCodeManager.prototype.addNewCodeBlock = function () {
     }
     document.querySelectorAll('.apex-code-item').forEach(i => i.classList.remove('selected'));
     this.hasUnsavedChanges = false; this.updateUnsavedIndicator();
-    this.setEditorReadOnly(false); this.isNewCodeBlock = true; this.newCodeBlockTitle = 'New Code Block';
+    this.isNewCodeBlock = true; this.newCodeBlockTitle = 'New Code Block';
 };
 
 ApexCodeManager.prototype.exportApexCodes = function () {
@@ -273,21 +279,36 @@ ApexCodeManager.prototype.exportApexCodes = function () {
 
 ApexCodeManager.prototype.importApexCodes = async function (file) {
     if (!file) return;
+    const MAX_FILE_BYTES = 2 * 1024 * 1024;
+    const MAX_CODE_CHARS = 100000;
     try {
+        if (file.size > MAX_FILE_BYTES) throw new Error('The file is larger than 2 MB');
         const data = JSON.parse(await file.text());
         // Accept either a bare array of snippets or the { snippets: [...] } export shape.
         const snippets = Array.isArray(data) ? data : (Array.isArray(data?.snippets) ? data.snippets : null);
         if (!snippets) throw new Error('Unrecognized file format');
 
-        let imported = 0, skipped = 0;
+        // Skip empty snippets, very large ones, and ones already saved (same name and code).
+        const seen = new Set(this.apexCodes.map(c => `${c.name}\n${c.code}`));
+        const items = [];
+        let skipped = 0, tooLarge = 0;
         for (const s of snippets) {
-            const code = (s && typeof s.code === 'string') ? s.code.trim() : '';
+            const code = (s && typeof s.code === 'string') ? ApexStorageService.sanitizeApexCode(s.code) : '';
             if (!code) { skipped++; continue; }
+            if (code.length > MAX_CODE_CHARS) { tooLarge++; continue; }
             const name = (s && typeof s.name === 'string' && s.name.trim()) ? s.name.trim() : 'Imported Snippet';
-            // saveApexCode assigns a fresh id/timestamp, so imports never clobber existing snippets.
-            if (await this.saveApexCode(name, code)) imported++; else skipped++;
+            const key = `${name}\n${code}`;
+            if (seen.has(key)) { skipped++; continue; }
+            seen.add(key);
+            items.push({ name, code });
         }
-        alert(`Imported ${imported} code block(s)` + (skipped ? `, skipped ${skipped}.` : '.'));
+        // One storage write for the whole file; new ids are assigned, so existing snippets are never replaced.
+        if (items.length) await this.saveApexCodes(items);
+
+        let message = `Imported ${items.length} code block(s).`;
+        if (skipped) message += ` Skipped ${skipped} empty or already saved.`;
+        if (tooLarge) message += ` Skipped ${tooLarge} larger than ${MAX_CODE_CHARS.toLocaleString('en-US')} characters.`;
+        alert(message);
     } catch (e) {
         alert('Import failed: ' + (e.message || 'invalid file'));
     }
@@ -300,14 +321,28 @@ ApexCodeManager.prototype.openModal = function () {
         modal.style.display = 'flex';
         document.getElementById('closeApexManagerBtn')?.focus();
         if (!this.isInitialized && this.currentOrgId) { this.loadApexCodes(); this.isInitialized = true; }
-        setTimeout(() => {
+        // Bind the editor, search and rename listeners once (binding on every open stacked duplicate handlers).
+        if (!this.listenersBound) {
+            this.listenersBound = true;
             this.setupSyntaxHighlighting(); this.setupSearchEventListeners();
-            const editBtn = document.getElementById('editApexTitleBtn');
-            if (editBtn && !editBtn.dataset.bound) { editBtn.dataset.bound = '1'; editBtn.addEventListener('click', () => this.beginInlineTitleEdit()); }
+            document.getElementById('editApexTitleBtn')?.addEventListener('click', () => this.beginInlineTitleEdit());
             const titleEl = document.getElementById('apexCodeTitle');
-            if (titleEl && !titleEl.dataset.bound) { titleEl.dataset.bound = '1'; titleEl.title = 'Double-click to rename'; titleEl.addEventListener('dblclick', () => this.beginInlineTitleEdit()); }
-        }, 100);
+            if (titleEl) { titleEl.title = 'Double-click to rename'; titleEl.addEventListener('dblclick', () => this.beginInlineTitleEdit()); }
+        }
     }
+};
+
+// Selects and scrolls to a line in the editor and marks its line number (used for compile errors).
+ApexCodeManager.prototype.highlightEditorLine = function (line) {
+    const ed = document.getElementById('apexCodeEditor');
+    if (!ed || !(line > 0)) return;
+    const lines = ed.value.split('\n');
+    if (line > lines.length) return;
+    const start = lines.slice(0, line - 1).reduce((total, text) => total + text.length + 1, 0);
+    ed.focus();
+    ed.setSelectionRange(start, start + lines[line - 1].length);
+    ed.scrollTop = Math.max(0, (line - 3) * (parseFloat(getComputedStyle(ed).lineHeight) || 22));
+    document.querySelectorAll('#lineNumbers .line-number').forEach((el, i) => el.classList.toggle('error-line', i === line - 1));
 };
 
 ApexCodeManager.prototype.closeModal = function () {

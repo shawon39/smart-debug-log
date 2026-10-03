@@ -577,7 +577,7 @@ async function copyRawResponse() {
 
     const { copyRawBtn } = elements;
     const originalText = copyRawBtn.innerHTML;
-    copyRawBtn.innerHTML = '✓';
+    copyRawBtn.innerHTML = Icons.svg('check');
     copyRawBtn.disabled = true;
 
     setTimeout(() => {

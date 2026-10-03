@@ -138,12 +138,12 @@ function clearAllLogs() {
   // Show confirmation message
   const { clearLogsBtn } = elements;
   if (clearLogsBtn) {
-    const originalText = clearLogsBtn.textContent;
-    clearLogsBtn.textContent = 'Cleared ✓';
+    const originalText = clearLogsBtn.innerHTML;
+    clearLogsBtn.innerHTML = Icons.svg('check');
     clearLogsBtn.classList.add('success-feedback');
     
     setTimeout(() => {
-      clearLogsBtn.textContent = originalText;
+      clearLogsBtn.innerHTML = originalText;
       clearLogsBtn.classList.remove('success-feedback');
     }, 2000);
   }
@@ -168,12 +168,12 @@ function markAllLogsAsRead() {
   // Show a brief confirmation message
   const { markAllReadBtn } = elements;
   if (markAllReadBtn) {
-    const originalText = markAllReadBtn.textContent;
-    markAllReadBtn.textContent = 'Marked as Read ✓';
+    const originalText = markAllReadBtn.innerHTML;
+    markAllReadBtn.innerHTML = Icons.svg('check');
     markAllReadBtn.classList.add('success-feedback');
     
     setTimeout(() => {
-      markAllReadBtn.textContent = originalText;
+      markAllReadBtn.innerHTML = originalText;
       markAllReadBtn.classList.remove('success-feedback');
     }, 2000);
   }

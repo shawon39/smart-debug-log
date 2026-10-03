@@ -15,7 +15,7 @@ async function copySessionUrl() {
 
     const { copySessionBtn } = elements;
     const originalText = copySessionBtn.innerHTML;
-    copySessionBtn.innerHTML = 'Copied';
+    copySessionBtn.innerHTML = `${Icons.svg('check')}Copied`;
     copySessionBtn.disabled = true;
 
     setTimeout(() => {
@@ -125,7 +125,7 @@ async function deployPrettierClass() {
 
   // Validate session has required properties
   if (!currentSession.sessionId && !currentSession.key) {
-    showToast('❌ Invalid session: No authentication token found. Please refresh Salesforce and try again.', 5000);
+    showToast('Invalid session: No authentication token found. Please refresh Salesforce and try again.', 5000);
     return;
   }
 
@@ -141,14 +141,14 @@ async function deployPrettierClass() {
     }
 }`;
 
-  const classDescription = `📋 Console Utility Class
+  const classDescription = `Console Utility Class
 
 Ready to use enhanced debug logging for your Salesforce development.
 
-⚡ Code Example:
+Code Example:
 List<Account> accountList = [SELECT Id, Name, Industry, Type FROM Account LIMIT 5];
 
-⚡ Usage Examples:
+Usage Examples:
 Console.log(accountList);
 Console.log('Account Results', accountList);
 
@@ -163,7 +163,7 @@ Deploy to org: ${sfHost}`;
   // Update button state
   const { deployPrettierBtn } = elements;
   const originalText = deployPrettierBtn.innerHTML;
-  deployPrettierBtn.innerHTML = 'Deploying...';
+  deployPrettierBtn.innerHTML = `${Icons.svg('loader')}Deploying...`;
   deployPrettierBtn.disabled = true;
 
   try {
@@ -175,7 +175,7 @@ Deploy to org: ${sfHost}`;
     });
 
     if (existingCheck.success && existingCheck.data?.records?.length > 0) {
-      showToast('✅ Console class already exists in this org.');
+      showToast('Console class already exists in this org.');
       deployPrettierBtn.innerHTML = originalText;
       deployPrettierBtn.disabled = false;
       return;
@@ -197,10 +197,10 @@ Deploy to org: ${sfHost}`;
     });
 
     if (result.success) {
-      showToast('✅ Class is deployed');
+      showToast('Console class deployed');
 
       // Update button to show success
-      deployPrettierBtn.innerHTML = 'Deployed ✓';
+      deployPrettierBtn.innerHTML = `${Icons.svg('check')}Deployed`;
       deployPrettierBtn.classList.add('deploy-success');
 
       setTimeout(() => {

@@ -15,27 +15,37 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 12px 14px 12px 20px;
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-primary);
 }
 
 .modal-title {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
+.modal-title > [data-icon] {
+  color: var(--text-muted);
+}
+
 .modal-close-btn {
   background: none;
   border: none;
-  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modal-close-btn:hover {
@@ -173,9 +183,7 @@
 }
 
 .empty-apex-state .empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  margin-bottom: 12px;
 }
 
 .empty-apex-state h4 {
@@ -536,35 +544,23 @@
   gap: 6px;
   padding: 6px 10px;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .result-header.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid transparent;
 }
 
 .result-header.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-[data-theme="dark"] .result-header.success {
-  background: #1e3d1f;
-  color: #d1f2d1;
-  border-color: #2d5a2d;
-}
-
-[data-theme="dark"] .result-header.error {
-  background: #3d1e1e;
-  color: #f2d1d1;
-  border-color: #5a2d2d;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid transparent;
 }
 
 .result-icon {
-  font-size: 14px;
+  display: inline-flex;
 }
 
 .result-title {
@@ -636,7 +632,7 @@
 }
 
 /* Panel Headers Improvements */
-.panel-header {
+.apex-manager-modal .panel-header {
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-primary);
   padding: 8px 16px;
@@ -650,16 +646,28 @@
 
 /* Apex Search Container */
 .apex-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1;
   max-width: 200px;
 }
 
+.apex-search-container .search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .apex-search-input {
   width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 4px;
-  font-size: 11px;
+  height: 30px;
+  padding: 0 8px 0 30px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: all 0.2s ease;
@@ -668,8 +676,8 @@
 
 .apex-search-input:focus {
   outline: none;
-  border-color: var(--bg-button);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .apex-search-input::placeholder {
@@ -699,9 +707,7 @@
 
 .apex-list-panel .panel-actions .button {
   flex: 1 1 0;
-  font-size: 11px;
-  padding: 4px 6px;
-  min-height: 26px;
+  padding: 0 6px;
   justify-content: center;
   text-align: center;
   white-space: nowrap;
@@ -711,9 +717,11 @@
 
 /* Unsaved Changes Indicator */
 .unsaved-indicator {
-  color: #ff6b35;
-  font-size: 12px;
-  margin-left: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-left: 4px;
   animation: pulse 2s infinite;
 }
 
@@ -754,34 +762,24 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-.panel-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 /* Small pencil button for inline rename — visible by default so it's discoverable */
 .title-edit-btn {
-  margin-left: 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 1;
-  padding: 3px 7px;
-  border-radius: 4px;
+  margin-left: 4px;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  text-transform: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
 }
 
 .title-edit-btn:hover {
-  background: var(--bg-button);
-  border-color: var(--bg-button);
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .panel-actions {
@@ -795,12 +793,7 @@
   margin-left: auto;
 }
 
-.panel-actions .button {
-  font-size: 11px;
-  padding: 4px 12px;
-  min-height: 28px;
-  font-weight: 500;
-}
+
 
 /* Java-style Apex Syntax Highlighting Colors */
 .apex-keyword {
@@ -875,32 +868,33 @@
   color: #c586c0;
 }
 
-/* Welcome States - Compact */
-.welcome-state {
+/* Welcome States - Compact (execution results) */
+.apex-manager-modal .welcome-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 60px;
+  padding: 20px;
   text-align: center;
   color: var(--text-secondary);
 }
 
-.welcome-state .welcome-icon {
-  font-size: 20px;
-  margin-bottom: 4px;
-  opacity: 0.5;
+.apex-manager-modal .welcome-state .welcome-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  margin-bottom: 8px;
 }
 
-.welcome-state h4 {
+.apex-manager-modal .welcome-state h4 {
   margin: 0 0 2px 0;
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: 12px;
 }
 
-.welcome-state p {
+.apex-manager-modal .welcome-state p {
   margin: 0;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 /* Responsive Design */

@@ -385,7 +385,7 @@ function generateFilterPills(errorData, activeFilters) {
  */
 function formatErrorsForDisplay(errorData, filters = { showFatal: true, showException: true }) {
   if (!errorData.hasErrors) {
-    return '<div class="error-status-success">✅ No errors found in this debug log</div>';
+    return `<div class="error-status-success">${Icons.svg('circleCheck', 14)}No errors found in this debug log</div>`;
   }
 
   // Smart filter adjustment: if only exceptions exist and fatal is selected, auto-show exceptions
@@ -415,7 +415,7 @@ function formatErrorsForDisplay(errorData, filters = { showFatal: true, showExce
     if (!adjustedFilters.showFatal && !adjustedFilters.showException) {
       message = 'Please select at least one filter to view errors';
     }
-    return pillsHtml + `<div class="error-status-info">ℹ️ ${message}</div>`;
+    return pillsHtml + `<div class="error-status-info">${Icons.svg('info', 14)}${message}</div>`;
   }
 
   let html = pillsHtml + '<div class="error-section">';

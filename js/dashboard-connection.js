@@ -127,7 +127,16 @@ function updateConnectionStatus(connected, statusText = '', session = null) {
   if (connected && session) {
     const displayName = session.orgName || session.hostname || sfHost;
     const orgId = session.organizationId || session.orgId || '';
-    connectionStatusText.textContent = `Connected ${displayName}${orgId ? ' (' + orgId + ')' : ''}`;
+    connectionStatusText.textContent = displayName;
+    if (orgId) {
+      const orgIdEl = document.createElement('span');
+      orgIdEl.className = 'org-id';
+      orgIdEl.textContent = orgId;
+      connectionStatusText.appendChild(orgIdEl);
+    }
+    connectionStatusText.title = `Connected to ${displayName}${orgId ? ' (' + orgId + ')' : ''}`;
+    connectionStatusText.classList.add('is-connected');
+    connectionStatusText.classList.remove('is-error');
     
     if (orgActions) {
       orgActions.classList.remove('hidden');
@@ -146,6 +155,9 @@ function updateConnectionStatus(connected, statusText = '', session = null) {
     setTimeout(checkOAuthTokenStatus, 500);
   } else {
     connectionStatusText.textContent = statusText;
+    connectionStatusText.title = statusText;
+    connectionStatusText.classList.remove('is-connected');
+    connectionStatusText.classList.add('is-error');
     
     if (orgActions) {
       orgActions.classList.add('hidden');
@@ -210,7 +222,7 @@ async function checkOAuthTokenStatus() {
         // Token exists and is valid - hide warning, show revoke button
         hideTokenWarning();
         if (revokeBtn) {
-          revokeBtn.style.display = 'inline-block';
+          revokeBtn.style.display = 'inline-flex';
         }
       }
     } else {
@@ -241,12 +253,12 @@ function hideTokenWarning() {
 
 async function generateAccessToken() {
   const button = document.getElementById('openDevConsoleBtn');
-  const originalText = button?.textContent;
+  const originalText = button?.innerHTML;
   
   try {
     if (button) {
       button.disabled = true;
-      button.textContent = '🔄 Authenticating...';
+      button.innerHTML = `${Icons.svg('loader')}Authenticating...`;
     }
     
     // Get the domain from URL parameter or use detected sfHost
@@ -259,7 +271,7 @@ async function generateAccessToken() {
     
     if (response && response.success) {
       if (button) {
-        button.textContent = '✅ Token Generated!';
+        button.innerHTML = `${Icons.svg('check')}Token generated`;
       }
       hideTokenWarning();
       
@@ -286,7 +298,7 @@ async function generateAccessToken() {
       setTimeout(async () => {
         await loadDebugLogs();
         if (button) {
-          button.textContent = originalText;
+          button.innerHTML = originalText;
           button.disabled = false;
         }
       }, 1500);
@@ -296,9 +308,9 @@ async function generateAccessToken() {
   } catch (error) {
     console.error('Token generation failed:', error);
     if (button) {
-      button.textContent = '❌ Failed - Try Again';
+      button.innerHTML = `${Icons.svg('circleX')}Failed - try again`;
       setTimeout(() => {
-        button.textContent = originalText;
+        button.innerHTML = originalText;
         button.disabled = false;
       }, 2000);
     }

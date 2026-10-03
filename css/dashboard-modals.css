@@ -4,11 +4,11 @@
 .dev-console-warning {
   background: var(--bg-dev-warning);
   border: 1px solid var(--border-dev-warning);
-  border-left: 4px solid var(--border-dev-warning-left);
   color: var(--text-dev-warning);
-  padding: 8px 16px;
-  border-radius: 6px;
-  margin: 8px 20px;
+  padding: 10px 12px 10px 14px;
+  border-radius: var(--radius);
+  margin: 12px 16px 0;
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -17,10 +17,6 @@
   transition: all 0.3s ease;
 }
 
-.dev-console-warning:hover {
-  box-shadow: var(--shadow-dev-warning-hover);
-  transform: translateY(-1px);
-}
 
 .dev-console-warning.hidden {
   display: none;
@@ -34,10 +30,11 @@
 }
 
 .warning-icon {
-  font-size: 16px;
-  color: var(--border-dev-warning-left);
-  opacity: 0.8;
-  transition: color 0.3s ease;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 .warning-text {
@@ -70,38 +67,40 @@
   background: var(--bg-dev-warning-btn);
   border: none;
   color: var(--text-dev-warning-btn);
-  padding: 5px 12px;
-  border-radius: 4px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 11px;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background 0.2s ease;
   display: flex;
   align-items: center;
-  gap: 4px;
-  box-shadow: var(--shadow-dev-warning-btn);
+  gap: 6px;
 }
 
 .dev-console-btn:hover {
   background: var(--bg-dev-warning-btn-hover);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-dev-warning-btn-hover);
 }
 
-.dev-console-btn:active {
-  transform: translateY(0);
-  box-shadow: var(--shadow-dev-warning-btn);
+.dev-console-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
 }
 
 .dismiss-btn {
   background: var(--bg-dismiss-btn);
-  border: 1px solid var(--border-dismiss-btn);
+  border: none;
   color: var(--text-dismiss-btn);
-  padding: 4px 10px;
-  border-radius: 4px;
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 10px;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease;
 }
 
 .dismiss-btn:hover {
@@ -128,7 +127,8 @@
 .modal-content {
   background: var(--bg-modal);
   padding: 24px;
-  border-radius: 8px;
+  border-radius: 12px;
+  border: 1px solid var(--border-primary);
   max-width: 500px;
   width: 90%;
   max-height: 80vh;
@@ -215,7 +215,7 @@
 
 /* Search Container */
 .raw-search-container {
-  padding: 8px 16px;
+  padding: 8px 12px;
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-panel);
   transition: all 0.3s ease;
@@ -229,10 +229,12 @@
 
 #rawSearchInput {
   flex: 1;
-  padding: 6px 10px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 4px;
-  font-size: 11px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: all 0.3s ease;
@@ -240,8 +242,8 @@
 
 #rawSearchInput:focus {
   outline: none;
-  border-color: var(--bg-button);
-  box-shadow: 0 0 0 2px rgba(0, 161, 224, 0.2);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .search-controls {
@@ -259,21 +261,23 @@
 
 .search-nav-btn,
 .search-clear-btn {
-  padding: 4px 6px;
-  border: 1px solid var(--border-secondary);
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-primary);
   background: var(--bg-primary);
-  color: var(--text-primary);
-  border-radius: 3px;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 10px;
-  transition: all 0.3s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .search-nav-btn:hover,
 .search-clear-btn:hover {
-  background: var(--bg-button);
-  color: var(--text-button);
-  border-color: var(--bg-button);
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .search-nav-btn:disabled {

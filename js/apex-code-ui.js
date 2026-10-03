@@ -58,12 +58,12 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
     listContainer.innerHTML = '';
 
     if (this.apexCodes.length === 0) {
-        listContainer.innerHTML = '<div class="empty-apex-state"><div class="empty-icon">📝</div><h4>No Apex Code Saved</h4><p>Click "Add Code Block" to create your first code snippet</p></div>';
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 28)}</div><h4>No saved snippets</h4><p>Click "New" to create your first code snippet</p></div>`;
         return;
     }
 
     if (this.filteredCodes.length === 0 && this.searchTerm.trim()) {
-        listContainer.innerHTML = '<div class="empty-apex-state"><div class="empty-icon">🔍</div><h4>No Results Found</h4><p>No code blocks match your search term</p></div>';
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('search', 28)}</div><h4>No results</h4><p>No snippets match your search</p></div>`;
         return;
     }
 

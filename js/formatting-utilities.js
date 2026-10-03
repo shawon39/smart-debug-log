@@ -34,47 +34,44 @@ function formatGovernorLimits(limitsText) {
       return limitsText;
     }
 
-    let formattedLimits = escapeHtml(limitsText);
+    // Parse "LIMIT_USAGE_FOR_NS|ns|" headers and "Label: used out of max" rows
+    let namespace = '';
+    const rows = [];
+    limitsText.split('\n').forEach(line => {
+      const ns = line.match(/LIMIT_USAGE_FOR_NS\|([^|]+)\|/);
+      if (ns) {
+        namespace = ns[1];
+        return;
+      }
+      const m = line.match(/^\s*([A-Za-z][A-Za-z ]*?):\s*(\d+)\s+out of\s+(\d+)/);
+      if (m) {
+        const label = m[1].replace(/^(Number of|Maximum)\s+/i, '');
+        rows.push({ label: label.charAt(0).toUpperCase() + label.slice(1), used: Number(m[2]), max: Number(m[3]) });
+      }
+    });
 
-    // Format the main header (LIMIT_USAGE_FOR_NS)
-    formattedLimits = formattedLimits.replace(
-      /^(LIMIT_USAGE_FOR_NS.*?)$/gm,
-      `<div class="limit-header">$1</div>`
-    );
+    // Unknown format: show the text as-is rather than nothing
+    if (rows.length === 0) {
+      return `<pre class="limits-raw">${escapeHtml(limitsText)}</pre>`;
+    }
 
-    // Format category lines like "Number of SOQL queries: 0 out of 1000"
-    formattedLimits = formattedLimits.replace(
-      /^([A-Za-z\s]+):\s*(\d+)\s+(out of)\s+(\d+)(.*)$/gm,
-      `<div style="margin: 1px 0;"><span class="limit-category">$1:</span> <span class="limit-used">$2</span> <span class="limit-separator">$3</span> <span class="limit-value">$4</span>$5</div>`
-    );
+    const rowsHtml = rows.map(({ label, used, max }) => {
+      const pct = max > 0 ? Math.min(100, (used / max) * 100) : 0;
+      const level = pct >= 80 ? 'danger' : pct >= 50 ? 'warn' : 'ok';
+      return `
+        <div class="limit-row level-${level}${used === 0 ? ' is-zero' : ''}">
+          <div class="limit-row-head">
+            <span class="limit-name">${escapeHtml(label)}</span>
+            <span class="limit-nums"><b>${used.toLocaleString()}</b> / ${max.toLocaleString()}</span>
+          </div>
+          <div class="limit-bar"><span style="width: ${pct.toFixed(1)}%"></span></div>
+        </div>`;
+    }).join('');
 
-    // Format percentage lines like "****** CLOSE TO LIMIT (85%)"
-    formattedLimits = formattedLimits.replace(
-      /(\*+)\s*(CLOSE TO LIMIT|OVER LIMIT)\s*\((\d+%)\)/g,
-      '<div style="margin: 1px 0;"><span class="limit-separator">$1</span> <span class="limit-used">$2</span> <span class="limit-percentage">($3)</span></div>'
-    );
-
-    // Format OK status percentages
-    formattedLimits = formattedLimits.replace(
-      /\((\d+%)\)$/gm,
-      '<span class="limit-percentage">($1)</span>'
-    );
-
-    // Format number ranges like "0 out of 1000" (fallback for any missed cases)
-    formattedLimits = formattedLimits.replace(
-      /(\d+)\s+(out of)\s+(\d+)/g,
-      `<span class="limit-used">$1</span> <span class="limit-separator">$2</span> <span class="limit-value">$3</span>`
-    );
-
-    // Improved spacing between sections
-    formattedLimits = formattedLimits.replace(/\n([A-Za-z])/g, '\n\n$1');
-
-    // Wrap the entire content in a container with proper spacing
-    formattedLimits = `<div style="font-family: Monaco, 'Courier New', monospace; font-size: 10px; line-height: 1.2; padding: 4px 0;">${formattedLimits}</div>`;
-
-    return formattedLimits;
+    const nsHtml = namespace ? `<div class="limits-ns">Governor limits <span>${escapeHtml(namespace)}</span></div>` : '';
+    return `${nsHtml}<div class="limits-list">${rowsHtml}</div>`;
   } catch (error) {
-    return limitsText;
+    return `<pre class="limits-raw">${escapeHtml(limitsText)}</pre>`;
   }
 }
 

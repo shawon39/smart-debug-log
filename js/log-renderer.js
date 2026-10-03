@@ -245,13 +245,13 @@ class LogRenderer {
     // Build indicators HTML (order: error, exception, debug)
     let indicatorsHtml = '';
     if (errorStatus) {
-      indicatorsHtml += '<span class="has-error-indicator" title="Contains fatal errors">❗</span>';
+      indicatorsHtml += `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonAlert', 13)}</span>`;
     }
     if (exceptionStatus) {
-      indicatorsHtml += '<span class="has-exception-indicator" title="Contains exceptions">⚠️</span>';
+      indicatorsHtml += `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('triangleAlert', 13)}</span>`;
     }
     if (debugStatus) {
-      indicatorsHtml += '<span class="has-debug-indicator" title="Contains debug messages">📋</span>';
+      indicatorsHtml += `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('message', 13)}</span>`;
     }
 
     // Add indicators if any exist
@@ -480,7 +480,7 @@ class LogRenderer {
     const isLikelyExpired = hoursSinceLog > 24;
 
     const expiredClass = isLikelyExpired ? 'log-item-expired' : '';
-    const expiredIndicator = isLikelyExpired ? '<span class="expired-indicator" title="This log may have expired (older than 24 hours)">⚠️</span>' : '';
+    const expiredIndicator = isLikelyExpired ? `<span class="expired-indicator" title="This log may have expired (older than 24 hours)">${Icons.svg('clock', 13)}</span>` : '';
 
     // Check if this log is unread
     const isUnread = !isLogRead(log.Id);
@@ -488,26 +488,26 @@ class LogRenderer {
 
     // Check cache for indicators
     const debugStatus = logCache.getDebugStatus(log.Id);
-    const hasDebugIndicator = (debugStatus === true) ? '<span class="has-debug-indicator" title="Contains debug messages">📋</span>' : '';
+    const hasDebugIndicator = (debugStatus === true) ? `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('message', 13)}</span>` : '';
 
     const errorStatus = logCache.getErrorStatus(log.Id);
-    const hasErrorIndicator = (errorStatus === true) ? '<span class="has-error-indicator" title="Contains fatal errors">❗</span>' : '';
+    const hasErrorIndicator = (errorStatus === true) ? `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonAlert', 13)}</span>` : '';
 
     const exceptionStatus = logCache.getExceptionStatus(log.Id);
-    const hasExceptionIndicator = (exceptionStatus === true) ? '<span class="has-exception-indicator" title="Contains exceptions">⚠️</span>' : '';
+    const hasExceptionIndicator = (exceptionStatus === true) ? `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('triangleAlert', 13)}</span>` : '';
 
     return `
     <div class="log-item ${this.selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
       <div class="log-header">
-        <div class="log-id">${escapeHtml(log.Id)}${unreadIndicator}</div>
+        <span class="log-operation" title="${escapeHtml(log.Operation || 'Unknown')}">${escapeHtml(log.Operation || 'Unknown')}</span>
         <div class="log-time">
           ${expiredIndicator}${hasErrorIndicator}${hasExceptionIndicator}${hasDebugIndicator}
           ${formatDateTimeWithHighlight(log.StartTime)}
         </div>
       </div>
       <div class="log-details">
-        <span class="log-operation">${escapeHtml(log.Operation || 'Unknown')}</span>
-        <span class="log-duration">${log.DurationMilliseconds || 0}ms</span>
+        <span class="log-id">${escapeHtml(log.Id)}${unreadIndicator}</span>
+        <span class="log-duration">${log.DurationMilliseconds || 0} ms</span>
         <span class="log-size">${formatFileSize(log.LogLength || 0)}</span>
       </div>
     </div>

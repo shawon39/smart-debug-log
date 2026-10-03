@@ -176,8 +176,9 @@ class SmartDebugLogPopup {
   showButton() {
     const button = document.getElementById('openDashboardBtn');
     if (button) {
-      button.style.display = 'block';
-      button.textContent = 'View Debug Logs';
+      button.style.display = '';
+      // Change only the label so the SVG icon stays
+      (button.querySelector('span') || button).textContent = 'View Debug Logs';
     }
   }
 
@@ -185,17 +186,18 @@ class SmartDebugLogPopup {
     const btn = document.getElementById('openDashboardBtn');
 
     // Check if we are in "Go Back" mode
-    if (btn && btn.textContent === 'Go Back Salesforce') {
+    const label = btn?.querySelector('span') || btn;
+    if (btn && label.textContent === 'Go Back Salesforce') {
       const sfHost = btn.dataset.sfHost;
       if (sfHost) {
         return this.goBackToSalesforce(sfHost);
       }
     }
 
-    const originalText = btn.textContent;
+    const originalText = label.textContent;
 
     try {
-      btn.textContent = 'Opening...';
+      label.textContent = 'Opening...';
       btn.disabled = true;
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
@@ -270,7 +272,7 @@ class SmartDebugLogPopup {
         console.error('Dashboard launch failed:', fallbackError);
       }
     } finally {
-      btn.textContent = originalText;
+      label.textContent = originalText;
       btn.disabled = false;
       setTimeout(() => window.close(), 100);
     }
@@ -613,7 +615,7 @@ class SmartDebugLogPopup {
     const setupBtn = document.getElementById('goToSetupBtn');
 
     if (mainBtn) {
-      mainBtn.textContent = 'Go Back Salesforce';
+      (mainBtn.querySelector('span') || mainBtn).textContent = 'Go Back Salesforce';
       // Store the host in the button for the click handler
       mainBtn.dataset.sfHost = sfHost;
     }

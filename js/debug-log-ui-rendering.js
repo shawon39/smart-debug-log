@@ -252,7 +252,7 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
     if (!container) return;
 
     if (this.traceFlags.length === 0) {
-        container.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div>No trace flags found</div></div>';
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">${Icons.svg('flag', 24)}</div><div>No trace flags found</div></div>`;
         return;
     }
 
@@ -585,9 +585,9 @@ DebugLogManagerUI.prototype.handleDeleteTraceFlag = async function (tid) {
 
 DebugLogManagerUI.prototype.handleDeleteAllLogs = async function () {
     if (!confirm('Delete ALL debug logs?')) return;
-    const btn = document.getElementById('deleteAllLogsBtn'); const orig = btn.textContent;
+    const btn = document.getElementById('deleteAllLogsBtn'); const orig = btn.innerHTML;
     try {
-        btn.disabled = true; btn.textContent = 'Deleting...';
+        btn.disabled = true; btn.innerHTML = `${Icons.svg('loader')}Deleting...`;
         const res = await this.deleteAllDebugLogs();
         if (res.deleted > 0) {
             if (typeof logLoader !== 'undefined') logLoader.clearCache();
@@ -598,7 +598,7 @@ DebugLogManagerUI.prototype.handleDeleteAllLogs = async function () {
             this.showNotification(`Deleted ${res.deleted} logs`, 'success');
         } else this.showNotification('No logs found', 'info');
     } catch (e) { this.showNotification('Failed: ' + e.message, 'error'); }
-    finally { btn.disabled = false; btn.textContent = orig; }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
 };
 
 DebugLogManagerUI.prototype.openModal = async function () {

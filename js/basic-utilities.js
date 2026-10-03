@@ -64,9 +64,11 @@ function formatDateTime(dateTimeString) {
 function formatDateTimeWithHighlight(dateTimeString) {
   try {
     const date = new Date(dateTimeString);
-    const dateStr = date.toLocaleDateString();
-    const timeStr = date.toLocaleTimeString();
-    return `${dateStr} <span class="time-highlight">${timeStr}</span>`;
+    if (isNaN(date)) return escapeHtml(dateTimeString || 'Unknown');
+    const isToday = date.toDateString() === new Date().toDateString();
+    const dateStr = isToday ? '' : `${date.toLocaleDateString([], { month: 'short', day: 'numeric' })} `;
+    const timeStr = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' });
+    return `${dateStr}<span class="time-highlight">${timeStr}</span>`;
   } catch (error) {
     return dateTimeString || 'Unknown';
   }

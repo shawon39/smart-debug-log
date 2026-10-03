@@ -41,7 +41,7 @@ class ApexExecutor {
     
     if (runBtn) {
       runBtn.disabled = true;
-      runBtn.innerHTML = 'Running...';
+      runBtn.innerHTML = `${Icons.svg('loader')}Running...`;
     }
     
     if (resultsContent) {
@@ -59,7 +59,7 @@ class ApexExecutor {
     
     if (runBtn) {
       runBtn.disabled = false;
-      runBtn.innerHTML = 'Execute';
+      runBtn.innerHTML = `${Icons.svg('play')}Execute`;
     }
   }
 
@@ -76,7 +76,7 @@ class ApexExecutor {
       content = `
         <div class="execution-success">
           <div class="result-header success">
-            <div class="result-icon">✅</div>
+            <div class="result-icon">${Icons.svg('circleCheck', 18)}</div>
             <div class="result-title">Execution Successful</div>
           </div>
           <div class="result-details">
@@ -118,7 +118,7 @@ class ApexExecutor {
       content = `
         <div class="execution-error">
           <div class="result-header error">
-            <div class="result-icon">❌</div>
+            <div class="result-icon">${Icons.svg('circleX', 18)}</div>
             <div class="result-title">Execution Failed</div>
           </div>
           <div class="result-details">
@@ -147,7 +147,7 @@ class ApexExecutor {
     resultsContent.innerHTML = `
       <div class="execution-error">
         <div class="result-header error">
-          <div class="result-icon">❌</div>
+          <div class="result-icon">${Icons.svg('circleX', 18)}</div>
           <div class="result-title">Execution Error</div>
         </div>
         <div class="result-details">

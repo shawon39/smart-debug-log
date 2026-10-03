@@ -2,16 +2,40 @@
 // This file handles session actions, deploy functionality, and modal interactions
 
 // Session management functions
+
+// Login link for this org. Prefers a one-time link (works once, for about a minute) when the
+// OAuth token has the "web" scope; otherwise frontdoor.jsp with the session ID.
+async function getSessionLoginUrl() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: 'GET_SINGLE_ACCESS_URL',
+      sfHost: getHostFromUrl() || sfHost
+    });
+    if (response && response.success && response.data && response.data.url) {
+      return { url: response.data.url, oneTime: true };
+    }
+  } catch (error) {
+    // Fall back to the session ID link
+  }
+
+  const sessionId = currentSession.key || currentSession.sessionId;
+  if (!sessionId) throw new Error('No session found for this org');
+  return { url: `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`, oneTime: false };
+}
+
 async function copySessionUrl() {
   if (!currentSession || !sfHost) return;
 
-  const sessionId = currentSession.key || currentSession.sessionId;
-  if (!sessionId) return;
-
-  const sessionUrl = `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`;
+  const confirmed = await showConfirmDialog({
+    title: 'Copy session link?',
+    message: 'Anyone who opens this link is logged in to Salesforce as you, with full access. Do not share it or paste it into chats, tickets or emails.',
+    confirmLabel: 'Copy link'
+  });
+  if (!confirmed) return;
 
   try {
-    await navigator.clipboard.writeText(sessionUrl);
+    const { url, oneTime } = await getSessionLoginUrl();
+    await navigator.clipboard.writeText(url);
 
     const { copySessionBtn } = elements;
     const originalText = copySessionBtn.innerHTML;
@@ -23,35 +47,84 @@ async function copySessionUrl() {
       copySessionBtn.disabled = false;
     }, 2000);
 
+    if (oneTime) showToast('One-time link copied. It works once, within about a minute.', 4000);
   } catch (error) {
-    showToast('Session URL copied to console fallback.', 5000);
+    showToast(`Could not copy the link: ${error.message}`, 5000);
   }
 }
 
 async function openInIncognito() {
   if (!currentSession || !sfHost) return;
 
-  const sessionId = currentSession.key || currentSession.sessionId;
-  if (!sessionId) return;
-
-  const orgUrl = `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`;
-
   try {
+    const { url } = await getSessionLoginUrl();
     await chrome.windows.create({
-      url: orgUrl,
+      url,
       incognito: true,
       focused: true
     });
   } catch (error) {
-    try {
-      await chrome.tabs.create({
-        url: orgUrl,
-        active: true
-      });
-    } catch (fallbackError) {
-      // Failed
-    }
+    // Never fall back to a normal tab: the session link would end up in history and sync
+    showToast(`Could not open an incognito window: ${error.message}`, 6000);
   }
+}
+
+// Small in-page confirm dialog (built like the deploy dialog below)
+function showConfirmDialog({ title, message, confirmLabel }) {
+  return new Promise((resolve) => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-content confirm-dialog';
+    modal.setAttribute('role', 'alertdialog');
+    modal.setAttribute('aria-modal', 'true');
+
+    const heading = document.createElement('h3');
+    heading.className = 'confirm-dialog-title';
+    heading.innerHTML = Icons.svg('triangleAlert', 18);
+    heading.append(title);
+
+    const text = document.createElement('p');
+    text.className = 'confirm-dialog-message';
+    text.textContent = message;
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className = 'button secondary';
+    cancelBtn.textContent = 'Cancel';
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.className = 'button danger';
+    confirmBtn.textContent = confirmLabel;
+
+    const actions = document.createElement('div');
+    actions.className = 'confirm-dialog-actions';
+    actions.append(cancelBtn, confirmBtn);
+
+    modal.append(heading, text, actions);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    cancelBtn.focus();
+
+    const close = (result) => {
+      document.removeEventListener('keydown', onKeydown, true);
+      overlay.remove();
+      resolve(result);
+    };
+    const onKeydown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        close(false);
+      }
+    };
+
+    document.addEventListener('keydown', onKeydown, true);
+    confirmBtn.addEventListener('click', () => close(true));
+    cancelBtn.addEventListener('click', () => close(false));
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) close(false);
+    });
+  });
 }
 
 // Custom modal dialog for code deployment
@@ -120,9 +193,6 @@ async function deployPrettierClass() {
   }
 
   // Pre-deployment validation
-  // Check if we're in a sandbox environment
-  const isSandbox = sfHost.includes('sandbox') || sfHost.includes('develop') || sfHost.includes('scratch');
-
   // Validate session has required properties
   if (!currentSession.sessionId && !currentSession.key) {
     showToast('Invalid session: No authentication token found. Please refresh Salesforce and try again.', 5000);
@@ -171,10 +241,15 @@ Deploy to org: ${sfHost}`;
     const existingCheck = await chrome.runtime.sendMessage({
       type: 'EXECUTE_TOOLING_QUERY',
       query: `SELECT Id FROM ApexClass WHERE Name = '${className}' LIMIT 1`,
-      sfHost: getHostFromUrl()
+      sfHost: getHostFromUrl() || sfHost
     });
 
-    if (existingCheck.success && existingCheck.data?.records?.length > 0) {
+    // Do not deploy when we could not check
+    if (!existingCheck || !existingCheck.success) {
+      throw new Error(`Could not check if the class exists: ${existingCheck?.error || existingCheck?.message || 'no response'}`);
+    }
+
+    if (existingCheck.data?.records?.length > 0) {
       showToast('Console class already exists in this org.');
       deployPrettierBtn.innerHTML = originalText;
       deployPrettierBtn.disabled = false;
@@ -193,7 +268,7 @@ Deploy to org: ${sfHost}`;
       sobjectType: 'ApexClass',
       data: classData,
       session: currentSession,
-      sfHost: getHostFromUrl() // For org-aware token selection
+      sfHost: getHostFromUrl() || sfHost // For org-aware token selection
     });
 
     if (result.success) {
@@ -214,14 +289,19 @@ Deploy to org: ${sfHost}`;
   } catch (error) {
     console.error('Deployment error:', error);
 
-    let errorMessage = 'The class already exists, or you can’t deploy it to the production environment from here.';
-
-    alert(errorMessage);
+    // Show the Salesforce message (for example, Apex classes cannot be created in production)
+    alert(`Could not deploy the Console class: ${readableSalesforceError(error.message)}`);
 
     // Reset button state
     deployPrettierBtn.innerHTML = originalText;
     deployPrettierBtn.disabled = false;
   }
+}
+
+// "Tooling create failed: 400 - [{"message":"..."}]" -> the Salesforce message only
+function readableSalesforceError(message) {
+  const match = /"message"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(message || '');
+  return match ? match[1] : message;
 }
 
 // Clear raw response function

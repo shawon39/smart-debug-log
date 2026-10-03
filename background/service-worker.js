@@ -1,11 +1,12 @@
-import DebugLogManager from './debug-log-manager.js';
 import sessionManager from './session-manager.js';
 import {
   extractOrgDomain,
   getStoredOAuthToken,
   performOAuthLogin,
   isTokenExpired,
-  getTokenStorageKey
+  revokeOAuthToken,
+  getOAuthConfig,
+  setOAuthClientId
 } from './oauth-manager.js';
 import {
   directToolingQuery,
@@ -15,13 +16,22 @@ import {
   directToolingDescribe,
   directGetLogBody,
   directExecuteAnonymous,
-  directQuery
+  directQuery,
+  directDeleteApexLogs,
+  deleteApexLogsWhere,
+  directGetLogStorage,
+  directGetSingleAccessUrl,
+  forgetCachedLogBodies,
+  isValidSalesforceId
 } from './api-client.js';
 import {
-  storeAutoTraceFlagMetadata,
-  getAutoTraceFlagMetadata,
-  removeAutoTraceFlagMetadata,
-  cleanupExpiredTraceFlagLogs
+  ensureTraceFlag,
+  getTraceFlagStatus,
+  getLocalTraceFlagStatus,
+  updateAutoTraceFlagWindow,
+  forgetAutoTraceFlag,
+  cleanupExpiredTraceFlagLogs,
+  reconcileAutoTraceFlags
 } from './traceflag-manager.js';
 import {
   saveApexCodeToStorage,
@@ -30,7 +40,44 @@ import {
   deleteApexCodeFromStorage
 } from './apex-storage.js';
 
-const debugLogManager = new DebugLogManager();
+// OAuth tokens live in chrome.storage.local: allow only extension pages and this worker to read
+// it. Content scripts then get "Access to storage is not allowed from this context".
+try {
+  if (typeof chrome.storage.local.setAccessLevel === 'function') {
+    chrome.storage.local.setAccessLevel({ accessLevel: 'TRUSTED_CONTEXTS' }).catch(() => { });
+  }
+} catch (error) {
+  // Older Chrome: content scripts keep the default access
+}
+
+const NO_ORG_ERROR = 'No Salesforce org selected. Reopen the dashboard from a Salesforce tab.';
+
+// Messages that change data in an org (or the org's token) must name the org explicitly
+const ORG_REQUIRED_TYPES = new Set([
+  'TOOLING_CREATE',
+  'TOOLING_UPDATE',
+  'TOOLING_DELETE',
+  'EXECUTE_ANONYMOUS',
+  'ENSURE_TRACE_FLAG',
+  'DELETE_APEX_LOGS',
+  'DELETE_LOGS_BY_IDS',
+  'REVOKE_OAUTH_TOKEN',
+  'GET_SINGLE_ACCESS_URL'
+]);
+
+// Short cache for the popup's trace flag status (per org)
+const TRACE_STATUS_TTL_MS = 30 * 1000;
+const traceStatusCache = new Map();
+
+function forgetTraceStatus(sfHost) {
+  traceStatusCache.delete(extractOrgDomain(sfHost));
+}
+
+function broadcastLogsDeleted(logIds, sfHost) {
+  try {
+    chrome.runtime.sendMessage({ type: 'LOGS_DELETED', logIds, orgDomain: extractOrgDomain(sfHost) }).catch(() => { });
+  } catch (e) { }
+}
 
 // Simple error check for harmless extension warnings
 function checkLastError() {
@@ -42,21 +89,21 @@ function checkLastError() {
 chrome.runtime.onInstalled.addListener(() => {
   try {
     sessionManager.initialize();
-    debugLogManager.initialize();
     checkLastError();
   } catch (error) {
     console.warn('Extension initialization warning:', error.message);
   }
+  reconcileAutoTraceFlags().catch(error => console.warn('Trace flag alarm check failed:', error.message));
 });
 
 chrome.runtime.onStartup.addListener(() => {
   try {
     sessionManager.initialize();
-    debugLogManager.initialize();
     checkLastError();
   } catch (error) {
     console.warn('Extension startup warning:', error.message);
   }
+  reconcileAutoTraceFlags().catch(error => console.warn('Trace flag alarm check failed:', error.message));
 });
 
 // Alarm listener for auto trace flag cleanup
@@ -66,6 +113,17 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     cleanupExpiredTraceFlagLogs(traceFlagId);
   }
 });
+
+// Open dashboard tabs. Without the "tabs" permission Chrome hides the URL of our own pages in
+// tabs.query, so read them from runtime.getContexts (Chrome 116+).
+async function getOpenDashboards() {
+  if (!chrome.runtime.getContexts) return [];
+  const baseUrl = chrome.runtime.getURL('dashboard.html');
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['TAB'] });
+  return contexts
+    .filter(context => context.documentUrl && context.documentUrl.startsWith(baseUrl))
+    .map(context => ({ tabId: context.tabId, windowId: context.windowId, url: context.documentUrl }));
+}
 
 // Keyboard shortcut command listener (Alt+Shift+D / Option+Shift+D)
 chrome.commands.onCommand.addListener(async (command) => {
@@ -78,88 +136,29 @@ chrome.commands.onCommand.addListener(async (command) => {
         sfHost = await sessionManager.getSalesforceHost(tab.url, tab.id);
       }
 
-      // Auto-enable debug if possible
-      try {
-        const token = await getStoredOAuthToken(sfHost);
-        if (token && token.id) {
-          const parts = token.id.split('/');
-          const userId = parts.length >= 2 ? parts[parts.length - 1] : null;
-
-          if (userId) {
-            const now = new Date();
-            const expiration = new Date(now.getTime() + 45 * 60 * 1000);
-
-            const levelQuery = `SELECT Id FROM DebugLevel WHERE DeveloperName = 'SFDC_DevConsole' LIMIT 1`;
-            const levelResult = await directToolingQuery(levelQuery, sfHost);
-
-            if (levelResult.records && levelResult.records.length > 0) {
-              const debugLevelId = levelResult.records[0].Id;
-              const checkQuery = `SELECT Id, StartDate, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
-              const checkResult = await directToolingQuery(checkQuery, sfHost);
-
-              let needsAction = true;
-              let existingTraceFlagId = null;
-
-              if (checkResult.records && checkResult.records.length > 0) {
-                const traceFlagExpiration = new Date(checkResult.records[0].ExpirationDate);
-                const traceFlagStart = new Date(checkResult.records[0].StartDate);
-                existingTraceFlagId = checkResult.records[0].Id;
-                const isCurrentlyActive = traceFlagStart <= now && traceFlagExpiration > now;
-                if (isCurrentlyActive) needsAction = false;
-              }
-
-              if (needsAction) {
-                let traceFlagId;
-                if (existingTraceFlagId) {
-                  await directToolingUpdate('TraceFlag', existingTraceFlagId, {
-                    StartDate: now.toISOString(),
-                    ExpirationDate: expiration.toISOString(),
-                    DebugLevelId: debugLevelId
-                  }, sfHost);
-                  traceFlagId = existingTraceFlagId;
-                } else {
-                  const traceFlagResult = await directToolingCreate('TraceFlag', {
-                    TracedEntityId: userId,
-                    LogType: 'USER_DEBUG',
-                    DebugLevelId: debugLevelId,
-                    StartDate: now.toISOString(),
-                    ExpirationDate: expiration.toISOString()
-                  }, sfHost);
-                  traceFlagId = traceFlagResult.id;
-                }
-
-                const orgDomain = extractOrgDomain(sfHost);
-                await storeAutoTraceFlagMetadata({
-                  traceFlagId,
-                  userId,
-                  startTime: now.toISOString(),
-                  expirationDate: expiration.toISOString(),
-                  orgDomain
-                });
-
-                chrome.alarms.create(`cleanup_traceflag_${traceFlagId}`, { when: expiration.getTime() });
-              }
-            }
-          }
+      // Auto-enable debug logging, but only for the org of this Salesforce tab
+      if (sfHost) {
+        try {
+          const result = await ensureTraceFlag(sfHost);
+          if (!result.success) console.warn('Could not auto-enable debug:', result.error);
+          forgetTraceStatus(sfHost);
+        } catch (e) {
+          console.warn('Could not auto-enable debug:', e);
         }
-      } catch (e) {
-        console.warn('Could not auto-enable debug:', e);
       }
 
       const baseUrl = chrome.runtime.getURL('dashboard.html');
       const dashboardUrl = sfHost ? `${baseUrl}?host=${encodeURIComponent(sfHost)}` : baseUrl;
-      const tabs = await chrome.tabs.query({});
-      const existingDashboard = tabs.find(t => {
-        if (!t.url) return false;
+      const existingDashboard = (await getOpenDashboards()).find(dashboard => {
         if (sfHost) {
           const targetUrl = `${baseUrl}?host=${encodeURIComponent(sfHost)}`;
-          return t.url === targetUrl || t.url.startsWith(targetUrl + '&');
+          return dashboard.url === targetUrl || dashboard.url.startsWith(targetUrl + '&');
         }
-        return t.url === baseUrl || (t.url.startsWith(baseUrl) && !t.url.includes('?host='));
+        return dashboard.url === baseUrl || !dashboard.url.includes('?host=');
       });
 
       if (existingDashboard) {
-        await chrome.tabs.update(existingDashboard.id, { active: true });
+        await chrome.tabs.update(existingDashboard.tabId, { active: true });
         await chrome.windows.update(existingDashboard.windowId, { focused: true });
       } else {
         await chrome.tabs.create({ url: dashboardUrl, active: true });
@@ -177,10 +176,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
 async function handleMessageWrapper(request, sender, sendResponse) {
   try {
-    // Defense-in-depth: only handle messages from this extension's own pages and content
-    // scripts. There is no externally_connectable, so external pages cannot reach this
-    // listener, but we reject anything with an unexpected sender id explicitly.
-    if (sender.id !== chrome.runtime.id) {
+    // Only this extension's own pages (dashboard, popup) may call the worker. Content scripts
+    // share the extension id, so the sender URL must also be an extension page. There is no
+    // externally_connectable, so external pages cannot reach this listener at all.
+    const extensionOrigin = chrome.runtime.getURL('');
+    if (sender.id !== chrome.runtime.id || !sender.url || !sender.url.startsWith(extensionOrigin)) {
       sendResponse({ success: false, error: 'Unauthorized sender' });
       return;
     }
@@ -193,10 +193,13 @@ async function handleMessageWrapper(request, sender, sendResponse) {
 }
 
 async function handleMessage(request, sender) {
+  if (ORG_REQUIRED_TYPES.has(request.type) && !request.sfHost) {
+    return { success: false, error: NO_ORG_ERROR };
+  }
+
   switch (request.type) {
     case 'GET_SALESFORCE_HOST': return await handleGetSalesforceHost(request, sender);
     case 'GET_SESSION': return await handleGetSession(request, sender);
-    case 'GET_RECENT_LOGS': return await handleGetRecentLogs(request, sender);
     case 'GET_LOG_CONTENT': return await handleGetLogContent(request, sender);
     case 'EXECUTE_TOOLING_QUERY': return await handleExecuteToolingQuery(request, sender);
     case 'TOOLING_CREATE': return await handleToolingCreate(request, sender);
@@ -215,8 +218,12 @@ async function handleMessage(request, sender) {
     case 'GET_TRACE_FLAG_STATUS': return await handleGetTraceFlagStatus(request, sender);
     case 'REVOKE_OAUTH_TOKEN': return await handleRevokeOAuthToken(request, sender);
     case 'SEARCH_USERS': return await handleSearchUsers(request, sender);
-    case 'CLEAR_ALL_LOGS_CACHE': return await handleClearAllLogsCache(request, sender);
     case 'DELETE_LOGS_BY_IDS': return await handleDeleteLogsByIds(request, sender);
+    case 'DELETE_APEX_LOGS': return await handleDeleteApexLogs(request, sender);
+    case 'GET_LOG_STORAGE': return await handleGetLogStorage(request, sender);
+    case 'GET_SINGLE_ACCESS_URL': return await handleGetSingleAccessUrl(request, sender);
+    case 'GET_OAUTH_CONFIG': return await handleGetOAuthConfig(request, sender);
+    case 'SET_OAUTH_CLIENT_ID': return await handleSetOAuthClientId(request, sender);
     default: return { success: false, message: `Unknown message type: ${request.type}` };
   }
 }
@@ -278,12 +285,6 @@ async function handleGetSession(request, sender) {
   return { success: true, data: session };
 }
 
-async function handleGetRecentLogs(request, sender) {
-  const { orgId, limit } = request;
-  const logs = await debugLogManager.getRecentLogs(orgId, limit);
-  return { success: true, data: logs };
-}
-
 async function handleGetLogContent(request, sender) {
   const { logId, sfHost } = request;
   const result = await directGetLogBody(logId, sfHost);
@@ -299,6 +300,7 @@ async function handleExecuteToolingQuery(request, sender) {
 async function handleToolingCreate(request, sender) {
   const { sobjectType, data, sfHost } = request;
   const result = await directToolingCreate(sobjectType, data, sfHost);
+  if (sobjectType === 'TraceFlag') forgetTraceStatus(sfHost);
   return { success: true, data: result };
 }
 
@@ -306,22 +308,10 @@ async function handleToolingUpdate(request, sender) {
   const { sobjectType, recordId, data, sfHost } = request;
   const result = await directToolingUpdate(sobjectType, recordId, data, sfHost);
 
-  if (sobjectType === 'TraceFlag' && data.ExpirationDate) {
-    const autoTraceFlags = await getAutoTraceFlagMetadata();
-    const metadata = autoTraceFlags.find(tf => tf.traceFlagId === recordId);
-    if (metadata) {
-      const now = new Date();
-      const newExpiration = new Date(data.ExpirationDate);
-      if (newExpiration <= now) {
-        cleanupExpiredTraceFlagLogs(recordId).catch(() => { });
-      } else {
-        await removeAutoTraceFlagMetadata(recordId);
-        await storeAutoTraceFlagMetadata({ ...metadata, expirationDate: newExpiration.toISOString() });
-        const alarmName = `cleanup_traceflag_${recordId}`;
-        await chrome.alarms.clear(alarmName);
-        await chrome.alarms.create(alarmName, { when: newExpiration.getTime() });
-      }
-    }
+  if (sobjectType === 'TraceFlag') {
+    forgetTraceStatus(sfHost);
+    // Keep our alarm in step with the new end time; never deletes logs
+    if (data.ExpirationDate) await updateAutoTraceFlagWindow(recordId, data.ExpirationDate);
   }
   return { success: true, data: result };
 }
@@ -330,10 +320,9 @@ async function handleToolingDelete(request, sender) {
   const { sobjectType, recordId, sfHost } = request;
   const result = await directToolingDelete(sobjectType, recordId, sfHost);
   if (sobjectType === 'TraceFlag') {
-    const autoTraceFlags = await getAutoTraceFlagMetadata();
-    if (autoTraceFlags.find(tf => tf.traceFlagId === recordId)) {
-      cleanupExpiredTraceFlagLogs(recordId).catch(() => { });
-    }
+    forgetTraceStatus(sfHost);
+    // Stop tracking the deleted flag; its logs stay
+    await forgetAutoTraceFlag(recordId);
   }
   return { success: true, data: result };
 }
@@ -395,129 +384,105 @@ async function handleCheckTokenStatus(request) {
 async function handleEnsureTraceFlag(request) {
   const { sfHost, force } = request;
   const durationMinutes = Number(request.durationMinutes) > 0 ? Number(request.durationMinutes) : 45;
-  const token = await getStoredOAuthToken(sfHost);
-  if (!token) return { success: false, error: 'No OAuth token available' };
-
-  let userId = null;
-  if (token.id) {
-    const parts = token.id.split('/');
-    if (parts.length >= 2) userId = parts[parts.length - 1];
-  }
-  if (!userId) return { success: false, error: 'Could not determine user ID' };
-
-  const now = new Date();
-  const expiration = new Date(now.getTime() + durationMinutes * 60 * 1000);
-  const levelQuery = `SELECT Id FROM DebugLevel WHERE DeveloperName = 'SFDC_DevConsole' LIMIT 1`;
-  const levelResult = await directToolingQuery(levelQuery, sfHost);
-
-  let debugLevelId;
-  if (levelResult.records && levelResult.records.length > 0) {
-    debugLevelId = levelResult.records[0].Id;
-  } else {
-    const anyLevelResult = await directToolingQuery(`SELECT Id FROM DebugLevel LIMIT 1`, sfHost);
-    if (anyLevelResult.records && anyLevelResult.records.length > 0) debugLevelId = anyLevelResult.records[0].Id;
-    else return { success: false, error: 'No debug level found' };
-  }
-
-  const checkQuery = `SELECT Id, StartDate, ExpirationDate FROM TraceFlag WHERE TracedEntityId = '${userId}' AND LogType = 'USER_DEBUG' AND DebugLevelId = '${debugLevelId}' ORDER BY ExpirationDate DESC LIMIT 1`;
-  const checkResult = await directToolingQuery(checkQuery, sfHost);
-
-  let traceFlagId;
-  if (checkResult.records && checkResult.records.length > 0) {
-    const tf = checkResult.records[0];
-    const isCurrentlyActive = new Date(tf.StartDate) <= now && new Date(tf.ExpirationDate) > now;
-    if (isCurrentlyActive && !force) return { success: true, data: { existing: true, traceFlagId: tf.Id } };
-    await directToolingUpdate('TraceFlag', tf.Id, { StartDate: now.toISOString(), ExpirationDate: expiration.toISOString(), DebugLevelId: debugLevelId }, sfHost);
-    traceFlagId = tf.Id;
-  } else {
-    const createResult = await directToolingCreate('TraceFlag', { TracedEntityId: userId, LogType: 'USER_DEBUG', DebugLevelId: debugLevelId, StartDate: now.toISOString(), ExpirationDate: expiration.toISOString() }, sfHost);
-    traceFlagId = createResult.id;
-  }
-
-  const orgDomain = extractOrgDomain(sfHost || token.instanceUrl);
-  // Remove any stale metadata for this flag first so the stored expiration always
-  // reflects the latest StartDate/ExpirationDate (store is a no-op when the id already exists).
-  await removeAutoTraceFlagMetadata(traceFlagId);
-  await storeAutoTraceFlagMetadata({ traceFlagId, userId, startTime: now.toISOString(), expirationDate: expiration.toISOString(), orgDomain });
-  chrome.alarms.create(`cleanup_traceflag_${traceFlagId}`, { when: expiration.getTime() });
-  return { success: true, data: { traceFlagId, expirationDate: expiration.toISOString() } };
+  const result = await ensureTraceFlag(sfHost, { force: !!force, durationMinutes });
+  forgetTraceStatus(sfHost);
+  return result;
 }
 
-// Returns the active auto trace flag metadata for the given org (if any), so the popup
-// can show a live "logging active / expires in" countdown without hitting the network.
+// Logging status for the popup: the user's real trace flags (any LogType, active or scheduled),
+// cached for 30 seconds. Falls back to the flags this extension created when Salesforce
+// cannot be asked.
 async function handleGetTraceFlagStatus(request) {
   try {
     const { sfHost } = request;
-    const orgDomain = sfHost ? extractOrgDomain(sfHost) : null;
-    const flags = await getAutoTraceFlagMetadata();
-    const now = Date.now();
+    if (!sfHost) return { success: true, data: { active: false } };
 
-    const matching = flags.filter(tf => {
-      if (orgDomain && tf.orgDomain && tf.orgDomain !== orgDomain) return false;
-      return true;
-    });
+    const orgDomain = extractOrgDomain(sfHost);
+    const cached = traceStatusCache.get(orgDomain);
+    if (cached && Date.now() - cached.at < TRACE_STATUS_TTL_MS) {
+      return { success: true, data: cached.data };
+    }
 
-    // Pick the one expiring latest that is still in the future.
-    const active = matching
-      .filter(tf => new Date(tf.expirationDate).getTime() > now)
-      .sort((a, b) => new Date(b.expirationDate) - new Date(a.expirationDate))[0];
-
-    if (!active) return { success: true, data: { active: false } };
-
-    return {
-      success: true,
-      data: {
-        active: true,
-        startTime: active.startTime,
-        expirationDate: active.expirationDate
-      }
-    };
+    try {
+      const data = await getTraceFlagStatus(sfHost);
+      traceStatusCache.set(orgDomain, { at: Date.now(), data });
+      return { success: true, data };
+    } catch (error) {
+      return { success: true, data: await getLocalTraceFlagStatus(sfHost) };
+    }
   } catch (error) {
     return { success: false, error: error.message };
   }
 }
 
 async function handleSearchUsers(request) {
-  // Escape backslash first, then single quote, so a trailing/embedded backslash in the
-  // user's search term cannot break out of the SOQL string literal.
-  const escapedTerm = String(request.searchTerm || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  // Escape backslash first, then the single quote and the LIKE wildcards % and _, so the
+  // search term cannot break out of the SOQL string literal or match everything.
+  const escapedTerm = String(request.searchTerm || '')
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/%/g, '\\%')
+    .replace(/_/g, '\\_');
   const query = `SELECT Id, Name, Username, Email FROM User WHERE (Name LIKE '%${escapedTerm}%' OR Username LIKE '%${escapedTerm}%') AND IsActive = true ORDER BY Name LIMIT 10`;
   const result = await directQuery(query, request.sfHost);
   return { success: true, data: result.records || [] };
 }
 
 async function handleRevokeOAuthToken(request) {
-  const keysToRemove = ['sfOAuthToken'];
-  if (request.sfHost) {
-    const storageKey = getTokenStorageKey(extractOrgDomain(request.sfHost));
-    if (storageKey !== 'sfOAuthToken') keysToRemove.push(storageKey);
-  }
-  await chrome.storage.local.remove(keysToRemove);
-  return { success: true, message: 'Access token revoked successfully' };
+  // Revokes the token at Salesforce too, then removes this org's local copy
+  const { warning } = await revokeOAuthToken(request.sfHost);
+  forgetCachedLogBodies(request.sfHost);
+  forgetTraceStatus(request.sfHost);
+  const response = { success: true, message: 'Access token revoked successfully' };
+  if (warning) response.warning = warning;
+  return response;
 }
 
-async function handleClearAllLogsCache(request) {
-  const token = await getStoredOAuthToken(request.sfHost);
-  if (token && token.id) {
-    const parts = token.id.split('/');
-    if (parts.length >= 2) await chrome.storage.local.remove(`debug-logs-${parts[parts.length - 2]}`);
-  }
-  try {
-    chrome.runtime.sendMessage({ type: 'CLEAR_ALL_LOGS_CACHE_BROADCAST', orgDomain: extractOrgDomain(request.sfHost) }).catch(() => { });
-  } catch (e) { }
-  return { success: true, message: 'All logs cache cleared successfully' };
-}
-
+// Deletes nothing in Salesforce: it only tells open pages to drop these logs from their
+// caches. Real deletes go through DELETE_APEX_LOGS.
 async function handleDeleteLogsByIds(request) {
   const { logIds, sfHost } = request;
   if (!logIds?.length) return { success: true, message: 'No log IDs to delete' };
-  const token = await getStoredOAuthToken(sfHost);
-  if (token && token.id) {
-    const parts = token.id.split('/');
-    if (parts.length >= 2) await debugLogManager.removeLogsByIds(parts[parts.length - 2], logIds);
-  }
-  try {
-    chrome.runtime.sendMessage({ type: 'LOGS_DELETED', logIds, orgDomain: extractOrgDomain(sfHost) }).catch(() => { });
-  } catch (e) { }
+  forgetCachedLogBodies(sfHost, logIds);
+  broadcastLogsDeleted(logIds, sfHost);
   return { success: true, message: `Removed ${logIds.length} log(s) from cache` };
+}
+
+// Deletes ApexLogs in Salesforce: the given IDs, or every log of one user. Never all logs.
+async function handleDeleteApexLogs(request) {
+  const { sfHost, logIds, userId } = request;
+  let summary;
+
+  if (Array.isArray(logIds) && logIds.length > 0) {
+    if (!logIds.every(isValidSalesforceId)) return { success: false, error: 'Invalid log ID' };
+    summary = await directDeleteApexLogs(logIds, sfHost);
+  } else if (userId) {
+    if (!isValidSalesforceId(userId)) return { success: false, error: 'Invalid user ID' };
+    summary = await deleteApexLogsWhere(`LogUserId = '${userId}'`, sfHost);
+  } else {
+    return { success: false, error: 'Choose the logs or the user whose logs to delete.' };
+  }
+
+  if (summary.deletedIds.length > 0) broadcastLogsDeleted(summary.deletedIds, sfHost);
+  return { success: true, data: summary };
+}
+
+async function handleGetLogStorage(request) {
+  const data = await directGetLogStorage(request.sfHost);
+  return { success: true, data };
+}
+
+// One-time login link for Copy Session URL / Incognito Login (needs the "web" scope)
+async function handleGetSingleAccessUrl(request) {
+  const url = await directGetSingleAccessUrl(request.sfHost);
+  if (!url) return { success: false, error: 'The access token has no web scope' };
+  return { success: true, data: { url } };
+}
+
+async function handleGetOAuthConfig() {
+  return { success: true, data: await getOAuthConfig() };
+}
+
+async function handleSetOAuthClientId(request) {
+  return { success: true, data: await setOAuthClientId(request.clientId) };
 }

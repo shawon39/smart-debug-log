@@ -79,7 +79,7 @@ Just there when you need it.
 
 Works on production, sandboxes, scratch orgs - whatever you've got. Handles all the different Salesforce domains automatically.
 
-Testing in multiple orgs? Open them in incognito windows. Need to share access? Copy the session URL.
+Testing in multiple orgs? Open them in incognito windows.
 
 💻 DEVELOPER EXPERIENCE
 
@@ -126,9 +126,10 @@ Developers debugging Apex, architects tracking performance, admins fixing integr
 Everything stays in your browser. The extension talks directly to Salesforce APIs using your session. Nothing gets sent anywhere else. No tracking, no analytics, no external servers.
 
 Required permissions:
-• Salesforce domains - to call their APIs
-• Chrome storage - to save your settings and code
-• Active tab - to know which org you're on
+• Salesforce domains and cookies - to call Salesforce APIs with your session
+• Chrome storage - to save your settings, code and access token
+• Identity - to log in to Salesforce (OAuth)
+• Scripting and alarms - to read logs through an open Salesforce tab and to act when a trace flag expires
 
 🤝 SUPPORT
 

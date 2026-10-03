@@ -31,6 +31,9 @@ const FALLBACK_DEBUG_LEVEL = {
     System: 'DEBUG',
     Validation: 'INFO',
     Visualforce: 'INFO',
+    // Required on create (not nillable, no default); same values as SFDC_DevConsole
+    Wave: 'INFO',
+    Nba: 'INFO',
     Workflow: 'INFO'
 };
 
@@ -212,7 +215,10 @@ export async function ensureTraceFlag(sfHost, { force = false, durationMinutes =
     }
 
     let traceFlagId;
-    const existingFlag = activeFlag || flags[0];
+    // Reuse the active flag (force) or the most recently expired one. Never move a flag the
+    // user scheduled for later: create a new flag for now instead.
+    const expiredFlag = flags.find(tf => new Date(tf.ExpirationDate) <= now);
+    const existingFlag = activeFlag || expiredFlag;
     if (existingFlag) {
         // Keep the flag's start unless it lies in the future or the new end would be over 24 h after it
         const start = new Date(existingFlag.StartDate);

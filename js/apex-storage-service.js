@@ -151,13 +151,13 @@ class ApexStorageService {
     }
 
     try {
-      // Get sfHost from URL for org-aware token selection
-      const sfHost = typeof getHostFromUrl === 'function' ? getHostFromUrl() : null;
+      // The dashboard's org: ?host= in the URL, else the org detected from the Salesforce tab
+      const host = getHostFromUrl() || (typeof sfHost !== 'undefined' ? sfHost : null);
 
       const response = await chrome.runtime.sendMessage({
         type: 'EXECUTE_ANONYMOUS',
         code: code,
-        sfHost: sfHost
+        sfHost: host
       });
 
       return response;

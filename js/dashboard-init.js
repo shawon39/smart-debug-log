@@ -42,9 +42,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await checkConnectionStatus(targetHost);
 
-  // Check OAuth token status and show warning if needed
-  await checkAndShowTokenWarning(targetHost);
-
   await loadDebugLogs();
 
   // Initialize log search functionality
@@ -234,7 +231,7 @@ async function initializeApexManager() {
 // Snippets are saved per org. Use the org of this host's OAuth token (execution uses it too),
 // else the browser session's org. Storage keys both by the same 15-character org ID.
 async function resolveApexOrgId() {
-  const host = getHostFromUrl();
+  const host = getHostFromUrl() || sfHost;
   if (host) {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_USER_INFO', sfHost: host });
@@ -255,51 +252,6 @@ async function initializeDebugLogManager() {
   }
 }
 
-// Check OAuth token status and show warning if needed
-async function checkAndShowTokenWarning(targetHost) {
-  try {
-    const response = await chrome.runtime.sendMessage({
-      type: 'CHECK_TOKEN_STATUS',
-      sfHost: targetHost
-    });
-
-    const warningBanner = document.getElementById('noTokenWarning');
-    const generateBtn = document.getElementById('generateTokenFromWarning');
-
-    if (!warningBanner) return;
-
-    if (response && response.success && response.data) {
-      if (!response.data.hasToken || response.data.isExpired) {
-        // Show warning
-        warningBanner.style.display = 'flex';
-
-        // Setup generate token button click handler
-        if (generateBtn) {
-          generateBtn.onclick = async () => {
-            generateBtn.disabled = true;
-            generateBtn.textContent = 'Generating...';
-
-            try {
-              await generateAccessToken();
-              // Hide warning on success
-              warningBanner.style.display = 'none';
-            } catch (error) {
-              console.error('Failed to generate token:', error);
-              generateBtn.textContent = 'Retry';
-            } finally {
-              generateBtn.disabled = false;
-            }
-          };
-        }
-      } else {
-        // Token exists and is valid - hide warning
-        warningBanner.style.display = 'none';
-      }
-    }
-  } catch (error) {
-    console.warn('Could not check token status:', error);
-  }
-}
 
 // Apex Manager Event Handlers
 let apexRunInProgress = false;
@@ -364,7 +316,7 @@ async function handleRunApex() {
 async function ensureTraceFlagForApexRun() {
   let error = null;
   try {
-    const response = await chrome.runtime.sendMessage({ type: 'ENSURE_TRACE_FLAG', sfHost: getHostFromUrl() });
+    const response = await chrome.runtime.sendMessage({ type: 'ENSURE_TRACE_FLAG', sfHost: getHostFromUrl() || sfHost });
     if (response && response.success) {
       window.debugLogManagerUI?.refreshStatusIndicator();
       return;

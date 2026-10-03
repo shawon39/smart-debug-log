@@ -243,7 +243,8 @@ DebugLogManagerUI.prototype.refreshStatusIndicator = async function () {
         if (hasActiveTrace || hasExpiredTrace) this.startStatusIndicatorTimer();
         else this.stopStatusIndicatorTimer();
     } catch (error) {
-        console.error('Failed to refresh status indicator:', error);
+        // Without a token there is nothing to show yet (the token banner explains it)
+        if (!String(error?.message).includes('NO_OAUTH_TOKEN')) console.error('Failed to refresh status indicator:', error);
         const indicator = document.getElementById('traceStatusIndicator');
         if (indicator) indicator.style.display = 'none';
     }
@@ -734,8 +735,8 @@ DebugLogManagerUI.prototype.openModal = async function () {
     this._lastFocused = document.activeElement;
     m.style.display = 'flex';
     document.getElementById('closeDebugLogManagerBtn')?.focus();
-    // Always work on the org in the dashboard URL, with or without a browser session
-    this.sfHost = getHostFromUrl();
+    // Always work on the dashboard's org (URL ?host=, else the detected org), with or without a browser session
+    this.sfHost = getHostFromUrl() || (typeof sfHost !== 'undefined' ? sfHost : null);
     if (!this.sfHost) {
         this.showNotification('No Salesforce org selected. Reopen the dashboard from a Salesforce tab.', 'error');
         return;

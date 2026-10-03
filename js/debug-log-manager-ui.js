@@ -31,8 +31,9 @@ class DebugLogManagerUI {
 
   async initialize(session) {
     this.currentSession = session;
-    // The org comes from the dashboard URL (?host=), never from whichever org logged in last.
-    this.sfHost = getHostFromUrl();
+    // The org shown by the dashboard: ?host= in the URL, else the org detected from the Salesforce tab.
+    // Never whichever org logged in last.
+    this.sfHost = getHostFromUrl() || (typeof sfHost !== 'undefined' ? sfHost : null);
     if (this.sfHost) await this.loadUserInfo();
     // Default to current user
     this.selectedUserId = this.userId;

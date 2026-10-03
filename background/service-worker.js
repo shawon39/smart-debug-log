@@ -187,7 +187,9 @@ async function handleMessageWrapper(request, sender, sendResponse) {
     const result = await handleMessage(request, sender);
     sendResponse(result);
   } catch (error) {
-    console.error('[Background] Message handler error:', error);
+    // No token yet is a normal state (the dashboard shows the Generate Token banner)
+    if (error && error.message === 'NO_OAUTH_TOKEN') console.debug('[Background] No OAuth token for:', request && request.type);
+    else console.error('[Background] Message handler error:', error);
     sendResponse({ success: false, error: error.message || 'Unknown error occurred' });
   }
 }

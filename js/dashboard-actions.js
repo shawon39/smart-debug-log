@@ -267,7 +267,6 @@ Deploy to org: ${sfHost}`;
       type: 'TOOLING_CREATE',
       sobjectType: 'ApexClass',
       data: classData,
-      session: currentSession,
       sfHost: getHostFromUrl() || sfHost // For org-aware token selection
     });
 

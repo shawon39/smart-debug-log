@@ -343,12 +343,12 @@ async function revokeAccessTokenDashboard() {
   }
   
   const button = elements.revokeTokenDashboardBtn;
-  const originalText = button?.textContent;
+  const originalText = button?.innerHTML;
   
   try {
     if (button) {
       button.disabled = true;
-      button.textContent = 'Revoking...';
+      button.innerHTML = `${Icons.svg('loader')}Revoking...`;
     }
     
     const targetHost = getHostFromUrl() || sfHost;
@@ -362,8 +362,8 @@ async function revokeAccessTokenDashboard() {
       // The token is gone here, but Salesforce may not have confirmed the revoke
       if (response.warning) showToast(response.warning, 6000);
       if (button) {
-        button.textContent = 'Token Revoked!';
-        button.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
+        button.innerHTML = `${Icons.svg('check')}Token revoked`;
+        button.classList.add('deploy-success');
       }
       
       // Show warning banner and hide revoke button
@@ -372,8 +372,8 @@ async function revokeAccessTokenDashboard() {
       setTimeout(() => {
         if (button) {
           button.style.display = 'none';
-          button.textContent = originalText;
-          button.style.background = '';
+          button.innerHTML = originalText;
+          button.classList.remove('deploy-success');
           button.disabled = false;
         }
         // Refresh to clear any loaded logs
@@ -384,10 +384,11 @@ async function revokeAccessTokenDashboard() {
     }
   } catch (error) {
     console.error('Token revocation failed:', error);
+    showToast(`Could not revoke the token: ${error.message}`, 5000);
     if (button) {
-      button.textContent = 'Failed - Try Again';
+      button.innerHTML = `${Icons.svg('circleX')}Failed - try again`;
       setTimeout(() => {
-        button.textContent = originalText;
+        button.innerHTML = originalText;
         button.disabled = false;
       }, 2000);
     }

@@ -98,13 +98,15 @@ test('L2 force on an active flag PATCHes it in place and keeps its debug level',
   assert.equal(store.autoTraceFlags[0].orgDomain, HOST);
 });
 
-test('L2 24-hour rule: an old start or a future start moves to now', async () => {
+test('L2 24-hour rule: an old start moves to now; a scheduled flag is never moved', async () => {
   setup();
   const now = Date.now();
   let flag = { Id: '7tfxx0000000001AAA', StartDate: new Date(now - 23.9 * HOUR).toISOString(), ExpirationDate: new Date(now - HOUR).toISOString(), DebugLevelId: '7dlxx0000000009AAA' };
   const requests = fakeSalesforce((r) => {
     if (r.query && r.query.includes('FROM TraceFlag')) return { records: [flag] };
+    if (r.query && r.query.includes('FROM DebugLevel')) return { records: [{ Id: '7dlxx0000000DEVAAA', DeveloperName: 'SFDC_DevConsole' }] };
     if (r.method === 'PATCH') return { status: 204, body: undefined };
+    if (r.method === 'POST' && r.path.endsWith('/TraceFlag/')) return { status: 201, body: { id: '7tfxx0000000NEWAAA', success: true } };
     throw new Error('unexpected request');
   });
   await tf.ensureTraceFlag(HOST, { durationMinutes: 45 });
@@ -112,10 +114,14 @@ test('L2 24-hour rule: an old start or a future start moves to now', async () =>
   assert.ok(patch.body.StartDate, 'expired flag that started 23.9 h ago: 45 more minutes would pass 24 h');
   assert.ok(Math.abs(new Date(patch.body.StartDate) - now) < 5000);
 
+  // A flag the user scheduled for later keeps its schedule: a new flag is created for now
+  requests.length = 0;
   flag = { ...flag, StartDate: new Date(now + 5 * HOUR).toISOString(), ExpirationDate: new Date(now + 6 * HOUR).toISOString() };
   await tf.ensureTraceFlag(HOST, { durationMinutes: 45 });
-  patch = requests.filter(r => r.method === 'PATCH').pop();
-  assert.ok(patch.body.StartDate, 'scheduled flag must start now to be active');
+  assert.equal(requests.filter(r => r.method === 'PATCH').length, 0, 'scheduled flag must not be moved');
+  const create = requests.find(r => r.method === 'POST' && r.path.endsWith('/TraceFlag/'));
+  assert.ok(create, 'a new flag is created for now');
+  assert.ok(Math.abs(new Date(create.body.StartDate) - now) < 5000);
 
   flag = { ...flag, StartDate: new Date(now - 2 * HOUR).toISOString(), ExpirationDate: new Date(now - HOUR).toISOString() };
   await tf.ensureTraceFlag(HOST, { durationMinutes: 45 });
@@ -147,7 +153,7 @@ test('L2 no flag: create one with SFDC_DevConsole, or create the SmartDebugLog l
   const levelCreate = requests.find(r => r.method === 'POST' && r.path.endsWith('/DebugLevel/'));
   assert.deepEqual(levelCreate.body, {
     DeveloperName: 'SmartDebugLog', MasterLabel: 'Smart Debug Log', ApexCode: 'FINEST', ApexProfiling: 'INFO',
-    Callout: 'INFO', Database: 'INFO', System: 'DEBUG', Validation: 'INFO', Visualforce: 'INFO', Workflow: 'INFO'
+    Callout: 'INFO', Database: 'INFO', System: 'DEBUG', Validation: 'INFO', Visualforce: 'INFO', Wave: 'INFO', Nba: 'INFO', Workflow: 'INFO'
   });
   create = requests.find(r => r.method === 'POST' && r.path.endsWith('/TraceFlag/'));
   assert.equal(create.body.DebugLevelId, '7dlxx0000000NEWAAA');

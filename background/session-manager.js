@@ -1,3 +1,5 @@
+import { API_VERSION } from './api-client.js';
+
 const SALESFORCE_DOMAINS = [
   'salesforce.com',
   'salesforce-setup.com',
@@ -8,7 +10,10 @@ const SALESFORCE_DOMAINS = [
   'force.com'
 ];
 
-const SALESFORCE_API_VERSION = 'v62.0';
+// Exact host or a subdomain of it (a substring check would also accept e.g. myforce.com)
+function isSalesforceDomain(hostname) {
+  return SALESFORCE_DOMAINS.some(domain => hostname === domain || hostname.endsWith('.' + domain));
+}
 
 const DOMAIN_MAPPINGS = {
   '.lightning.force.com': '.my.salesforce.com',
@@ -111,17 +116,19 @@ class SessionManager {
     try {
       const urlObj = new URL(url);
       const currentDomain = urlObj.hostname;
+      const cookieStoreId = await this.getCookieStoreId(tabId);
+      // Normal and incognito tabs of the same host can belong to different users or orgs
+      const cacheKey = `${cookieStoreId || 'default'}|${currentDomain}`;
 
-      if (this.domainCache.has(currentDomain)) {
-        return this.domainCache.get(currentDomain);
+      if (this.domainCache.has(cacheKey)) {
+        return this.domainCache.get(cacheKey);
       }
 
       if (currentDomain.endsWith('.mcas.ms')) {
-        this.domainCache.set(currentDomain, currentDomain);
+        this.domainCache.set(cacheKey, currentDomain);
         return currentDomain;
       }
 
-      const cookieStoreId = await this.getCookieStoreId(tabId);
       const currentCookie = await this.getCookie(url, 'sid', cookieStoreId);
 
       if (currentCookie) {
@@ -131,15 +138,15 @@ class SessionManager {
           const apiDomain = await this.findApiEnabledDomain(orgId, cookieStoreId);
           const effectiveDomain = apiDomain || currentDomain;
 
-          this.domainCache.set(currentDomain, effectiveDomain);
+          this.domainCache.set(cacheKey, effectiveDomain);
           return effectiveDomain;
         }
       }
 
-      const isSalesforce = SALESFORCE_DOMAINS.some(domain => currentDomain.includes(domain));
+      const isSalesforce = isSalesforceDomain(currentDomain);
 
       if (isSalesforce) {
-        this.domainCache.set(currentDomain, currentDomain);
+        this.domainCache.set(cacheKey, currentDomain);
         return currentDomain;
       }
 
@@ -228,8 +235,10 @@ class SessionManager {
     if (!tabId) return undefined;
 
     try {
-      const tab = await chrome.tabs.get(tabId);
-      return tab.cookieStoreId;
+      // Chrome tabs have no cookieStoreId (Firefox only): find the store that holds this tab
+      const stores = await chrome.cookies.getAllCookieStores();
+      const store = stores.find(s => s.tabIds.includes(tabId));
+      return store ? store.id : undefined;
     } catch (error) {
       return undefined;
     }
@@ -291,7 +300,7 @@ class SessionManager {
     try {
       const apiDomain = sessionData.apiDomain || sessionData.domain;
 
-      const response = await fetch(`https://${apiDomain}/services/data/${SALESFORCE_API_VERSION}/limits`, {
+      const response = await fetch(`https://${apiDomain}/services/data/${API_VERSION}/limits`, {
         headers: {
           'Authorization': `Bearer ${sessionData.key}`,
           'Content-Type': 'application/json'

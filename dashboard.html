@@ -112,6 +112,9 @@
       </div>
     </div>
     <div class="warning-actions">
+      <button class="warning-help-btn" id="openOauthHelpBtn" title="Help when login fails">
+        <span data-icon="info" data-size="14"></span>OAuth setup
+      </button>
       <button class="dev-console-btn" id="openDevConsoleBtn">
         <span data-icon="shieldCheck"></span>Generate Token
       </button>
@@ -242,6 +245,46 @@
             <div class="limits-content" id="limitsContent"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OAuth Setup Help Modal -->
+  <div class="modal-overlay" id="oauthHelpModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="oauthHelpTitle">
+    <div class="modal-content oauth-help-modal">
+      <div class="modal-header">
+        <div class="modal-title" id="oauthHelpTitle"><span data-icon="key" data-size="18"></span>OAuth setup</div>
+        <button class="modal-close-btn" id="closeOauthHelpBtn" aria-label="Close" title="Close"><span data-icon="x" data-size="18"></span></button>
+      </div>
+      <div class="oauth-help-body">
+        <p class="oauth-help-intro">Salesforce blocks login with apps that are not installed in your org. If Generate Token fails, use one of these fixes.</p>
+
+        <section class="oauth-help-option">
+          <h4 class="oauth-help-option-title"><span data-icon="shieldCheck" data-size="16"></span>Fix 1: Ask your admin</h4>
+          <p>Ask your Salesforce admin to install the app: Setup &gt; Connected Apps OAuth Usage &gt; find the app &gt; Install, then set who can use it.</p>
+        </section>
+
+        <section class="oauth-help-option">
+          <h4 class="oauth-help-option-title"><span data-icon="sliders" data-size="16"></span>Fix 2: Use your own app</h4>
+          <p>Create an External Client App in your org and paste its consumer key below. The app needs:</p>
+          <ul class="oauth-help-list">
+            <li>Callback URL:
+              <span class="oauth-help-copy-row">
+                <code class="oauth-help-code" id="oauthRedirectUri">Loading...</code>
+                <button class="icon-btn" id="copyOauthRedirectBtn" aria-label="Copy callback URL" title="Copy callback URL"><span data-icon="copy" data-size="14"></span></button>
+              </span>
+            </li>
+            <li>OAuth scopes <code class="oauth-help-code">api</code> and <code class="oauth-help-code">refresh_token</code></li>
+            <li>PKCE turned on, and no client secret required for the web server flow or for refresh</li>
+          </ul>
+          <label class="oauth-help-label" for="oauthClientIdInput">Consumer key</label>
+          <div class="oauth-help-input-row">
+            <input type="text" id="oauthClientIdInput" class="oauth-help-input" placeholder="Paste your consumer key" autocomplete="off" spellcheck="false">
+            <button class="button primary" id="saveOauthClientIdBtn">Save</button>
+            <button class="button secondary" id="clearOauthClientIdBtn">Use default app</button>
+          </div>
+          <p class="oauth-help-status" id="oauthClientIdStatus" role="status"></p>
+        </section>
       </div>
     </div>
   </div>

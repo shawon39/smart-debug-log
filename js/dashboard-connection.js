@@ -196,12 +196,6 @@ window.addEventListener('focus', () => {
 // OAuth Token management
 async function checkOAuthTokenStatus() {
   try {
-    const isDismissed = sessionStorage.getItem('oauth_warning_dismissed');
-    if (isDismissed) {
-      hideTokenWarning();
-      return;
-    }
-
     // Check if OAuth token exists
     const targetHost = getHostFromUrl() || sfHost;
     const response = await chrome.runtime.sendMessage({
@@ -213,8 +207,11 @@ async function checkOAuthTokenStatus() {
     
     if (response && response.success && response.data) {
       if (!response.data.hasToken || response.data.isExpired) {
-        // No token or expired - show warning, hide revoke button
-        showTokenWarning();
+        // No token or expired - show warning (unless dismissed in this tab), hide revoke button.
+        // A dismissed banner must not stop the Revoke button from following the token.
+        if (!sessionStorage.getItem('oauth_warning_dismissed')) {
+          showTokenWarning();
+        }
         if (revokeBtn) {
           revokeBtn.style.display = 'none';
         }
@@ -307,6 +304,7 @@ async function generateAccessToken() {
     }
   } catch (error) {
     console.error('Token generation failed:', error);
+    showTokenError(error.message);
     if (button) {
       button.innerHTML = `${Icons.svg('circleX')}Failed - try again`;
       setTimeout(() => {
@@ -319,6 +317,15 @@ async function generateAccessToken() {
 
 // Alias for backward compatibility
 const openDeveloperConsole = generateAccessToken;
+
+// Shows why login failed (for example "app must be installed") in the token banner
+function showTokenError(message) {
+  const subtitle = elements.devConsoleWarning?.querySelector('.warning-subtitle');
+  if (subtitle) {
+    subtitle.textContent = message;
+    subtitle.classList.add('is-error');
+  }
+}
 
 function dismissTokenWarning() {
   sessionStorage.setItem('oauth_warning_dismissed', 'true');
@@ -352,6 +359,8 @@ async function revokeAccessTokenDashboard() {
     });
     
     if (response && response.success) {
+      // The token is gone here, but Salesforce may not have confirmed the revoke
+      if (response.warning) showToast(response.warning, 6000);
       if (button) {
         button.textContent = 'Token Revoked!';
         button.style.background = 'linear-gradient(135deg, #16a34a 0%, #22c55e 100%)';
@@ -384,3 +393,89 @@ async function revokeAccessTokenDashboard() {
     }
   }
 }
+
+// OAuth setup help (link in the token banner): callback URL and an optional own consumer key
+function setupOAuthHelpModal() {
+  const modal = document.getElementById('oauthHelpModal');
+  const openBtn = document.getElementById('openOauthHelpBtn');
+  if (!modal || !openBtn) return;
+
+  const closeBtn = document.getElementById('closeOauthHelpBtn');
+  const redirectEl = document.getElementById('oauthRedirectUri');
+  const copyBtn = document.getElementById('copyOauthRedirectBtn');
+  const input = document.getElementById('oauthClientIdInput');
+  const saveBtn = document.getElementById('saveOauthClientIdBtn');
+  const clearBtn = document.getElementById('clearOauthClientIdBtn');
+  const statusEl = document.getElementById('oauthClientIdStatus');
+  let lastFocused = null;
+
+  const setStatus = (message, isError = false) => {
+    statusEl.textContent = message;
+    statusEl.classList.toggle('is-error', isError);
+  };
+
+  const showConfig = (config) => {
+    redirectEl.textContent = config.redirectUri;
+    input.value = config.usingCustomClientId ? config.clientId : '';
+    clearBtn.disabled = !config.usingCustomClientId;
+    setStatus(config.usingCustomClientId ? 'Using your own app.' : 'Using the default app.');
+  };
+
+  const onKeydown = (e) => {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      closeModal();
+    }
+  };
+
+  const closeModal = () => {
+    modal.style.display = 'none';
+    document.removeEventListener('keydown', onKeydown, true);
+    lastFocused?.focus?.();
+  };
+
+  const openModal = async () => {
+    lastFocused = document.activeElement;
+    modal.style.display = 'flex';
+    document.addEventListener('keydown', onKeydown, true);
+    closeBtn?.focus();
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_OAUTH_CONFIG' });
+      if (!response || !response.success) throw new Error(response?.error || 'No response');
+      showConfig(response.data);
+    } catch (error) {
+      setStatus(`Could not load the OAuth settings: ${error.message}`, true);
+    }
+  };
+
+  const saveClientId = async (value) => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'SET_OAUTH_CLIENT_ID', clientId: value });
+      if (!response || !response.success) throw new Error(response?.error || 'No response');
+      showConfig(response.data);
+      if (response.data.usingCustomClientId) {
+        setStatus('Saved. Click Generate Token to log in with your app.');
+      }
+    } catch (error) {
+      setStatus(error.message, true);
+    }
+  };
+
+  openBtn.addEventListener('click', openModal);
+  closeBtn?.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeModal();
+  });
+  saveBtn?.addEventListener('click', () => saveClientId(input.value));
+  clearBtn?.addEventListener('click', () => saveClientId(''));
+  copyBtn?.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(redirectEl.textContent);
+      setStatus('Callback URL copied.');
+    } catch (error) {
+      setStatus(`Could not copy: ${error.message}`, true);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', setupOAuthHelpModal);

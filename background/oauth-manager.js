@@ -8,8 +8,19 @@
 // Salesforce production edition
 const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
 
-// Salesforce developer edition
-// const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2CKKjz0rft6yvoueOIdkjyYyOCS1zj3EzVIKrc5Y25ekBWEZ4omoLZ8T8t79';
+// Scopes requested at login. To let "Copy Session URL" and "Incognito Login" use a one-time
+// login link (/services/oauth2/singleaccess) instead of a link with the session ID, add 'web'
+// here, but only after the connected app allows the web scope: login fails when the app does
+// not allow every requested scope.
+const OAUTH_SCOPES = 'api refresh_token';
+
+// Optional consumer key of the user's own connected app or External Client App
+const CLIENT_ID_STORAGE_KEY = 'oauthClientId';
+
+// Older versions also kept a copy of the last token under this shared key
+const LEGACY_TOKEN_KEY = 'sfOAuthToken';
+
+const ADMIN_INSTALL_FIX = 'Ask your Salesforce admin to install the app: Setup > Connected Apps OAuth Usage > find the app > Install, then set who can use it.';
 
 // Helper to extract org domain from instanceUrl or sfHost
 export function extractOrgDomain(urlOrHost) {
@@ -28,20 +39,20 @@ export function extractOrgDomain(urlOrHost) {
 }
 
 // Generate storage key for org-specific token
-export function getTokenStorageKey(orgDomain) {
+function getTokenStorageKey(orgDomain) {
     if (!orgDomain) return 'sfOAuthToken'; // Fallback for backwards compatibility
     return `sfOAuthToken_${orgDomain}`;
 }
 
 // PKCE Utilities
-export function generateRandomString(length = 43) {
+function generateRandomString(length = 43) {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
     return Array.from(array, x => chars[x % chars.length]).join('');
 }
 
-export async function generatePKCEChallenge(verifier) {
+async function generatePKCEChallenge(verifier) {
     const encoder = new TextEncoder();
     const data = encoder.encode(verifier);
     const digest = await crypto.subtle.digest('SHA-256', data);
@@ -49,30 +60,36 @@ export async function generatePKCEChallenge(verifier) {
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// My Domain hosts accept OAuth logins as they are
+const MY_DOMAIN_SUFFIXES = ['.my.salesforce.com', '.my.salesforce.mil', '.my.sfcrmproducts.cn'];
+// Other org hosts map to their My Domain host by suffix, so .sandbox/.develop/.scratch stay
+const LOGIN_HOST_SUFFIXES = [
+    ['.lightning.force.com', '.my.salesforce.com'],
+    ['.my.salesforce-setup.com', '.my.salesforce.com']
+];
+
 export function detectLoginBase(orgUrl) {
     if (!orgUrl) {
         return 'https://login.salesforce.com';
     }
 
-    const lowerUrl = orgUrl.toLowerCase();
+    // Hostname only; Microsoft Defender for Cloud Apps proxies add ".mcas.ms"
+    const host = extractOrgDomain(orgUrl).split('/')[0].replace(/\.mcas\.ms$/, '');
 
-    const myDomainMatch = lowerUrl.match(/([a-z0-9-]+(?:--[a-z0-9-]+)?(?:\.sandbox|\.scratch|\.develop)?\.my\.salesforce\.com)/i);
-    if (myDomainMatch) {
-        return `https://${myDomainMatch[1]}`;
+    if (MY_DOMAIN_SUFFIXES.some(suffix => host.endsWith(suffix))) {
+        return `https://${host}`;
     }
 
-    const lightningMatch = lowerUrl.match(/([a-z0-9-]+(?:--[a-z0-9-]+)?)\.lightning\.force\.com/i);
-    if (lightningMatch) {
-        const domain = lightningMatch[1];
-        return `https://${domain}.my.salesforce.com`;
+    for (const [suffix, loginSuffix] of LOGIN_HOST_SUFFIXES) {
+        if (host.endsWith(suffix)) {
+            return `https://${host.slice(0, -suffix.length)}${loginSuffix}`;
+        }
     }
 
     if (
-        lowerUrl.includes('.sandbox.') ||
-        lowerUrl.includes('.scratch.') ||
-        lowerUrl.includes('.develop.') ||
-        /\.cs\d+\./.test(lowerUrl) ||
-        lowerUrl.includes('test.salesforce.com')
+        /(^|\.)(sandbox|scratch|develop)\./.test(host) ||
+        /(^|\.)cs\d+\./.test(host) ||
+        host === 'test.salesforce.com'
     ) {
         return 'https://test.salesforce.com';
     }
@@ -80,32 +97,100 @@ export function detectLoginBase(orgUrl) {
     return 'https://login.salesforce.com';
 }
 
+// Turns Salesforce OAuth error codes into a clear message that says how to fix it
+function describeOAuthError(code, description) {
+    const text = `${code || ''} ${description || ''}`;
+    if (/OAUTH_APPROVAL_ERROR_GENERIC|OAUTH_APP_BLOCKED|OAUTH_APP_ACCESS_DENIED|must be installed|not admin approved/i.test(text)) {
+        return `Salesforce blocked this app for your user. ${ADMIN_INSTALL_FIX} You can also use your own app (see OAuth setup).`;
+    }
+    if (/redirect_uri/i.test(text)) {
+        return 'The callback URL of your app does not match. Copy the callback URL from OAuth setup into your app.';
+    }
+    if (/invalid_client_id|client identifier invalid/i.test(text)) {
+        return 'Salesforce does not know this consumer key. Check the key in OAuth setup.';
+    }
+    if (/invalid client credentials|client secret/i.test(text)) {
+        return 'Your app asks for a client secret. Turn off "Require secret" for the web server flow and for refresh.';
+    }
+    if (/invalid_scope/i.test(text)) {
+        return 'Your app does not allow the api and refresh_token scopes. Add both scopes to the app.';
+    }
+    if (/end-user denied|access_denied/i.test(text)) {
+        return 'Access was not allowed. Click Generate Token again and choose Allow.';
+    }
+    return `Salesforce login failed: ${description || code}`;
+}
+
+function describeAuthFlowFailure(error) {
+    const message = (error && error.message) || String(error);
+    if (/did not approve|closed|cancel/i.test(message)) {
+        return 'The login window was closed before login finished.';
+    }
+    return `Could not open the Salesforce login page: ${message}`;
+}
+
+async function getClientIdSetting() {
+    const { [CLIENT_ID_STORAGE_KEY]: customClientId } = await chrome.storage.local.get(CLIENT_ID_STORAGE_KEY);
+    const usingCustomClientId = typeof customClientId === 'string' && customClientId.trim() !== '';
+    return { clientId: usingCustomClientId ? customClientId.trim() : OAUTH_CLIENT_ID, usingCustomClientId };
+}
+
+export async function getOAuthConfig() {
+    return { redirectUri: chrome.identity.getRedirectURL('salesforce'), ...(await getClientIdSetting()) };
+}
+
+// Saves the consumer key of the user's own app, or clears it (empty value) to use the default app
+export async function setOAuthClientId(value) {
+    const clientId = String(value || '').trim();
+    if (!clientId) {
+        await chrome.storage.local.remove(CLIENT_ID_STORAGE_KEY);
+    } else if (!/^[\w.-]{10,255}$/.test(clientId)) {
+        throw new Error('This does not look like a consumer key.');
+    } else {
+        await chrome.storage.local.set({ [CLIENT_ID_STORAGE_KEY]: clientId });
+    }
+    return getOAuthConfig();
+}
+
 export async function performOAuthLogin(orgUrl) {
     const loginBase = detectLoginBase(orgUrl);
     const redirectUri = chrome.identity.getRedirectURL('salesforce');
+    const { clientId } = await getClientIdSetting();
     const state = generateRandomString(16);
     const codeVerifier = generateRandomString(64);
     const codeChallenge = await generatePKCEChallenge(codeVerifier);
 
     const authUrl = new URL(`${loginBase}/services/oauth2/authorize`);
     authUrl.searchParams.set('response_type', 'code');
-    authUrl.searchParams.set('client_id', OAUTH_CLIENT_ID);
+    authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', redirectUri);
-    authUrl.searchParams.set('scope', 'api refresh_token');
+    authUrl.searchParams.set('scope', OAUTH_SCOPES);
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge_method', 'S256');
     authUrl.searchParams.set('code_challenge', codeChallenge);
 
-    const redirectResponse = await chrome.identity.launchWebAuthFlow({
-        url: authUrl.toString(),
-        interactive: true
-    });
+    let redirectResponse;
+    try {
+        redirectResponse = await chrome.identity.launchWebAuthFlow({
+            url: authUrl.toString(),
+            interactive: true
+        });
+    } catch (error) {
+        throw new Error(describeAuthFlowFailure(error));
+    }
 
     if (!redirectResponse) {
-        throw new Error('User closed the authentication window or auth failed');
+        throw new Error('The login window was closed before login finished.');
     }
 
     const responseUrl = new URL(redirectResponse);
+
+    // Salesforce reports login problems in the redirect; show them before the state check
+    const error = responseUrl.searchParams.get('error');
+    if (error) {
+        throw new Error(describeOAuthError(error, responseUrl.searchParams.get('error_description')));
+    }
+
     const returnedState = responseUrl.searchParams.get('state');
 
     if (returnedState !== state) {
@@ -114,9 +199,7 @@ export async function performOAuthLogin(orgUrl) {
 
     const code = responseUrl.searchParams.get('code');
     if (!code) {
-        const error = responseUrl.searchParams.get('error');
-        const errorDesc = responseUrl.searchParams.get('error_description');
-        throw new Error(errorDesc || error || 'No authorization code returned from Salesforce');
+        throw new Error('No authorization code returned from Salesforce');
     }
 
     const tokenResponse = await fetch(`${loginBase}/services/oauth2/token`, {
@@ -124,7 +207,7 @@ export async function performOAuthLogin(orgUrl) {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'authorization_code',
-            client_id: OAUTH_CLIENT_ID,
+            client_id: clientId,
             code: code,
             redirect_uri: redirectUri,
             code_verifier: codeVerifier
@@ -133,7 +216,11 @@ export async function performOAuthLogin(orgUrl) {
 
     if (!tokenResponse.ok) {
         const errorText = await tokenResponse.text();
-        throw new Error('Token exchange failed: ' + errorText);
+        let errorBody = {};
+        try { errorBody = JSON.parse(errorText); } catch { }
+        throw new Error(errorBody.error
+            ? describeOAuthError(errorBody.error, errorBody.error_description)
+            : 'Token exchange failed: ' + errorText);
     }
 
     const tokens = await tokenResponse.json();
@@ -144,13 +231,16 @@ export async function performOAuthLogin(orgUrl) {
         refreshToken: tokens.refresh_token || null,
         issuedAt: Number(tokens.issued_at),
         tokenType: tokens.token_type,
-        id: tokens.id
+        id: tokens.id,
+        // Granted scopes (e.g. "web" enables one-time login links) and the app that issued the token
+        scope: tokens.scope || null,
+        clientId
     };
 
     const orgDomain = extractOrgDomain(tokens.instance_url);
     const storageKey = getTokenStorageKey(orgDomain);
 
-    await chrome.storage.local.set({ [storageKey]: tokenData, sfOAuthToken: tokenData });
+    await chrome.storage.local.set({ [storageKey]: tokenData });
 
     return tokenData;
 }
@@ -164,25 +254,40 @@ export function isTokenExpired(token) {
     return Date.now() > expiresAt;
 }
 
-export async function refreshAccessToken(token) {
-    if (!token || !token.refreshToken || !token.instanceUrl) {
-        throw new Error('NO_REFRESH_TOKEN');
-    }
+// One refresh per org at a time: parallel callers share it, so a rotating refresh token is
+// never sent twice
+const refreshesInFlight = new Map();
 
+function refreshAccessToken(token) {
+    if (!token || !token.refreshToken || !token.instanceUrl) {
+        return Promise.reject(new Error('NO_REFRESH_TOKEN'));
+    }
+    const orgDomain = extractOrgDomain(token.instanceUrl);
+    if (!refreshesInFlight.has(orgDomain)) {
+        refreshesInFlight.set(orgDomain, requestNewAccessToken(token).finally(() => refreshesInFlight.delete(orgDomain)));
+    }
+    return refreshesInFlight.get(orgDomain);
+}
+
+async function requestNewAccessToken(token) {
     const response = await fetch(`${token.instanceUrl}/services/oauth2/token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
             grant_type: 'refresh_token',
-            client_id: OAUTH_CLIENT_ID,
+            // Refresh with the app that issued the token
+            client_id: token.clientId || OAUTH_CLIENT_ID,
             refresh_token: token.refreshToken
         })
     });
 
     if (!response.ok) {
-        const orgDomain = extractOrgDomain(token.instanceUrl);
-        const storageKey = getTokenStorageKey(orgDomain);
-        await chrome.storage.local.remove([storageKey, 'sfOAuthToken']);
+        const errorBody = await response.json().catch(() => ({}));
+        // Only a rejected refresh token ends the login; 5xx, 429 and network errors can pass
+        if (response.status === 400 && errorBody.error === 'invalid_grant') {
+            await chrome.storage.local.remove(getTokenStorageKey(extractOrgDomain(token.instanceUrl)));
+            throw new Error('TOKEN_REVOKED');
+        }
         throw new Error('TOKEN_REFRESH_FAILED');
     }
 
@@ -194,67 +299,87 @@ export async function refreshAccessToken(token) {
         refreshToken: newTokens.refresh_token || token.refreshToken,
         issuedAt: Date.now(),
         tokenType: newTokens.token_type || token.tokenType,
-        id: newTokens.id || token.id
+        id: newTokens.id || token.id,
+        scope: newTokens.scope || token.scope || null,
+        clientId: token.clientId || OAUTH_CLIENT_ID
     };
 
     const orgDomainSnapshot = extractOrgDomain(updatedToken.instanceUrl);
     const storageKeySnapshot = getTokenStorageKey(orgDomainSnapshot);
-    await chrome.storage.local.set({ [storageKeySnapshot]: updatedToken, sfOAuthToken: updatedToken });
+    await chrome.storage.local.set({ [storageKeySnapshot]: updatedToken });
 
     return updatedToken;
 }
 
+// Called after Salesforce rejected an access token. If another call already refreshed it,
+// use that token instead of spending the refresh token again.
+export async function refreshAfterUnauthorized(staleToken) {
+    const storageKey = getTokenStorageKey(extractOrgDomain(staleToken.instanceUrl));
+    const stored = (await chrome.storage.local.get(storageKey))[storageKey];
+    if (!stored) {
+        throw new Error('NO_OAUTH_TOKEN');
+    }
+    if (stored.accessToken && stored.accessToken !== staleToken.accessToken) {
+        return stored;
+    }
+    return refreshAccessToken(stored);
+}
+
+// Moves the shared legacy copy to its org key (unless that org already has a token) and
+// removes it. Runs once per service worker start, before any token is read.
+let legacyTokenMigration = null;
+
+function migrateLegacyToken() {
+    if (!legacyTokenMigration) {
+        legacyTokenMigration = (async () => {
+            const { [LEGACY_TOKEN_KEY]: legacyToken } = await chrome.storage.local.get(LEGACY_TOKEN_KEY);
+            if (!legacyToken) return;
+            if (legacyToken.instanceUrl) {
+                const storageKey = getTokenStorageKey(extractOrgDomain(legacyToken.instanceUrl));
+                const existing = (await chrome.storage.local.get(storageKey))[storageKey];
+                if (!existing) {
+                    await chrome.storage.local.set({ [storageKey]: legacyToken });
+                }
+            }
+            await chrome.storage.local.remove(LEGACY_TOKEN_KEY);
+        })().catch(error => console.debug('Legacy token migration failed:', error.message));
+    }
+    return legacyTokenMigration;
+}
+
 export async function getStoredOAuthToken(sfHost = null) {
+    // Without an org we never guess: the old fallback used the last org you logged in to
+    if (!sfHost) {
+        return null;
+    }
+
     try {
-        let token = null;
+        await migrateLegacyToken();
 
-        if (sfHost) {
-            const orgDomain = extractOrgDomain(sfHost);
-            const storageKey = getTokenStorageKey(orgDomain);
-            const result = await chrome.storage.local.get(storageKey);
-            token = result[storageKey];
-
-            if (!token) {
-                const defaultResult = await chrome.storage.local.get('sfOAuthToken');
-                const defaultToken = defaultResult.sfOAuthToken;
-                if (defaultToken && defaultToken.instanceUrl) {
-                    const defaultDomain = extractOrgDomain(defaultToken.instanceUrl);
-                    if (defaultDomain === orgDomain) {
-                        token = defaultToken;
-                    }
-                }
-            }
-
-            if (token && token.instanceUrl) {
-                const tokenDomain = extractOrgDomain(token.instanceUrl);
-                if (tokenDomain !== orgDomain) {
-                    return null;
-                }
-            }
-        } else {
-            const result = await chrome.storage.local.get('sfOAuthToken');
-            token = result.sfOAuthToken;
-        }
+        const orgDomain = extractOrgDomain(sfHost);
+        const storageKey = getTokenStorageKey(orgDomain);
+        const result = await chrome.storage.local.get(storageKey);
+        let token = result[storageKey];
 
         if (!token || !token.accessToken || !token.instanceUrl) {
             return null;
         }
 
-        // Final safety check: if we have a host, the token must match the host's domain
-        if (sfHost) {
-            const orgDomain = extractOrgDomain(sfHost);
-            const tokenDomain = extractOrgDomain(token.instanceUrl);
-            if (tokenDomain !== orgDomain) {
-                console.debug('Token domain mismatch for host:', sfHost);
-                return null;
-            }
+        // Final safety check: the token must match the host's domain
+        const tokenDomain = extractOrgDomain(token.instanceUrl);
+        if (tokenDomain !== orgDomain) {
+            console.debug('Token domain mismatch for host:', sfHost);
+            return null;
         }
 
         if (isTokenExpired(token)) {
             try {
                 token = await refreshAccessToken(token);
             } catch (refreshError) {
-                return null;
+                // The expiry is only a guess: keep the token unless it cannot be refreshed at all
+                if (refreshError.message === 'TOKEN_REVOKED' || refreshError.message === 'NO_REFRESH_TOKEN') {
+                    return null;
+                }
             }
         }
 
@@ -263,4 +388,33 @@ export async function getStoredOAuthToken(sfHost = null) {
         console.debug('Failed to get OAuth token:', error.message);
     }
     return null;
+}
+
+// Revokes the org's token at Salesforce, then always removes the local copy.
+// Returns { warning } when Salesforce did not confirm the revoke.
+export async function revokeOAuthToken(sfHost) {
+    await migrateLegacyToken();
+
+    const storageKey = getTokenStorageKey(extractOrgDomain(sfHost));
+    const token = (await chrome.storage.local.get(storageKey))[storageKey];
+    let warning = null;
+
+    if (token && token.instanceUrl && (token.refreshToken || token.accessToken)) {
+        try {
+            const response = await fetch(`${token.instanceUrl}/services/oauth2/revoke`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                // Revoking the refresh token also revokes its access tokens
+                body: new URLSearchParams({ token: token.refreshToken || token.accessToken })
+            });
+            if (!response.ok) {
+                warning = `Salesforce did not confirm the revoke (HTTP ${response.status}). The token was removed from this browser.`;
+            }
+        } catch (error) {
+            warning = `Could not reach Salesforce to revoke the token (${error.message}). The token was removed from this browser.`;
+        }
+    }
+
+    await chrome.storage.local.remove(storageKey);
+    return { warning };
 }

@@ -507,6 +507,23 @@ body {
   color: var(--text-secondary);
 }
 
+/* ---------- Error line ---------- */
+.popup-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg-surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+  overflow-wrap: anywhere;
+}
+
+.popup-error[hidden] {
+  display: none;
+}
+
 /* ---------- Footer ---------- */
 .popup-footer {
   display: flex;

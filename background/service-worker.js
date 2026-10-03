@@ -345,8 +345,9 @@ async function handleToolingDescribe(request, sender) {
 }
 
 async function handleSaveApexCode(request) {
-  const record = await saveApexCodeToStorage({ ...request, timestamp: Date.now() });
-  return { success: true, message: 'Apex code saved successfully', data: record };
+  // `items` (array of { name, code }) saves an import in one write; otherwise one snippet.
+  const saved = await saveApexCodeToStorage({ name: request.name, code: request.code, items: request.items, orgId: request.orgId });
+  return { success: true, message: 'Apex code saved successfully', data: saved };
 }
 
 async function handleGetApexCodes(request) {
@@ -355,7 +356,7 @@ async function handleGetApexCodes(request) {
 }
 
 async function handleUpdateApexCode(request) {
-  const updated = await updateApexCodeInStorage({ ...request, timestamp: Date.now() }, request.orgId);
+  const updated = await updateApexCodeInStorage({ id: request.id, name: request.name, code: request.code }, request.orgId);
   return { success: true, message: 'Apex code updated successfully', data: updated };
 }
 

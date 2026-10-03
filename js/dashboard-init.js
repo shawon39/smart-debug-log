@@ -226,15 +226,29 @@ function setupApexManagerEventListeners() {
 
 // Initialize Apex Manager
 async function initializeApexManager() {
-  if (window.apexCodeManager && currentSession) {
-    const orgId = currentSession.orgId || 'unknown';
-    await window.apexCodeManager.initialize(orgId);
+  if (window.apexCodeManager) {
+    await window.apexCodeManager.initialize(await resolveApexOrgId());
   }
 }
 
-// Initialize Debug Log Manager
+// Snippets are saved per org. Use the org of this host's OAuth token (execution uses it too),
+// else the browser session's org. Storage keys both by the same 15-character org ID.
+async function resolveApexOrgId() {
+  const host = getHostFromUrl();
+  if (host) {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_USER_INFO', sfHost: host });
+      if (response?.success && response.data?.orgId) return response.data.orgId;
+    } catch (error) {
+      console.warn('Could not read the org ID from the access token:', error);
+    }
+  }
+  return currentSession?.orgId || null;
+}
+
+// Initialize Debug Log Manager (it works with the OAuth token, so no browser session is needed)
 async function initializeDebugLogManager() {
-  if (window.debugLogManagerUI && currentSession) {
+  if (window.debugLogManagerUI) {
     await window.debugLogManagerUI.initialize(currentSession);
     // Refresh status indicator after initialization
     await window.debugLogManagerUI.refreshStatusIndicator();
@@ -288,6 +302,8 @@ async function checkAndShowTokenWarning(targetHost) {
 }
 
 // Apex Manager Event Handlers
+let apexRunInProgress = false;
+
 async function handleRunApex() {
   if (!window.apexExecutor || !window.apexCodeManager) {
     alert('Apex execution components not loaded');
@@ -300,34 +316,26 @@ async function handleRunApex() {
     return;
   }
 
-  if (!currentSession) {
-    alert('No Salesforce session available');
-    return;
-  }
+  // Execution uses the OAuth token of this dashboard's org, so no browser session is needed.
+  if (apexRunInProgress) return;
+  apexRunInProgress = true;
+  let runStart = 0, succeeded = false;
 
   try {
-    // Create session data with instanceUrl for apex execution
-    const sessionForApex = {
-      ...currentSession,
-      instanceUrl: currentSession.instanceUrl || `https://${currentSession.domain || currentSession.hostname || sfHost}`
-    };
+    // Make sure debug logging is on, so the run creates a log. A failure here does not stop the run.
+    await ensureTraceFlagForApexRun();
 
-    const result = await window.apexExecutor.executeApexCode(code, sessionForApex);
-
-    // Refresh logs regardless of success so user can see new/related logs
-    if (typeof loadDebugLogs === 'function') {
-      await loadDebugLogs();
-    } else if (typeof refreshDashboard === 'function') {
-      await refreshDashboard();
-    }
+    runStart = Date.now();
+    const result = await window.apexExecutor.executeApexCode(code);
+    succeeded = !!(result && result.success);
 
     // Only close the modal if execution was successful
-    if (result && result.success) {
-      if (window.apexCodeManager) {
-        window.apexCodeManager.closeModal();
-      }
+    if (succeeded) {
+      window.apexCodeManager.closeModal();
+    } else if (typeof loadDebugLogs === 'function') {
+      // Keep the modal open to show the error; refresh logs so the failed run's log appears
+      await loadDebugLogs();
     }
-    // If execution failed but didn't throw an error, keep modal open to show results
 
   } catch (error) {
     console.error('Apex execution failed:', error);
@@ -343,7 +351,59 @@ async function handleRunApex() {
     } catch (e) {
       // ignore refresh errors
     }
+  } finally {
+    apexRunInProgress = false;
   }
+
+  // Show the run's log (this can take a few seconds, so it is outside the run guard)
+  if (succeeded) await showLogForApexRun(runStart);
+}
+
+// Turns on a trace flag for the current user when none is active (not forced).
+// On failure, shows a short note and lets the run continue.
+async function ensureTraceFlagForApexRun() {
+  let error = null;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'ENSURE_TRACE_FLAG', sfHost: getHostFromUrl() });
+    if (response && response.success) {
+      window.debugLogManagerUI?.refreshStatusIndicator();
+      return;
+    }
+    error = response?.error || 'Unknown error';
+  } catch (e) {
+    error = e.message;
+  }
+  showToast(`Debug logging could not be turned on (${error}). The code will still run, but it may not create a log.`, 6000);
+}
+
+// After a successful run, refresh the logs and select the run's log: the newest
+// executeAnonymous log that started at or after the run. New logs can take a few seconds to show up.
+async function showLogForApexRun(runStart) {
+  const since = Math.floor(runStart / 1000) * 1000 - 1000; // StartTime has whole seconds; allow 1 s clock difference
+  const userId = window.debugLogManagerUI?.userId;
+  const findRunLog = () => debugLogs
+    .filter(log => /executeAnonymous/i.test(log.Operation || '')
+      && new Date(log.StartTime).getTime() >= since
+      && (!userId || log.LogUserId === userId))
+    .sort((a, b) => new Date(b.StartTime) - new Date(a.StartTime))[0];
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt > 0) await new Promise(resolve => setTimeout(resolve, 2000));
+    await loadDebugLogs();
+    const log = findRunLog();
+    if (log) {
+      selectDebugLog(log.Id);
+      return;
+    }
+    // Logs from this run are Monitoring logs: switch the log type filter if it hides them.
+    const filter = document.getElementById('logTypeFilter');
+    if (filter && filter.value !== 'Monitoring') {
+      filter.value = 'Monitoring';
+      await savePreferences();
+      logLoader.clearCache();
+    }
+  }
+  showToast('Run finished. The log can take a few seconds to appear.');
 }
 
 async function handleSaveApex() {
@@ -358,14 +418,13 @@ async function handleSaveApex() {
     return;
   }
 
-  // Use the new save or update logic
-  const success = await window.apexCodeManager.saveOrUpdateCurrentCode();
-  if (success) {
-    const isUpdate = window.apexCodeManager.currentSelectedCode?.id;
-    const message = isUpdate ? 'Apex code updated successfully!' : 'Apex code saved successfully!';
-    showToast(message);
-  } else {
-    alert('Failed to save Apex code');
+  // Decide the wording before saving: a first save selects the new snippet.
+  const isUpdate = !!window.apexCodeManager.currentSelectedCode?.id;
+  try {
+    await window.apexCodeManager.saveOrUpdateCurrentCode();
+    showToast(isUpdate ? 'Apex code updated successfully!' : 'Apex code saved successfully!');
+  } catch (error) {
+    alert('Failed to save Apex code: ' + error.message);
   }
 }
 

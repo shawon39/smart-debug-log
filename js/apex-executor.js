@@ -6,7 +6,7 @@ class ApexExecutor {
     this.isExecuting = false;
   }
 
-  async executeApexCode(code, session) {
+  async executeApexCode(code) {
     if (this.isExecuting) {
       throw new Error('Another execution is in progress');
     }
@@ -14,16 +14,13 @@ class ApexExecutor {
     if (!code || !code.trim()) {
       throw new Error('No Apex code provided');
     }
-    
-    if (!session) {
-      throw new Error('No session available');
-    }
 
     this.isExecuting = true;
     this.showExecutionProgress();
 
     try {
-      const result = await window.apexCodeManager.executeApexCode(code.trim(), session);
+      // Trim only the end: removing leading blank lines would shift the line numbers in errors.
+      const result = await window.apexCodeManager.executeApexCode(code.trimEnd());
       this.displayExecutionResult(result);
       return result;
     } catch (error) {
@@ -68,11 +65,11 @@ class ApexExecutor {
     if (!resultsContent) return;
 
     let content = '';
+    // Salesforce sends line/column -1 when there is no position.
+    const line = result.line > 0 ? result.line : null;
+    const column = result.column > 0 ? result.column : null;
     
     if (result.success) {
-      const compileProblemEsc = result.compileProblem ? this.escapeHtml(result.compileProblem) : '';
-      const exceptionMessageEsc = result.exceptionMessage ? this.escapeHtml(result.exceptionMessage) : '';
-      const stackEsc = result.exceptionStackTrace ? this.escapeHtml(result.exceptionStackTrace) : '';
       content = `
         <div class="execution-success">
           <div class="result-header success">
@@ -81,50 +78,38 @@ class ApexExecutor {
           </div>
           <div class="result-details">
             <div class="result-section">
-              <h4>Compilation Status</h4>
-              <div class="result-value ${result.compiled ? 'success' : 'error'}">
-                ${result.compiled ? 'Compiled Successfully' : 'Compilation Failed'}
-              </div>
+              <div class="result-value success">Compiled and ran without errors</div>
             </div>
-            ${compileProblemEsc ? `
-              <div class="result-section">
-                <h4>Compilation Problem</h4>
-                <div class="result-value error">${compileProblemEsc}</div>
-              </div>
-            ` : ''}
-            ${exceptionMessageEsc ? `
-              <div class="result-section">
-                <h4>Exception Message</h4>
-                <div class="result-value error">${exceptionMessageEsc}</div>
-              </div>
-            ` : ''}
-            ${stackEsc ? `
-              <div class="result-section">
-                <h4>Stack Trace</h4>
-                <div class="result-value error stack-trace">${stackEsc}</div>
-              </div>
-            ` : ''}
+          </div>
+        </div>
+      `;
+    } else if (!result.compiled) {
+      const position = line ? ` at line ${line}${column ? `, column ${column}` : ''}` : '';
+      content = `
+        <div class="execution-error">
+          <div class="result-header error">
+            <div class="result-icon">${Icons.svg('circleX', 18)}</div>
+            <div class="result-title">Compile error${position}</div>
+          </div>
+          <div class="result-details">
             <div class="result-section">
-              <h4>Line/Column</h4>
-              <div class="result-value">
-                Line: ${result.line || 'N/A'}, Column: ${result.column || 'N/A'}
-              </div>
+              <h4>Problem</h4>
+              <div class="result-value error">${this.escapeHtml(result.compileProblem || 'Unknown compile error')}</div>
             </div>
           </div>
         </div>
       `;
     } else {
-      const errorDetailsEsc = this.escapeHtml(result.compileProblem || result.exceptionMessage || 'Unknown error');
       content = `
         <div class="execution-error">
           <div class="result-header error">
             <div class="result-icon">${Icons.svg('circleX', 18)}</div>
-            <div class="result-title">Execution Failed</div>
+            <div class="result-title">Runtime exception</div>
           </div>
           <div class="result-details">
             <div class="result-section">
-              <h4>Error Details</h4>
-              <div class="result-value error">${errorDetailsEsc}</div>
+              <h4>Exception</h4>
+              <div class="result-value error">${this.escapeHtml(result.exceptionMessage || 'Unknown error')}</div>
             </div>
             ${result.exceptionStackTrace ? `
               <div class="result-section">
@@ -138,6 +123,7 @@ class ApexExecutor {
     }
 
     resultsContent.innerHTML = content;
+    if (!result.success && !result.compiled && line) window.apexCodeManager?.highlightEditorLine(line);
   }
 
   displayExecutionError(error) {

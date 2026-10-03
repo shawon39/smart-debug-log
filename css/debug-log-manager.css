@@ -855,9 +855,26 @@
   font-weight: 500;
 }
 
+/* LogType badge: User debug / Dev Console / Class/Trigger */
+.trace-flag-user .trace-flag-type {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  padding: 0 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.trace-flag-creator {
+  color: var(--text-muted);
+}
+
 .trace-flag-meta {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   font-size: 10px;
   color: var(--text-secondary);
 }
@@ -930,14 +947,71 @@
 /* Delete Logs Section */
 .delete-logs-section {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 10px;
   padding: 10px 12px;
   background: var(--bg-secondary);
   border: 1px solid var(--border-primary);
   border-radius: 6px;
   margin-bottom: 4px;
   /* Ensure space at the very bottom */
+}
+
+.delete-logs-row,
+.auto-cleanup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auto-cleanup-row .toggle-label {
+  white-space: normal;
+  color: var(--text-primary);
+}
+
+.auto-cleanup-row .toggle-switch {
+  flex-shrink: 0;
+}
+
+/* Org log storage meter */
+.log-storage-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.log-storage-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-storage-bar {
+  height: 6px;
+  background: var(--border-primary);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.log-storage-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.log-storage-meter.warn .log-storage-fill {
+  background: var(--warning);
+}
+
+.log-storage-warning {
+  font-size: 11px;
+  color: var(--text-dev-warning);
+  background: var(--warning-soft);
+  border-radius: 4px;
+  padding: 5px 8px;
 }
 
 .delete-logs-section .button.danger {
@@ -1166,7 +1240,7 @@
     justify-content: flex-end;
   }
 
-  .delete-logs-section {
+  .delete-logs-row {
     flex-direction: column;
     gap: 8px;
     text-align: center;

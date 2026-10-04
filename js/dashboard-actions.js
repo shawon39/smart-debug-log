@@ -12,7 +12,7 @@ async function getSessionLoginUrl() {
       sfHost: getHostFromUrl() || sfHost
     });
     if (response && response.success && response.data && response.data.url) {
-      return { url: response.data.url, oneTime: true };
+      return { url: response.data.url };
     }
   } catch (error) {
     // Fall back to the session ID link
@@ -20,7 +20,7 @@ async function getSessionLoginUrl() {
 
   const sessionId = currentSession.key || currentSession.sessionId;
   if (!sessionId) throw new Error('Log in to this org in a browser tab first (this needs a browser session, not only the access token)');
-  return { url: `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`, oneTime: false };
+  return { url: `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}` };
 }
 
 async function openInIncognito() {
@@ -222,31 +222,22 @@ function clearRawResponse() {
 
 // Note: copyRawResponse() is defined in raw-view.js
 
-// Open Debug Logs Setup page navigation
-// Switches to the Salesforce tab the dashboard was opened from, else to any open tab of this
-// org, else opens the org in a new tab
+// Back to Salesforce: the tab the dashboard was opened from, another tab of this org, or a new tab
 async function goBackToSalesforce() {
   const host = getHostFromUrl() || sfHost;
-  if (!host) return;
+  if (!host) {
+    showToast('Open the dashboard from a Salesforce tab first', 4000);
+    return;
+  }
 
   try {
-    const storageKey = `lastSfUrl_${host}`;
-    const { [storageKey]: lastUrl } = await chrome.storage.local.get(storageKey);
-    const tabs = await chrome.tabs.query({});
-    const tab = tabs.find(t => lastUrl && t.url === lastUrl)
-      || tabs.find(t => t.url && isSalesforceUrl(t.url) && isSameOrgHost(new URL(t.url).hostname, host));
-
-    if (tab) {
-      await chrome.tabs.update(tab.id, { active: true });
-      await chrome.windows.update(tab.windowId, { focused: true });
-    } else {
-      await chrome.tabs.create({ url: lastUrl || `https://${host}` });
-    }
+    await focusSalesforceTab(host);
   } catch (error) {
     showToast(`Could not open Salesforce: ${error.message}`, 5000);
   }
 }
 
+// Open Debug Logs Setup page navigation
 async function openDebugLogsSetup() {
   if (!currentSession || !sfHost) {
     alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');

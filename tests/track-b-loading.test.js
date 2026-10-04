@@ -174,6 +174,37 @@ test('S6: queries use only tabs of the same org, never extension pages or other 
   assert.ok(!same('acme.my.salesforce.com', 'other.my.salesforce.com'));
 });
 
+test('Back to Salesforce: saved tab first, then any tab of the same org, else a new tab', async () => {
+  const { ctx, run } = makeDashboard();
+  const calls = [];
+  let saved = {};
+  let tabs = [];
+  Object.assign(ctx.chrome.tabs, {
+    query: async () => tabs,
+    update: async (id) => calls.push(['update', id]),
+    create: async ({ url }) => calls.push(['create', url]),
+  });
+  ctx.chrome.windows = { update: async (id) => calls.push(['focus', id]) };
+  ctx.chrome.storage.local.get = async (key) => (key in saved ? { [key]: saved[key] } : {});
+  const goBack = async () => { calls.length = 0; await run('focusSalesforceTab("acme.my.salesforce.com")'); return calls.map(c => c.join(' ')); };
+
+  // The page the dashboard was opened from is still open: switch to it
+  saved = { 'lastSfUrl_acme.my.salesforce.com': 'https://acme.lightning.force.com/lightning/r/Account/001/view' };
+  tabs = [{ id: 1, windowId: 9, url: 'https://acme.lightning.force.com/lightning/page/home' },
+    { id: 2, windowId: 9, url: 'https://acme.lightning.force.com/lightning/r/Account/001/view' }];
+  assert.deepStrictEqual(await goBack(), ['update 2', 'focus 9']);
+
+  // That tab moved on (Lightning changes the URL): any tab of this org, never another org
+  tabs = [{ id: 3, windowId: 9, url: 'https://other.lightning.force.com/' }, { id: 4, windowId: 8, url: 'https://acme.lightning.force.com/lightning/o/Case/home' }];
+  assert.deepStrictEqual(await goBack(), ['update 4', 'focus 8']);
+
+  // No tab of this org: open the saved page, or the org when nothing was saved
+  tabs = [{ id: 3, windowId: 9, url: 'https://other.lightning.force.com/' }];
+  assert.deepStrictEqual(await goBack(), ['create https://acme.lightning.force.com/lightning/r/Account/001/view']);
+  saved = {};
+  assert.deepStrictEqual(await goBack(), ['create https://acme.my.salesforce.com']);
+});
+
 test('S6: logs are queried through the background (OAuth) first; a same-org tab is only the fallback', async () => {
   const { run, sent } = makeDashboard({ respond: () => ({ success: true, data: { records: [apexLog(1)] } }) });
   run('var tabCalls = 0; tabManager.findWorkingTabForQuery = async () => { tabCalls++; return { records: [] }; }');

@@ -21,7 +21,7 @@ function makeElement(id) {
   };
 }
 
-function loadPopup({ activeTab, allTabs, contexts, reply }) {
+function loadPopup({ activeTab, allTabs, contexts, reply, globals = {} }) {
   const elements = {};
   const domListeners = {};
   const messages = [];
@@ -35,6 +35,7 @@ function loadPopup({ activeTab, allTabs, contexts, reply }) {
     window: { close() { } },
     confirm: () => true,
     isSalesforceUrl: (url) => /\.(salesforce|force)\.com/.test(url),
+    ...globals,
     initializeTheme: async () => { },
     setupThemeToggle: () => { },
     chrome: {
@@ -105,6 +106,50 @@ test('F2 popup shows a scheduled trace flag instead of "Not recording"', async (
   });
   await tick();
   assert.match(elements.loggingStatusText.textContent, /^Recording starts at /);
+});
+
+const SF_TAB = { id: 2, url: 'https://acme.my.salesforce.com/lightning/page/home' };
+const noTokenReplies = (traceStatus) => (m) => ({
+  GET_SALESFORCE_HOST: { success: true, data: { salesforceHost: 'acme.my.salesforce.com' } },
+  GET_SESSION: { success: true, data: { hostname: 'acme.my.salesforce.com' } },
+  CHECK_TOKEN_STATUS: { success: true, data: { hasToken: false } },
+  GET_TRACE_FLAG_STATUS: { success: true, data: traceStatus }
+})[m.type];
+
+test('popup without a token: logging controls are off, but a running trace flag still shows', async () => {
+  const running = loadPopup({ activeTab: SF_TAB, allTabs: [], contexts: [],
+    reply: noTokenReplies({ active: true, expirationDate: new Date(Date.now() + 20 * 60000).toISOString() }) });
+  await tick();
+  assert.strictEqual(running.elements.loggingStatusText.textContent, 'Recording your debug logs');
+  assert.match(running.elements.loggingCountdown.textContent, /^(19|20):\d\d$/);
+  assert.strictEqual(running.elements.enableLoggingBtn.disabled, true);
+  assert.strictEqual(running.elements.durationSelect.disabled, true);
+
+  const idle = loadPopup({ activeTab: SF_TAB, allTabs: [], contexts: [], reply: noTokenReplies({ active: false }) });
+  await tick();
+  assert.strictEqual(idle.elements.loggingStatusText.textContent, 'Generate a token to record debug logs');
+  assert.strictEqual(idle.elements.enableLoggingBtn.disabled, true);
+});
+
+test('popup on a dashboard tab: the main button goes back to that org in Salesforce', async () => {
+  const backTo = [];
+  const { elements, messages } = loadPopup({
+    activeTab: { id: 5 },
+    allTabs: [{ id: 5 }],
+    contexts: [{ tabId: 5, windowId: 1, documentUrl: `${EXT}dashboard.html?host=orgb.my.salesforce.com` }],
+    reply: (m) => ({
+      GET_SALESFORCE_HOST: { success: true, data: { salesforceHost: 'orgb.my.salesforce.com' } },
+      GET_SESSION: { success: true, data: { hostname: 'orgb.my.salesforce.com' } },
+      CHECK_TOKEN_STATUS: { success: true, data: { hasToken: true, isExpired: false } },
+      GET_TRACE_FLAG_STATUS: { success: true, data: { active: false } }
+    })[m.type],
+    globals: { focusSalesforceTab: async (host) => { backTo.push(host); } }
+  });
+  await tick();
+  assert.strictEqual(elements.openDashboardBtn.textContent, 'Back to Salesforce');
+  await elements.openDashboardBtn.handlers.click();
+  assert.deepStrictEqual(backTo, ['orgb.my.salesforce.com']);
+  assert.ok(!messages.some(m => m.type === 'ENSURE_TRACE_FLAG'), 'does not open or refresh the dashboard');
 });
 
 function loadDashboardConnection({ dismissed, reply }) {

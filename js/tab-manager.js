@@ -1,33 +1,6 @@
 // Tab Management
 // This file handles tab querying, prioritization, and content script injection
 
-// My Domain hosts of one org differ only in their suffix: acme.my.salesforce.com, acme.lightning.force.com,
-// acme.my.salesforce-setup.com and acme--c.vf.force.com (sandbox: acme--uat.sandbox.lightning.force.com,
-// acme--uat--c.sandbox.vf.force.com). Returns that common part ("acme", "acme--uat.sandbox"), or null.
-function getMyDomainOrgKey(host) {
-  const name = String(host || '').toLowerCase();
-  for (const suffix of ['.my.salesforce.com', '.lightning.force.com', '.my.salesforce-setup.com']) {
-    if (name.endsWith(suffix)) return name.slice(0, -suffix.length);
-  }
-  if (name.endsWith('.vf.force.com')) {
-    // The first label ends with "--<package>" (usually "--c"): acme--c -> acme
-    const prefix = name.slice(0, -'.vf.force.com'.length);
-    const dot = prefix.indexOf('.');
-    const firstLabel = dot === -1 ? prefix : prefix.slice(0, dot);
-    const cut = firstLabel.lastIndexOf('--');
-    return cut > 0 ? firstLabel.slice(0, cut) + prefix.slice(firstLabel.length) : null;
-  }
-  return null;
-}
-
-// True when host belongs to the same org as targetHost
-function isSameOrgHost(host, targetHost) {
-  if (!host || !targetHost) return false;
-  if (host.toLowerCase() === targetHost.toLowerCase()) return true;
-  const key = getMyDomainOrgKey(host);
-  return key !== null && key === getMyDomainOrgKey(targetHost);
-}
-
 class TabManager {
   constructor() {
     this.contentScriptFiles = [

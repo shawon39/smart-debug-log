@@ -341,9 +341,13 @@ async function generateAccessToken() {
         console.warn('Could not auto-enable debug:', traceFlagError);
       }
 
-      // Same steps as a page load with a token: Revoke button, current user and trace flag status
-      await checkOAuthTokenStatus();
-      await initializeDebugLogManager().catch(e => console.warn('Could not refresh debug log status:', e));
+      // What a page load with a token shows: Revoke button, current user and trace flag status.
+      // Only the user ID is reloaded, so a user picked under "Other User" stays selected.
+      const ui = window.debugLogManagerUI;
+      await Promise.all([
+        checkOAuthTokenStatus(),
+        ui && ui.sfHost ? ui.loadUserInfo().then(() => ui.refreshStatusIndicator()) : null
+      ].map(step => Promise.resolve(step).catch(e => console.warn('Could not refresh after login:', e))));
 
       // Refresh the dashboard to use the new token
       setTimeout(async () => {

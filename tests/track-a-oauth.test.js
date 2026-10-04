@@ -99,7 +99,17 @@ test('M1 token exchange errors and a closed login window get clear messages', as
 
   // Salesforce shows an error page (no redirect) for a callback URL it does not know
   chrome.identity.launchWebAuthFlow = async () => { throw new Error('Authorization page could not be loaded.'); };
-  await assert.rejects(performOAuthLogin(HOST), /https:\/\/extid\.chromiumapp\.org\/salesforce/);
+  await assert.rejects(performOAuthLogin(HOST), /\(Authorization page could not be loaded\.\).*https:\/\/extid\.chromiumapp\.org\/salesforce/);
+
+  // Same Chrome error while offline: say so instead of pointing at the callback URL
+  const realNavigator = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
+  Object.defineProperty(globalThis, 'navigator', { value: { onLine: false }, configurable: true });
+  try {
+    await assert.rejects(performOAuthLogin(HOST), /^Error: You are offline\./);
+  } finally {
+    if (realNavigator) Object.defineProperty(globalThis, 'navigator', realNavigator);
+    else delete globalThis.navigator;
+  }
 
   chrome.identity.launchWebAuthFlow = async ({ url }) => {
     const state = new URL(url).searchParams.get('state');

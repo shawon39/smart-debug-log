@@ -253,12 +253,18 @@ body {
   min-height: 0;
 }
 
-/* Welcome State */
+/* Welcome State. The empty state of Recent Logs sits under the search bar, so it starts that much
+   higher to line up with the welcome states of the other two panels. */
+:root {
+  --welcome-offset: 18vh;
+  --log-search-height: 53px;
+}
+
 .welcome-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 18vh 24px 40px;
+  padding: var(--welcome-offset) 24px 40px;
   color: var(--text-empty-state);
   text-align: center;
   font-size: 12px;
@@ -387,15 +393,10 @@ body {
 
 .empty-state {
   text-align: center;
-  padding: 40px 20px;
+  padding: calc(var(--welcome-offset) - var(--log-search-height)) 24px 40px;
   color: var(--text-empty-state);
   font-size: 12px;
   transition: color 0.3s ease;
-}
-
-/* Lines up with the welcome states in the other two panels (minus the 53px search bar above) */
-.panel-content > .empty-state {
-  padding: calc(18vh - 53px) 24px 40px;
 }
 
 .empty-state h4 {

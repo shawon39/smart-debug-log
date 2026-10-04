@@ -644,8 +644,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  flex-shrink: 1;
+  /* Keep its height in short windows: the modal content scrolls instead of hiding the list */
+  flex-shrink: 0;
 }
 
 .trace-flags-section .section-header {
@@ -761,8 +761,8 @@
   background: var(--bg-button);
 }
 
-.loading-state,
-.empty-state {
+.debug-log-manager-modal .loading-state,
+.debug-log-manager-modal .empty-state {
   padding: 20px;
   text-align: center;
   color: var(--text-secondary);

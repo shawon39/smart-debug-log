@@ -138,7 +138,7 @@ class SmartDebugLogPopup {
       await this.refreshLoggingStatus();
 
       if (this.dashboardTab) {
-        await this.showDashboardNavigationButtons(sfHost);
+        this.showDashboardNavigationButtons();
       } else {
         this.showButton();
       }
@@ -190,15 +190,12 @@ class SmartDebugLogPopup {
   async openDashboard() {
     const btn = document.getElementById('openDashboardBtn');
 
-    // Check if we are in "Back to Salesforce" mode
-    const label = btn?.querySelector('span') || btn;
-    if (btn && label.textContent === 'Back to Salesforce') {
-      const sfHost = btn.dataset.sfHost;
-      if (sfHost) {
-        return this.goBackToSalesforce(sfHost);
-      }
+    // On a dashboard tab this button goes back to Salesforce
+    if (this.dashboardTab && this.sfHost) {
+      return this.goBackToSalesforce(this.sfHost);
     }
 
+    const label = btn.querySelector('span') || btn;
     const originalText = label.textContent;
 
     try {
@@ -401,19 +398,17 @@ class SmartDebugLogPopup {
     this.setLoggingLocked(!hasToken);
   }
 
-  // Debug logging needs the token: until there is one the logging controls are off and say why
+  // Debug logging needs the token: until there is one the logging controls are off. A running
+  // trace flag keeps showing (Salesforce still records logs), otherwise the label says why.
   setLoggingLocked(locked) {
+    this.loggingLocked = locked;
     const row = document.getElementById('loggingRow');
     const select = document.getElementById('durationSelect');
     const enableBtn = document.getElementById('enableLoggingBtn');
     if (row) row.classList.toggle('is-locked', locked);
     if (select) select.disabled = locked;
     if (enableBtn) enableBtn.disabled = locked;
-    if (locked) {
-      this.renderLoggingStatus({ active: false });
-      const label = document.getElementById('loggingStatusText');
-      if (label) label.textContent = 'Generate a token to record debug logs';
-    }
+    this.renderLoggingStatus(this.loggingStatus || { active: false });
   }
 
   // Errors go to a visible line in the popup (not only to the console)
@@ -477,6 +472,7 @@ class SmartDebugLogPopup {
     const countdown = document.getElementById('loggingCountdown');
 
     this.stopCountdown();
+    this.loggingStatus = data;
 
     if (data && data.active && data.expirationDate) {
       if (dot) { dot.classList.add('active'); dot.classList.remove('warning'); }
@@ -487,9 +483,11 @@ class SmartDebugLogPopup {
       if (dot) { dot.classList.remove('active'); dot.classList.remove('warning'); }
       if (label) {
         // A trace flag can also be scheduled to start later
-        label.textContent = data && data.scheduled && data.startTime
-          ? `Recording starts at ${new Date(data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-          : 'Not recording your debug logs';
+        if (data && data.scheduled && data.startTime) {
+          label.textContent = `Recording starts at ${new Date(data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+        } else {
+          label.textContent = this.loggingLocked ? 'Generate a token to record debug logs' : 'Not recording your debug logs';
+        }
       }
       if (enableBtn) enableBtn.textContent = 'Start';
       if (countdown) { countdown.textContent = ''; countdown.classList.remove('warning'); }
@@ -583,39 +581,18 @@ class SmartDebugLogPopup {
     }
   }
 
-  async showDashboardNavigationButtons(sfHost) {
+  showDashboardNavigationButtons() {
     const mainBtn = document.getElementById('openDashboardBtn');
 
     if (mainBtn) {
       (mainBtn.querySelector('span') || mainBtn).textContent = 'Back to Salesforce';
-      // Store the host in the button for the click handler
-      mainBtn.dataset.sfHost = sfHost;
     }
   }
 
   async goBackToSalesforce(sfHost) {
     try {
-      const storageKey = `lastSfUrl_${sfHost}`;
-      const result = await chrome.storage.local.get([storageKey]);
-      const lastUrl = result[storageKey];
-
-      if (lastUrl) {
-        // Try to find a tab with this URL first
-        const tabs = await chrome.tabs.query({});
-        const existingTab = tabs.find(t => t.url === lastUrl);
-
-        if (existingTab) {
-          await chrome.tabs.update(existingTab.id, { active: true });
-          await chrome.windows.update(existingTab.windowId, { focused: true });
-        } else {
-          await chrome.tabs.create({ url: lastUrl });
-        }
-        window.close();
-      } else {
-        // Fallback: just open the host root
-        await chrome.tabs.create({ url: `https://${sfHost}` });
-        window.close();
-      }
+      await focusSalesforceTab(sfHost);
+      window.close();
     } catch (error) {
       console.error('Failed to go back to Salesforce:', error);
     }

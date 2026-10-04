@@ -126,9 +126,13 @@ function describeAuthFlowFailure(error, redirectUri) {
     if (/did not approve|closed|cancel/i.test(message)) {
         return 'The login window was closed before login finished.';
     }
-    // Salesforce shows an error page instead of redirecting back, mostly for an unknown callback URL
+    // Chrome says this when the page fails to load: offline, or (most often) Salesforce answers
+    // with an error page for an unknown callback URL or consumer key
     if (/Authorization page could not be loaded/i.test(message)) {
-        return `Salesforce rejected the login request. Add this callback URL to the app (or check the consumer key in OAuth setup): ${redirectUri}`;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+            return 'You are offline. Connect to the internet, then click Generate Token again.';
+        }
+        return `Could not open the Salesforce login page (${message}). Salesforce most likely rejected the request: add this callback URL to the app, or check the consumer key in OAuth setup: ${redirectUri}`;
     }
     return `Could not open the Salesforce login page: ${message}`;
 }

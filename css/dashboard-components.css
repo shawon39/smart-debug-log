@@ -368,6 +368,8 @@ input:checked + .toggle-slider:before {
 /* Log Search Container */
 .log-search-container {
   position: relative;
+  box-sizing: border-box;
+  height: var(--log-search-height);
   padding: 10px 12px;
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-primary);

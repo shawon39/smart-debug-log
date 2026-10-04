@@ -329,14 +329,14 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
         info.append(user, meta);
 
         const actions = this.createElement('div', 'trace-flag-actions');
-        this.getTraceFlagActions(tf, state).forEach(([label, className, handler, content]) => {
+        this.getTraceFlagActions(tf, state).forEach(action => {
             // Compact button: short text or an icon, the full action as tooltip and accessible name
-            const button = this.createElement('button', `button ${className}`);
-            button.title = label;
-            button.setAttribute('aria-label', label);
-            if (content.icon) button.innerHTML = Icons.svg(content.icon, 13);
-            else button.textContent = content.text;
-            button.addEventListener('click', () => handler(tf.Id));
+            const button = this.createElement('button', `button ${action.className}`);
+            button.title = action.label;
+            button.setAttribute('aria-label', action.label);
+            if (action.icon) button.innerHTML = Icons.svg(action.icon, 13);
+            else button.textContent = action.text;
+            button.addEventListener('click', () => action.onClick(tf.Id));
             actions.append(button);
         });
 
@@ -381,20 +381,23 @@ DebugLogManagerUI.prototype.getSelectedDurationMinutes = function () {
     return minutes > 0 ? minutes : this.DEFAULT_DURATION_MINUTES;
 };
 
-// [label, button classes, handler, { text } or { icon }] for each button of a row. The label is the
-// tooltip. Developer Console flags are kept up by the Developer Console itself, so they only get Delete.
+// The buttons of a row: { label (tooltip), className, onClick, and a short text or an icon }.
+// Developer Console flags are kept up by the Developer Console itself, so they only get Delete.
 DebugLogManagerUI.prototype.getTraceFlagActions = function (tf, state) {
     const duration = formatDuration(this.getSelectedDurationMinutes());
-    const remove = state === 'scheduled'
-        ? ['Cancel', 'secondary delete-btn', id => this.handleDeleteTraceFlag(id), { icon: 'x' }]
-        : ['Delete', 'secondary delete-btn', id => this.handleDeleteTraceFlag(id), { icon: 'trash' }];
+    const remove = {
+        label: state === 'scheduled' ? 'Cancel' : 'Delete',
+        className: 'secondary delete-btn',
+        onClick: id => this.handleDeleteTraceFlag(id),
+        icon: state === 'scheduled' ? 'x' : 'trash'
+    };
     if (tf.LogType === 'DEVELOPER_LOG' || state === 'scheduled') return [remove];
     if (state === 'expired') {
-        return [[`Reactivate for ${duration}`, 'primary reactivate-btn', id => this.handleReactivateTraceFlag(id), { text: `Reactivate ${duration}` }], remove];
+        return [{ label: `Reactivate for ${duration}`, className: 'primary reactivate-btn', onClick: id => this.handleReactivateTraceFlag(id), text: `Reactivate ${duration}` }, remove];
     }
     return [
-        [`Extend by ${duration}`, 'secondary extend-btn', id => this.handleExtendTraceFlag(id), { text: `+${duration}` }],
-        [`Reduce by ${duration}`, 'secondary reduce-btn', id => this.handleReduceTraceFlag(id), { text: `\u2212${duration}` }],
+        { label: `Extend by ${duration}`, className: 'secondary extend-btn', onClick: id => this.handleExtendTraceFlag(id), text: `+${duration}` },
+        { label: `Reduce by ${duration}`, className: 'secondary reduce-btn', onClick: id => this.handleReduceTraceFlag(id), text: `\u2212${duration}` },
         remove
     ];
 };

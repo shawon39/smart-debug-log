@@ -17,58 +17,72 @@
 </head>
 
 <body>
-  <!-- Compact Header -->
-  <div class="header">
-    <h1>
-      Salesforce Debug Log Beautifier
+  <!-- App Header -->
+  <header class="header">
+    <div class="brand">
+      <span class="brand-mark" data-icon="logo"></span>
+      <h1 class="brand-name">Debug Log Beautifier</h1>
       <span class="connection-status" id="connectionStatusText">Checking...</span>
-    </h1>
-    <div class="header-controls">
-      <div class="theme-toggle-header">
-        <label class="theme-toggle-label-header" for="themeToggleDashboard">Dark</label>
-        <div class="theme-switch-header">
-          <input type="checkbox" id="themeToggleDashboard">
-          <span class="theme-slider-header"></span>
-        </div>
-      </div>
-      <button class="header-btn danger-btn" id="revokeTokenDashboardBtn" style="display: none;">Revoke Token</button>
-      <button class="header-btn" id="closeDashboardBtn">Close Dashboard</button>
     </div>
-  </div>
+    <div class="header-controls">
+      <div class="trace-status-indicator" id="traceStatusIndicator" style="display: none;">
+        <span class="status-dot" id="traceStatusDot"></span>
+        <span class="status-text" id="traceStatusText">Checking...</span>
+      </div>
+      <label class="theme-switch" for="themeToggleDashboard" title="Toggle dark mode">
+        <input type="checkbox" id="themeToggleDashboard" aria-label="Dark mode">
+        <span class="theme-track">
+          <span class="theme-knob">
+            <span class="theme-i sun" data-icon="sun" data-size="12"></span>
+            <span class="theme-i moon" data-icon="moon" data-size="12"></span>
+          </span>
+        </span>
+      </label>
+      <button class="header-btn danger-btn" id="revokeTokenDashboardBtn" style="display: none;" title="Revoke the OAuth token for this org">
+        <span data-icon="logOut"></span>Revoke Token
+      </button>
+      <button class="icon-btn" id="closeDashboardBtn" aria-label="Close dashboard" title="Close dashboard">
+        <span data-icon="x"></span>
+      </button>
+    </div>
+  </header>
 
-  <!-- Compact Controls Bar -->
+  <!-- Toolbar -->
   <div class="controls-bar">
     <div class="status-section">
-      <div class="org-actions hidden" id="orgActions" style="display: flex; gap: 8px; align-items: center;">
-        <button class="button secondary" id="copySessionBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Copy session URL">Copy Session URL</button>
-        <button class="button secondary" id="openIncognitoBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Open in incognito">Incognito Login</button>
-        <button class="button primary" id="deployPrettierBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Deploy Prettier Class">Deploy Prettier Class</button>
-        <button class="button apex-execution-btn" id="openApexManagerBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Open Anonymous Code Manager">Anonymous Execution</button>
-        <button class="button secondary" id="openDebugLogsBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Open Salesforce Debug Logs Setup">Open Debug Logs</button>
-        <button class="button primary" id="debugLogManagerBtn" style="font-size: 10px; padding: 3px 8px;"
-          title="Manage Debug Logs">Manage Debug Logs</button>
-        <div class="trace-status-indicator" id="traceStatusIndicator" style="display: none;">
-          <span class="status-dot" id="traceStatusDot"></span>
-          <span class="status-text" id="traceStatusText">Checking...</span>
-        </div>
+      <div class="org-actions hidden" id="orgActions">
+        <button class="button primary" id="debugLogManagerBtn" title="Trace flags, debug levels and log cleanup">
+          <span data-icon="flag"></span>Manage Debug Logs
+        </button>
+        <button class="button secondary" id="openApexManagerBtn" title="Write, save and run anonymous Apex">
+          <span data-icon="terminal"></span>Execute Apex
+        </button>
+        <span class="toolbar-divider" aria-hidden="true"></span>
+        <button class="button ghost" id="backToSalesforceBtn" title="Go back to your Salesforce tab">
+          <span data-icon="arrowLeft"></span>Back to Salesforce
+        </button>
+        <button class="button ghost" id="openDebugLogsBtn" title="Open Setup &gt; Debug Logs in Salesforce">
+          <span data-icon="externalLink"></span>Setup Logs
+        </button>
+        <button class="button ghost" id="openIncognitoBtn" title="Open this org in an incognito window">
+          <span data-icon="incognito"></span>Incognito Login
+        </button>
+        <button class="button ghost" id="deployPrettierBtn" title="Deploy the Console helper class (wraps JSON.serializePretty)">
+          <span data-icon="cloudUpload"></span>Deploy Console Class
+        </button>
       </div>
     </div>
 
     <div class="right-controls">
       <div class="control-group">
-        <label>Log Type:</label>
+        <label for="logTypeFilter">Log type</label>
         <select id="logTypeFilter">
           <option value="SystemLog">SystemLog</option>
           <option value="Monitoring" selected>Monitoring</option>
         </select>
       </div>
       <div class="control-group">
-        <label>Items:</label>
+        <label for="logLimit">Show</label>
         <select id="logLimit">
           <option value="10">10</option>
           <option value="15" selected>15</option>
@@ -79,7 +93,7 @@
       </div>
       <div class="auto-refresh-toggle">
         <label class="toggle-label" for="autoRefreshToggle"
-          title="Enable/disable automatic refresh when returning to dashboard">Auto Refresh</label>
+          title="Enable/disable automatic refresh when returning to dashboard">Auto refresh</label>
         <div class="toggle-switch">
           <input type="checkbox" id="autoRefreshToggle" checked>
           <span class="toggle-slider"></span>
@@ -91,42 +105,48 @@
   <!-- Access Token Warning Banner -->
   <div class="dev-console-warning hidden" id="devConsoleWarning">
     <div class="warning-content">
-      <div class="warning-icon">🔑</div>
+      <div class="warning-icon" data-icon="key" data-size="18"></div>
       <div class="warning-text">
-        <div class="warning-title">Access Token Required</div>
+        <div class="warning-title">Access token required</div>
         <div class="warning-subtitle">Generate an access token to view debug logs and execute Apex</div>
       </div>
     </div>
     <div class="warning-actions">
-      <button class="dev-console-btn" id="openDevConsoleBtn">
-        🔐 Generate Token
+      <button class="warning-help-btn" id="openOauthHelpBtn" title="Help when login fails">
+        <span data-icon="info" data-size="14"></span>OAuth setup
       </button>
-      <button class="dismiss-btn" id="dismissWarningBtn" aria-label="Dismiss">×</button>
+      <button class="dev-console-btn" id="openDevConsoleBtn">
+        <span data-icon="shieldCheck"></span>Generate Token
+      </button>
+      <button class="dismiss-btn" id="dismissWarningBtn" aria-label="Dismiss" title="Dismiss"><span data-icon="x" data-size="14"></span></button>
     </div>
   </div>
 
-  <!-- Main Content - Direct Layout -->
   <!-- Main Content - 3 Column Layout -->
   <div class="main-content">
     <!-- Recent Debug Logs -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          Recent Logs
+          <span data-icon="fileText"></span>Recent Logs
         </div>
-        <div style="display: flex; gap: 6px;">
-          <button class="button secondary" id="clearLogsBtn" style="font-size: 10px; padding: 3px 8px;">Clear
-            Logs</button>
-          <button class="button secondary" id="markAllReadBtn" style="font-size: 10px; padding: 3px 8px;">Read
-            All</button>
-          <button class="button secondary" id="refreshLogsBtn"
-            style="font-size: 10px; padding: 3px 8px;">Refresh</button>
+        <div class="panel-actions">
+          <button class="icon-btn" id="clearLogsBtn" aria-label="Clear logs from view" title="Clear logs from view (does not delete in Salesforce)"><span data-icon="eraser"></span></button>
+          <button class="icon-btn" id="markAllReadBtn" aria-label="Mark all as read" title="Mark all as read"><span data-icon="checkCheck"></span></button>
+          <button class="icon-btn" id="refreshLogsBtn" aria-label="Refresh logs" title="Refresh logs"><span data-icon="refresh"></span></button>
         </div>
       </div>
       <!-- Search Box for Debug Logs -->
       <div class="log-search-container" id="logSearchContainer">
-        <input type="text" id="logSearchInput" placeholder="Search in raw response..." />
+        <span class="search-icon" data-icon="search" data-size="14"></span>
+        <input type="text" id="logSearchInput" placeholder="Search log bodies..." aria-label="Search logs" />
         <span id="logSearchResults" class="log-search-info"></span>
+        <select id="logFilter" aria-label="Which logs to show" title="Useful hides empty logs (under 1 KB, no Apex ran)">
+          <option value="useful" selected>Useful</option>
+          <option value="all">All</option>
+          <option value="debug">With debug</option>
+          <option value="errors">With errors</option>
+        </select>
       </div>
       <div class="panel-content">
         <div class="loading" id="logsLoading">
@@ -134,10 +154,12 @@
           <span>Loading logs...</span>
         </div>
         <div class="empty-state hidden" id="emptyState">
-          <h4>No Debug Logs</h4>
-          <p>Start monitoring to see logs</p>
+          <div class="empty-icon" data-icon="inbox" data-size="20"></div>
+          <h4>No debug logs yet</h4>
+          <p>Turn on a trace flag, then run your code</p>
         </div>
         <div class="logs-grid" id="logsList"></div>
+        <div class="logs-filter-note hidden" id="logsFilterNote" aria-live="polite"></div>
       </div>
     </div>
 
@@ -145,14 +167,14 @@
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          Debug Messages
+          <span data-icon="messageCode"></span>Debug Messages
         </div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="button primary hidden" id="toggleViewBtn" style="font-size: 10px; padding: 3px 8px;"
-            title="Toggle between debug messages and raw response">Show Raw Response</button>
-          <button class="copy-icon-btn hidden" id="copyRawBtn" style="font-size: 10px; padding: 3px 6px;"
-            aria-label="Copy raw response" title="Copy raw response">📋</button>
-          <div id="selectedLogId" style="font-family: monospace; font-size: 10px; color: #6c757d;"></div>
+        <div class="panel-actions">
+          <div id="selectedLogId" class="selected-log-id"></div>
+          <button class="button primary hidden" id="toggleViewBtn"
+            title="Toggle between debug messages and raw response">Raw Log</button>
+          <button class="icon-btn hidden" id="copyRawBtn"
+            aria-label="Copy raw response" title="Copy raw response"><span data-icon="copy"></span></button>
         </div>
       </div>
       <!-- Search Box for Raw Response -->
@@ -161,34 +183,38 @@
           <input type="text" id="rawSearchInput" placeholder="Search in raw response..." />
           <div class="search-controls">
             <span id="searchResultsInfo" class="search-info">0 matches</span>
-            <button id="searchPrevBtn" class="search-nav-btn" aria-label="Previous match" title="Previous match">↑</button>
-            <button id="searchNextBtn" class="search-nav-btn" aria-label="Next match" title="Next match">↓</button>
-            <button id="clearSearchBtn" class="search-clear-btn" aria-label="Clear search" title="Clear search">✕</button>
+            <button id="searchPrevBtn" class="search-nav-btn" aria-label="Previous match" title="Previous match"><span data-icon="chevronUp" data-size="14"></span></button>
+            <button id="searchNextBtn" class="search-nav-btn" aria-label="Next match" title="Next match"><span data-icon="chevronDown" data-size="14"></span></button>
+            <button id="clearSearchBtn" class="search-clear-btn" aria-label="Clear search" title="Clear search"><span data-icon="x" data-size="14"></span></button>
           </div>
         </div>
       </div>
       <div class="panel-content">
         <div class="welcome-state" id="welcomeState">
 
+          <div class="welcome-icon" data-icon="messageCode" data-size="20"></div>
+          <h4>Select a log</h4>
+          <p>Pick a log on the left to see its debug messages</p>
+
           <!-- Icon Legend -->
           <div class="icon-legend">
-            <div class="icon-legend-header">Log Status Icons</div>
+            <div class="icon-legend-header">Log status icons</div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon">❗</span>
+              <span class="icon-legend-icon has-error-indicator" data-icon="octagonX" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Fatal Error</span>
                 <span class="icon-legend-description">Log contains fatal errors that stopped execution</span>
               </div>
             </div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon">⚠️</span>
+              <span class="icon-legend-icon has-exception-indicator" data-icon="zap" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Exception Thrown</span>
                 <span class="icon-legend-description">Log contains exception events (not necessarily errors)</span>
               </div>
             </div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon">📋</span>
+              <span class="icon-legend-icon has-debug-indicator" data-icon="messageCode" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Debug Messages</span>
                 <span class="icon-legend-description">Log contains System.debug() statements</span>
@@ -206,26 +232,66 @@
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          Error Analysis & Governor Limits
+          <span data-icon="gauge"></span>Errors &amp; Limits
         </div>
       </div>
       <div class="panel-content">
         <div class="welcome-state" id="limitsWelcomeState">
-          <div class="welcome-icon">⚡</div>
-          <h4>Select a Debug Log</h4>
-          <p>Error analysis and governor limits will appear here</p>
+          <div class="welcome-icon" data-icon="gauge" data-size="20"></div>
+          <h4>No log selected</h4>
+          <p>Errors, stack traces and governor limits will appear here</p>
         </div>
         <div class="hidden" id="errorAndLimitsContent">
           <!-- Error Analysis Section -->
-          <div id="errorAnalysisSection" style="margin-top: 5px;">
+          <div id="errorAnalysisSection">
             <div id="errorContent"></div>
           </div>
 
           <!-- Governor Limits Section -->
-          <div id="governorLimitsSection" style="margin-top: 12px;">
+          <div id="governorLimitsSection">
             <div class="limits-content" id="limitsContent"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OAuth Setup Help Modal -->
+  <div class="modal-overlay" id="oauthHelpModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="oauthHelpTitle">
+    <div class="modal-content oauth-help-modal">
+      <div class="modal-header">
+        <div class="modal-title" id="oauthHelpTitle"><span data-icon="key" data-size="18"></span>OAuth setup</div>
+        <button class="modal-close-btn" id="closeOauthHelpBtn" aria-label="Close" title="Close"><span data-icon="x" data-size="18"></span></button>
+      </div>
+      <div class="oauth-help-body">
+        <p class="oauth-help-intro">Salesforce blocks login with apps that are not installed in your org. If Generate Token fails, use one of these fixes.</p>
+
+        <section class="oauth-help-option">
+          <h4 class="oauth-help-option-title"><span data-icon="shieldCheck" data-size="16"></span>Fix 1: Ask your admin</h4>
+          <p>Ask your Salesforce admin to install the app: Setup &gt; Connected Apps OAuth Usage &gt; find the app &gt; Install, then set who can use it.</p>
+        </section>
+
+        <section class="oauth-help-option">
+          <h4 class="oauth-help-option-title"><span data-icon="sliders" data-size="16"></span>Fix 2: Use your own app</h4>
+          <p>Create an External Client App in your org and paste its consumer key below. The app needs:</p>
+          <ul class="oauth-help-list">
+            <li>Callback URL:
+              <span class="oauth-help-copy-row">
+                <code class="oauth-help-code" id="oauthRedirectUri">Loading...</code>
+                <button class="icon-btn" id="copyOauthRedirectBtn" aria-label="Copy callback URL" title="Copy callback URL"><span data-icon="copy" data-size="14"></span></button>
+              </span>
+            </li>
+            <li>OAuth scopes <code class="oauth-help-code">api</code> and <code class="oauth-help-code">refresh_token</code></li>
+            <li>PKCE turned on, and no client secret required for the web server flow or for refresh</li>
+          </ul>
+          <label class="oauth-help-label" for="oauthClientIdInput">Consumer key</label>
+          <div class="oauth-help-input-row">
+            <input type="text" id="oauthClientIdInput" class="oauth-help-input" placeholder="Paste your consumer key" autocomplete="off" spellcheck="false">
+            <button class="button primary" id="saveOauthClientIdBtn">Save</button>
+            <button class="button secondary" id="clearOauthClientIdBtn">Use default app</button>
+          </div>
+          <p class="oauth-help-status" id="oauthClientIdStatus" role="status"></p>
+        </section>
       </div>
     </div>
   </div>
@@ -234,8 +300,8 @@
   <div class="modal-overlay" id="apexManagerModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="apexManagerTitle">
     <div class="modal-content apex-manager-modal">
       <div class="modal-header">
-        <div class="modal-title" id="apexManagerTitle">Saved Anonymous Code Block</div>
-        <button class="modal-close-btn" id="closeApexManagerBtn" aria-label="Close">×</button>
+        <div class="modal-title" id="apexManagerTitle"><span data-icon="terminal" data-size="18"></span>Execute Anonymous Apex</div>
+        <button class="modal-close-btn" id="closeApexManagerBtn" aria-label="Close" title="Close"><span data-icon="x" data-size="18"></span></button>
       </div>
 
       <div class="apex-manager-content">
@@ -243,12 +309,13 @@
         <div class="apex-list-panel">
           <div class="panel-header">
             <div class="apex-search-container">
-              <input type="text" id="apexSearchInput" class="apex-search-input" placeholder="Search code blocks..." />
+              <span class="search-icon" data-icon="search" data-size="14"></span>
+              <input type="text" id="apexSearchInput" class="apex-search-input" placeholder="Search snippets..." aria-label="Search snippets" />
             </div>
             <div class="panel-actions">
-              <button class="button primary" id="addCodeBlockBtn" title="Add new code block">Add</button>
-              <button class="button secondary" id="exportApexBtn" title="Export all saved code blocks to a JSON file">Export</button>
-              <button class="button secondary" id="importApexBtn" title="Import code blocks from a JSON file">Import</button>
+              <button class="button primary" id="addCodeBlockBtn" title="Add new code block"><span data-icon="plus"></span>New</button>
+              <button class="button ghost" id="exportApexBtn" title="Export all saved code blocks to a JSON file"><span data-icon="download"></span>Export</button>
+              <button class="button ghost" id="importApexBtn" title="Import code blocks from a JSON file"><span data-icon="upload"></span>Import</button>
               <input type="file" id="importApexFile" accept=".json,application/json" hidden />
             </div>
           </div>
@@ -262,12 +329,12 @@
           <div class="panel-header">
             <div class="panel-title">
               <span id="apexCodeTitle">Select Apex Code</span>
-              <span id="unsavedIndicator" class="unsaved-indicator hidden">●</span>
-              <button id="editApexTitleBtn" class="title-edit-btn" aria-label="Rename code" title="Rename code">✎</button>
+              <span id="unsavedIndicator" class="unsaved-indicator hidden" title="Unsaved changes"></span>
+              <button id="editApexTitleBtn" class="title-edit-btn" aria-label="Rename code" title="Rename code"><span data-icon="pencil" data-size="13"></span></button>
             </div>
             <div class="panel-actions">
-              <button class="button primary" id="runApexBtn" title="Execute Apex code">Execute</button>
-              <button class="button secondary" id="saveApexBtn" title="Save current code">Save Code</button>
+              <button class="button ghost" id="saveApexBtn" title="Save current code"><span data-icon="save"></span>Save</button>
+              <button class="button primary" id="runApexBtn" title="Execute Apex code"><span data-icon="play"></span>Execute</button>
             </div>
           </div>
           <div class="apex-editor-content">
@@ -285,9 +352,9 @@
               </div>
               <div class="results-content" id="resultsContent">
                 <div class="welcome-state">
-                  <div class="welcome-icon">⚡</div>
-                  <h4>Ready to Execute</h4>
-                  <p>Select Apex code and click Execute to see results</p>
+                  <div class="welcome-icon" data-icon="play" data-size="20"></div>
+                  <h4>Ready to execute</h4>
+                  <p>Pick a snippet, then click Execute</p>
                 </div>
               </div>
             </div>
@@ -301,8 +368,8 @@
   <div class="modal-overlay" id="debugLogManagerModal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="debugLogManagerTitle">
     <div class="modal-content debug-log-manager-modal">
       <div class="modal-header">
-        <div class="modal-title" id="debugLogManagerTitle">Manage Debug Logs</div>
-        <button class="modal-close-btn" id="closeDebugLogManagerBtn" aria-label="Close">×</button>
+        <div class="modal-title" id="debugLogManagerTitle"><span data-icon="flag" data-size="18"></span>Manage Debug Logs</div>
+        <button class="modal-close-btn" id="closeDebugLogManagerBtn" aria-label="Close" title="Close"><span data-icon="x" data-size="18"></span></button>
       </div>
 
       <div class="debug-log-manager-content">
@@ -325,13 +392,13 @@
             <div class="user-search-input-wrapper">
               <input type="text" id="userSearchInput" class="user-search-input"
                 placeholder="Search by name or username...">
-              <button class="button secondary" id="userSearchBtn" aria-label="Search users" title="Search users">🔍</button>
+              <button class="button secondary" id="userSearchBtn" aria-label="Search users" title="Search users"><span data-icon="search"></span></button>
             </div>
             <div class="user-search-results hidden" id="userSearchResults"></div>
             <div class="selected-user hidden" id="selectedUserDisplay">
               <span class="selected-user-label">Selected:</span>
               <span class="selected-user-name" id="selectedUserName"></span>
-              <button class="clear-user-btn" id="clearSelectedUserBtn" aria-label="Clear selection" title="Clear selection">×</button>
+              <button class="clear-user-btn" id="clearSelectedUserBtn" aria-label="Clear selection" title="Clear selection"><span data-icon="x" data-size="12"></span></button>
             </div>
           </div>
         </div>
@@ -343,15 +410,14 @@
             <select id="debugLevelSelect" class="debug-level-dropdown">
               <option value="">Select Debug Level...</option>
             </select>
-            <button class="button primary" id="createDebugLevelBtn" title="Create new debug level">New Debug
-              Level</button>
+            <button class="button ghost" id="createDebugLevelBtn" title="Create new debug level"><span data-icon="plus"></span>New Debug Level</button>
           </div>
 
           <!-- Create Debug Level Form (Initially Hidden) -->
           <div class="create-debug-level-form hidden" id="createDebugLevelForm">
             <div class="form-header">
               <span class="form-title">Create New Debug Level</span>
-              <button class="form-close-btn" id="closeCreateFormBtn" aria-label="Close form" title="Close form">×</button>
+              <button class="form-close-btn" id="closeCreateFormBtn" aria-label="Close form" title="Close form"><span data-icon="x" data-size="14"></span></button>
             </div>
 
             <div class="form-row">
@@ -363,9 +429,9 @@
             <div class="form-row">
               <label for="debugLevelApiName">API Name: <span class="required">*</span></label>
               <input type="text" id="debugLevelApiName" class="form-input" placeholder="My_Debug_Level" maxlength="40"
-                pattern="^[A-Za-z][A-Za-z0-9_]*$" />
-              <span class="input-hint">Auto-generated from label. Must start with letter, only letters, numbers, and
-                underscores.</span>
+                pattern="[A-Za-z](_?[A-Za-z0-9])*" />
+              <span class="input-hint">Auto-generated from label. Start with a letter. Use letters, numbers and single
+                underscores. Do not end with an underscore.</span>
             </div>
 
             <div class="form-grid">
@@ -421,6 +487,27 @@
               <div class="form-field">
                 <label for="visualforceLevel">Visualforce:</label>
                 <select id="visualforceLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="dataAccessLevel">DataAccess:</label>
+                <select id="dataAccessLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="nbaLevel" title="Next Best Action">Nba:</label>
+                <select id="nbaLevel" class="form-select">
+                  <option value="">Loading...</option>
+                </select>
+              </div>
+
+              <div class="form-field">
+                <label for="waveLevel" title="CRM Analytics">Wave:</label>
+                <select id="waveLevel" class="form-select">
                   <option value="">Loading...</option>
                 </select>
               </div>
@@ -509,8 +596,23 @@
 
         <!-- Delete Logs Section -->
         <div class="delete-logs-section">
-          <button class="button danger" id="deleteAllLogsBtn">Delete All Debug Logs</button>
-          <span class="delete-hint">This will delete all debug logs for your user</span>
+          <div class="log-storage-meter hidden" id="logStorageMeter">
+            <div class="log-storage-text" id="logStorageText">Org log storage</div>
+            <div class="log-storage-bar"><div class="log-storage-fill" id="logStorageFill"></div></div>
+            <div class="log-storage-warning hidden" id="logStorageWarning">Salesforce blocks new trace flags when debug logs use more than 1,000 MB. Delete old logs to free space.</div>
+          </div>
+          <div class="delete-logs-row">
+            <button class="button danger" id="deleteAllLogsBtn"><span data-icon="trash"></span>Delete All Debug Logs</button>
+            <span class="delete-hint">Deletes all debug logs of the selected user in this org</span>
+          </div>
+          <div class="auto-cleanup-row">
+            <label class="toggle-label" for="autoCleanupToggle">Auto-delete logs from temporary trace flags when they expire</label>
+            <div class="toggle-switch">
+              <input type="checkbox" id="autoCleanupToggle">
+              <span class="toggle-slider"></span>
+            </div>
+          </div>
+          <span class="delete-hint">Only deletes Monitoring logs from that time window.</span>
         </div>
       </div>
 
@@ -518,10 +620,10 @@
       <div class="replace-confirmation-overlay hidden" id="replaceConfirmationDialog">
         <div class="replace-confirmation-dialog">
           <div class="confirmation-header">
-            <span class="confirmation-title">Replace Active Debug Log?</span>
+            <span class="confirmation-title" id="confirmTitle">Replace Active Debug Log?</span>
           </div>
           <div class="confirmation-body">
-            <p class="confirmation-message">An active debug log already exists:</p>
+            <p class="confirmation-message" id="confirmMessage">An active debug log already exists:</p>
             <div class="current-trace-info">
               <div class="trace-info-row">
                 <span class="trace-info-label">User:</span>
@@ -532,11 +634,11 @@
                 <span class="trace-info-value" id="confirmCurrentDebugLevel"></span>
               </div>
               <div class="trace-info-row">
-                <span class="trace-info-label">Time Remaining:</span>
+                <span class="trace-info-label" id="confirmTimeLabel">Time Remaining:</span>
                 <span class="trace-info-value" id="confirmTimeRemaining"></span>
               </div>
             </div>
-            <p class="confirmation-question">Do you want to expire the current debug log and create a new one?</p>
+            <p class="confirmation-question">Do you want to replace it with the new debug level and time?</p>
           </div>
           <div class="confirmation-actions">
             <button class="button secondary" id="confirmCancelBtn">No, Keep Current</button>
@@ -547,38 +649,41 @@
     </div>
   </div>
 
+  <!-- SVG icons (fills [data-icon] placeholders) -->
+  <script src="js/core/icons.js"></script>
+
   <!-- Local Highlight.js JavaScript -->
-  <script src="js/highlight.js"></script>
+  <script src="js/vendor/highlight.js"></script>
 
   <!-- Load JavaScript files in order: utilities, parsing, formatting, error extraction, then new modular components, then dashboard modules -->
-  <script src="js/basic-utilities.js"></script>
-  <script src="js/basic-parsing.js"></script>
-  <script src="js/complex-parsing.js"></script>
-  <script src="js/salesforce-response-cleaner.js"></script>
-  <script src="js/formatting-utilities.js"></script>
-  <script src="js/error-extraction.js"></script>
-  <script src="js/syntax-highlighting.js"></script>
-  <script src="js/log-parsing.js"></script>
-  <script src="js/error-handler.js"></script>
-  <script src="js/log-cache.js"></script>
-  <script src="js/tab-manager.js"></script>
-  <script src="js/log-loader.js"></script>
-  <script src="js/log-renderer.js"></script>
-  <script src="js/log-display.js"></script>
-  <script src="js/raw-view.js"></script>
-  <script src="js/apex-storage-service.js"></script>
-  <script src="js/apex-code-manager.js"></script>
-  <script src="js/apex-code-ui.js"></script>
-  <script src="js/apex-executor.js"></script>
-  <script src="js/debug-level-creator.js"></script>
-  <script src="js/debug-log-manager-ui.js"></script>
-  <script src="js/debug-log-ui-api.js"></script>
-  <script src="js/debug-log-ui-traceflags.js"></script>
-  <script src="js/debug-log-ui-rendering.js"></script>
-  <script src="js/dashboard-connection.js"></script>
-  <script src="js/dashboard-monitoring.js"></script>
-  <script src="js/dashboard-actions.js"></script>
-  <script src="js/dashboard-init.js"></script>
+  <script src="js/core/basic-utilities.js"></script>
+  <script src="js/logs/basic-parsing.js"></script>
+  <script src="js/logs/complex-parsing.js"></script>
+  <script src="js/logs/salesforce-response-cleaner.js"></script>
+  <script src="js/logs/formatting-utilities.js"></script>
+  <script src="js/logs/error-extraction.js"></script>
+  <script src="js/logs/syntax-highlighting.js"></script>
+  <script src="js/logs/log-parsing.js"></script>
+  <script src="js/core/error-handler.js"></script>
+  <script src="js/logs/log-cache.js"></script>
+  <script src="js/core/tab-manager.js"></script>
+  <script src="js/logs/log-loader.js"></script>
+  <script src="js/logs/log-renderer.js"></script>
+  <script src="js/logs/log-display.js"></script>
+  <script src="js/logs/raw-view.js"></script>
+  <script src="js/apex/apex-storage-service.js"></script>
+  <script src="js/apex/apex-code-manager.js"></script>
+  <script src="js/apex/apex-code-ui.js"></script>
+  <script src="js/apex/apex-executor.js"></script>
+  <script src="js/debug-manager/debug-level-creator.js"></script>
+  <script src="js/debug-manager/debug-log-manager-ui.js"></script>
+  <script src="js/debug-manager/debug-log-ui-api.js"></script>
+  <script src="js/debug-manager/debug-log-ui-traceflags.js"></script>
+  <script src="js/debug-manager/debug-log-ui-rendering.js"></script>
+  <script src="js/dashboard/dashboard-connection.js"></script>
+  <script src="js/dashboard/dashboard-monitoring.js"></script>
+  <script src="js/dashboard/dashboard-actions.js"></script>
+  <script src="js/dashboard/dashboard-init.js"></script>
 </body>
 
 </html>

@@ -44,11 +44,25 @@ Search for **“Salesforce Debug Log Beautifier”** in the Chrome Web Store and
 | Salesforce host permissions (`*.salesforce.com`, `*.force.com`, …) | Call the Salesforce REST/Tooling APIs for the org you're on |
 | `cookies` | Read the Salesforce session cookie to authenticate API calls when needed |
 | `storage` | Save settings, theme, saved Apex snippets, and the OAuth token locally |
-| `activeTab` / `scripting` | Detect which org the active tab belongs to |
+| `unlimitedStorage` | Keep saved Apex snippets and cached data without hitting the 10 MB storage limit |
+| `scripting` | Run a small script in an open Salesforce tab, on demand, to read logs with that tab's session |
 | `identity` | Perform the OAuth login flow (PKCE) |
-| `notifications`, `alarms`, `windows` | Trace‑flag expiry cleanup, scheduling, and dashboard windows |
+| `alarms` | Act when a trace flag that the extension turned on expires (see below) |
 
-See [PRIVACY.md](PRIVACY.md) for the full privacy policy and data‑handling details.
+See [PRIVACY.md](docs/PRIVACY.md) for the full privacy policy and data‑handling details.
+
+## Trace flags the extension turns on
+
+Opening the dashboard from the popup or with the keyboard shortcut turns on a 45‑minute `USER_DEBUG` trace flag for you, unless one is already active. When such a flag expires, the extension only forgets it. It does **not** delete any logs unless you turn on automatic log cleanup (`autoCleanupLogs`, off by default) in **Manage Debug Logs**. With cleanup on, only your own `Monitoring` logs from that flag's time window are deleted. Deleting, replacing or shortening a trace flag never deletes logs.
+
+## OAuth setup
+
+The extension logs in with its own connected app. Since September 2025 Salesforce blocks users without the "Approve Uninstalled Connected Apps" permission from using apps that are not installed in their org (errors such as `OAUTH_APPROVAL_ERROR_GENERIC` or "app must be installed into org"). If **Generate Token** fails:
+
+1. **Ask your Salesforce admin to install the app:** Setup > Connected Apps OAuth Usage > find the app > Install, then set who can use it.
+2. **Or use your own app:** create an External Client App in your org, then open **OAuth setup** in the dashboard's token banner and paste its consumer key. The app needs the callback URL shown there, the `api` and `refresh_token` scopes, PKCE, and no client secret for the web server flow or for refresh.
+
+**One‑time login links (optional):** **Incognito Login** uses a one‑time link (`/services/oauth2/singleaccess`) when the token has the `web` scope. Otherwise it uses a link with your session ID, so never share it. To enable the `web` scope, first allow it in the connected app, then add `web` to `OAUTH_SCOPES` in `background/oauth-manager.js` and generate a new token. Do not add it before the app allows it: login fails when the app does not allow every requested scope.
 
 ## Development
 
@@ -56,23 +70,35 @@ This project intentionally uses **no npm/build tooling** — it's plain ES6+ Jav
 
 - **Reload after changes:** the reload button on `chrome://extensions` (or Ctrl/Cmd+R on that page).
 - **Debugging:** use the extension's DevTools (dashboard page) and the service‑worker console (`chrome://extensions` → *Inspect views: service worker*).
-- **Testing:** manual, against a live Salesforce org (no automated test suite).
+- **Testing:** `node --test tests/*.test.js` (run in the project folder) runs the unit tests (plain Node 22, nothing to install). Check UI changes by hand against a live Salesforce org.
 
 A high‑level architecture overview (background/content/UI layers, message passing, the log‑processing pipeline) is documented in [CLAUDE.md](CLAUDE.md).
 
 ```
-background/   Service worker, session/OAuth/token management, API client
-content/      Content scripts injected into Salesforce pages
-js/           Log loading, rendering, parsing, syntax highlighting, Apex tools, dashboard
-css/          Theming (theme-variables.css) and component styles
-popup/        Toolbar popup UI
-dashboard.html  Main dashboard page
-manifest.json   Extension configuration
+manifest.json     Extension configuration
+dashboard.html    Main dashboard page
+background/       Service worker, session/OAuth/token management, API client
+content/          Content scripts injected into Salesforce pages
+js/
+  core/           Shared utilities, icons, error handling, Salesforce tab access
+  logs/           Log loading, caching, parsing, error extraction, rendering, raw view
+  apex/           Execute Anonymous: snippet storage, editor UI, executor
+  debug-manager/  Manage Debug Logs: trace flags, debug levels
+  dashboard/      Dashboard start-up, connection, monitoring, header actions
+  vendor/         highlight.js
+css/              Theming (theme-variables.css) and component styles
+popup/            Toolbar popup UI
+icons/            Extension icons (drawn from store/source/icon)
+tests/            Unit tests (node --test)
+docs/             Privacy policy and System.debug format notes
+store/            Chrome Web Store release kit: upload zip, screenshots, listing text
 ```
+
+**Releasing:** `node store/build-package.mjs` builds the upload zip with only the extension files. [store/README.md](store/README.md) lists the upload steps and the copy-paste listing text.
 
 ## Privacy & security
 
-Everything runs in your browser and talks **directly** to Salesforce using your own session/OAuth token. No data is sent to any third‑party server; there is no tracking or analytics. See [PRIVACY.md](PRIVACY.md).
+Everything runs in your browser and talks **directly** to Salesforce using your own session/OAuth token. No data is sent to any third‑party server; there is no tracking or analytics. See [PRIVACY.md](docs/PRIVACY.md).
 
 ## License
 

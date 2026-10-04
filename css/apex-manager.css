@@ -15,27 +15,37 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 12px 14px 12px 20px;
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-primary);
 }
 
 .modal-title {
-  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--text-primary);
   margin: 0;
 }
 
+.modal-title > [data-icon] {
+  color: var(--text-muted);
+}
+
 .modal-close-btn {
   background: none;
   border: none;
-  font-size: 24px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
-  transition: all 0.2s ease;
+  border-radius: var(--radius-sm);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modal-close-btn:hover {
@@ -109,7 +119,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 
@@ -121,36 +130,32 @@
   gap: 4px;
 }
 
+/* Icon button, shown when the row is hovered, selected or the button has focus */
 .apex-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   background: none;
   border: 1px solid transparent;
-  padding: 4px 8px;
   cursor: pointer;
-  border-radius: 3px;
-  opacity: 0.8;
+  border-radius: 4px;
+  opacity: 0;
   transition: all 0.2s ease;
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+}
+
+.apex-code-item:hover .apex-action-btn,
+.apex-code-item.selected .apex-action-btn,
+.apex-action-btn:focus-visible {
+  opacity: 1;
 }
 
 .apex-action-btn:hover {
-  opacity: 1;
-  background: var(--bg-secondary);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
-}
-
-.apex-code-item.selected .apex-action-btn {
-  color: var(--text-primary);
-  opacity: 0.8;
-}
-
-.apex-code-item.selected .apex-action-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
-  opacity: 1;
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .apex-code-meta {
@@ -162,30 +167,29 @@
 }
 
 /* Empty Apex State */
+/* Same type scale as the dashboard empty states */
 .empty-apex-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 200px;
+  padding: 0 24px;
   text-align: center;
-  color: var(--text-secondary);
-}
-
-.empty-apex-state .empty-icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.5;
+  color: var(--text-empty-state);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .empty-apex-state h4 {
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .empty-apex-state p {
   margin: 0;
-  font-size: 14px;
 }
 
 /* Right Panel - Code Editor (70%) */
@@ -261,18 +265,6 @@
   outline-offset: -2px;
 }
 
-.apex-code-editor.read-only {
-  background: rgba(128, 128, 128, 0.1);
-  cursor: not-allowed;
-  color: var(--text-secondary);
-  opacity: 0.7;
-}
-
-.apex-code-editor.read-only:focus {
-  outline: 1px solid var(--border-secondary);
-  outline-offset: -1px;
-}
-
 .apex-code-editor::placeholder {
   color: var(--text-secondary);
   opacity: 0.8;
@@ -335,6 +327,13 @@
   padding-right: 0 !important;
   min-width: auto !important;
   letter-spacing: 0.2px;
+}
+
+/* Line of the last compile error */
+.line-numbers .line-number.error-line {
+  color: var(--danger) !important;
+  background: var(--danger-soft);
+  font-weight: 700;
 }
 
 /* Adjust editor and overlay to make space for line numbers */
@@ -536,35 +535,23 @@
   gap: 6px;
   padding: 6px 10px;
   font-weight: 600;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .result-header.success {
-  background: #d4edda;
-  color: #155724;
-  border: 1px solid #c3e6cb;
+  background: var(--success-soft);
+  color: var(--success);
+  border: 1px solid transparent;
 }
 
 .result-header.error {
-  background: #f8d7da;
-  color: #721c24;
-  border: 1px solid #f5c6cb;
-}
-
-[data-theme="dark"] .result-header.success {
-  background: #1e3d1f;
-  color: #d1f2d1;
-  border-color: #2d5a2d;
-}
-
-[data-theme="dark"] .result-header.error {
-  background: #3d1e1e;
-  color: #f2d1d1;
-  border-color: #5a2d2d;
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid transparent;
 }
 
 .result-icon {
-  font-size: 14px;
+  display: inline-flex;
 }
 
 .result-title {
@@ -636,7 +623,7 @@
 }
 
 /* Panel Headers Improvements */
-.panel-header {
+.apex-manager-modal .panel-header {
   background: var(--bg-panel-header);
   border-bottom: 1px solid var(--border-primary);
   padding: 8px 16px;
@@ -650,16 +637,28 @@
 
 /* Apex Search Container */
 .apex-search-container {
+  position: relative;
+  display: flex;
+  align-items: center;
   flex: 1;
   max-width: 200px;
 }
 
+.apex-search-container .search-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .apex-search-input {
   width: 100%;
-  padding: 4px 8px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 4px;
-  font-size: 11px;
+  height: 30px;
+  padding: 0 8px 0 30px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
   background: var(--bg-primary);
   color: var(--text-primary);
   transition: all 0.2s ease;
@@ -668,8 +667,8 @@
 
 .apex-search-input:focus {
   outline: none;
-  border-color: var(--bg-button);
-  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.15);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .apex-search-input::placeholder {
@@ -699,9 +698,7 @@
 
 .apex-list-panel .panel-actions .button {
   flex: 1 1 0;
-  font-size: 11px;
-  padding: 4px 6px;
-  min-height: 26px;
+  padding: 0 6px;
   justify-content: center;
   text-align: center;
   white-space: nowrap;
@@ -711,9 +708,11 @@
 
 /* Unsaved Changes Indicator */
 .unsaved-indicator {
-  color: #ff6b35;
-  font-size: 12px;
-  margin-left: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-left: 4px;
   animation: pulse 2s infinite;
 }
 
@@ -754,34 +753,24 @@
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
-.panel-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-primary);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 /* Small pencil button for inline rename — visible by default so it's discoverable */
 .title-edit-btn {
-  margin-left: 8px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-secondary);
-  color: var(--text-primary);
-  font-size: 12px;
-  line-height: 1;
-  padding: 3px 7px;
-  border-radius: 4px;
+  margin-left: 4px;
+  width: 26px;
+  height: 26px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
   cursor: pointer;
-  text-transform: none;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
 }
 
 .title-edit-btn:hover {
-  background: var(--bg-button);
-  border-color: var(--bg-button);
-  color: #fff;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .panel-actions {
@@ -795,12 +784,7 @@
   margin-left: auto;
 }
 
-.panel-actions .button {
-  font-size: 11px;
-  padding: 4px 12px;
-  min-height: 28px;
-  font-weight: 500;
-}
+
 
 /* Java-style Apex Syntax Highlighting Colors */
 .apex-keyword {
@@ -875,32 +859,27 @@
   color: #c586c0;
 }
 
-/* Welcome States - Compact */
-.welcome-state {
+/* Welcome States - Compact (execution results) */
+.apex-manager-modal .welcome-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 60px;
+  padding: 20px;
   text-align: center;
   color: var(--text-secondary);
 }
 
-.welcome-state .welcome-icon {
-  font-size: 20px;
-  margin-bottom: 4px;
-  opacity: 0.5;
-}
 
-.welcome-state h4 {
-  margin: 0 0 2px 0;
+.apex-manager-modal .welcome-state h4 {
+  margin: 0 0 4px 0;
   color: var(--text-primary);
-  font-size: 10px;
+  font-size: 13px;
 }
 
-.welcome-state p {
+.apex-manager-modal .welcome-state p {
   margin: 0;
-  font-size: 9px;
+  font-size: 12px;
 }
 
 /* Responsive Design */

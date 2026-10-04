@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <defs>
+    <linearGradient id="frame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#55657F"/>
+      <stop offset="1" stop-color="#2F3B53"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C6CEDC"/>
+      <stop offset="1" stop-color="#A9B3C6"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#EDF1F7"/>
+    </linearGradient>
+    <linearGradient id="shell" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFB733"/>
+      <stop offset="0.5" stop-color="#F7931A"/>
+      <stop offset="1" stop-color="#DD6500"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFC14F"/>
+      <stop offset="1" stop-color="#EC8610"/>
+    </linearGradient>
+    <clipPath id="frameClip"><rect x="5" y="5" width="118" height="118" rx="21"/></clipPath>
+  </defs>
+
+  <!-- Window -->
+  <rect x="5" y="5" width="118" height="118" rx="21" fill="url(#frame)"/>
+  <rect x="5" y="5" width="118" height="31" fill="url(#bar)" clip-path="url(#frameClip)"/>
+  <circle cx="25" cy="20.5" r="4.8" fill="#55627C"/>
+  <circle cx="40" cy="20.5" r="4.8" fill="#55627C"/>
+  <circle cx="55" cy="20.5" r="4.8" fill="#55627C"/>
+  <rect x="15" y="43" width="98" height="70" rx="9" fill="url(#page)"/>
+
+  <!-- Bug -->
+  <g transform="translate(64 81) scale(1.08) translate(-64 -81)">
+  <g stroke="#2B364C" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M56.8 52.5 L52.3 47 M71.2 52.5 L75.7 47" stroke-width="4"/>
+    <path d="M48.5 68 L37.5 63.5 M47 81.5 L35 81.5 M48.5 95 L37.5 99.5 M79.5 68 L90.5 63.5 M81 81.5 L93 81.5 M79.5 95 L90.5 99.5" stroke-width="4"/>
+  </g>
+  <g stroke="#2B364C" stroke-width="3.6" stroke-linejoin="round">
+    <ellipse cx="64" cy="83" rx="17.5" ry="25" fill="url(#shell)"/>
+    <path d="M52.2 65 C52.2 57 57.4 52.2 64 52.2 C70.6 52.2 75.8 57 75.8 65 C72.4 67.4 68.4 68.6 64 68.6 C59.6 68.6 55.6 67.4 52.2 65 Z" fill="url(#head)"/>
+  </g>
+  <path d="M64 69 L64 106.5" stroke="#B35200" stroke-width="2.6" stroke-linecap="round"/>
+  <path d="M54 76.5 C54.4 73 56.4 71 59 70.8" stroke="#FFE4AE" stroke-width="2.4" stroke-linecap="round" fill="none" opacity="0.9"/>
+  </g>
+</svg>

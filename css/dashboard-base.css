@@ -15,13 +15,13 @@ input:focus-visible,
 select:focus-visible,
 textarea:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--focus-ring, #009EDB);
+  outline: 2px solid var(--focus-ring, #0284c7);
   outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -34,50 +34,84 @@ textarea:focus-visible,
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--bg-button);
+  background-color: var(--text-muted);
 }
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--font-sans);
   background: var(--bg-body);
   color: var(--text-primary);
   line-height: 1.4;
   height: 100vh;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Compact Header */
+/* Inline SVG icons */
+.icon {
+  flex-shrink: 0;
+  display: block;
+}
+
+[data-icon] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* App Header */
 .header {
-  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
-  color: var(--text-header);
-  padding: 8px 20px;
-  box-shadow: var(--shadow-panel);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: background 0.3s ease, box-shadow 0.3s ease;
-}
-
-.header h1 {
-  font-size: 16px;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-/* Compact Controls Bar */
-.controls-bar {
   background: var(--bg-primary);
-  padding: 8px 20px;
+  color: var(--text-header);
+  padding: 0 16px;
+  height: 52px;
+  flex-shrink: 0;
   border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+  color: #ffffff;
+}
+
+.brand-name {
+  font-size: 14px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+/* Toolbar */
+.controls-bar {
+  background: var(--bg-primary);
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
   flex-wrap: wrap;
-  min-height: 40px;
+  flex-shrink: 0;
+  min-height: 48px;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
@@ -85,6 +119,21 @@ body {
   display: flex;
   align-items: center;
   gap: 20px;
+  min-width: 0;
+}
+
+.org-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.toolbar-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-primary);
+  margin: 0 4px;
 }
 
 .org-info {
@@ -96,72 +145,106 @@ body {
 .right-controls {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 14px;
   margin-left: auto;
 }
 
 .control-group {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
 }
 
 .control-group label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-status);
   white-space: nowrap;
   transition: color 0.3s ease;
 }
 
 .control-group select {
-  padding: 4px 6px;
-  border: 1px solid var(--border-secondary);
-  border-radius: 3px;
-  font-size: 11px;
+  height: 30px;
+  padding: 0 8px;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 12px;
   background: var(--bg-primary);
   color: var(--text-primary);
-  transition: all 0.3s ease;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.3s ease;
+}
+
+.control-group select:hover {
+  border-color: var(--text-muted);
 }
 
 /* Main Content - 3 Column Layout */
 .main-content {
   display: grid;
-  grid-template-columns: 25% 45% 30%;
-  gap: 10px;
-  padding: 10px 20px 10px 10px;
-  height: calc(100vh - 100px);
+  grid-template-columns: minmax(260px, 25%) minmax(0, 1fr) minmax(280px, 30%);
+  gap: 12px;
+  padding: 12px 16px;
+  flex: 1;
   min-height: 0;
 }
 
 /* Panel Styles */
 .panel {
   background: var(--bg-panel);
-  border-radius: 6px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-panel);
+  box-shadow: var(--shadow-panel);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .panel-header {
   background: var(--bg-panel-header);
-  padding: 8px 12px;
+  padding: 0 8px 0 14px;
+  min-height: 44px;
   border-bottom: 1px solid var(--border-primary);
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .panel-title {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-panel-title);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  white-space: nowrap;
   transition: color 0.3s ease;
+}
+
+.panel-title > [data-icon] {
+  color: var(--text-muted);
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.selected-log-id {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  margin-right: 4px;
 }
 
 .panel-content {
@@ -170,34 +253,48 @@ body {
   min-height: 0;
 }
 
-/* Welcome State */
+/* Welcome State. The empty state of Recent Logs sits under the search bar, so it starts that much
+   higher to line up with the welcome states of the other two panels. */
+:root {
+  --welcome-offset: 18vh;
+  --log-search-height: 53px;
+}
+
 .welcome-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 200px;
-  padding-bottom: 40px;
-  padding-left: 20px;
-  padding-right: 20px;
+  padding: var(--welcome-offset) 24px 40px;
   color: var(--text-empty-state);
   text-align: center;
   font-size: 12px;
   transition: color 0.3s ease;
 }
 
-.welcome-icon {
-  font-size: 32px;
-  margin-bottom: 10px;
-  opacity: 0.5;
+.welcome-state h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.welcome-icon,
+.empty-icon {
+  display: flex;
+  justify-content: center;
+  color: var(--text-muted);
+  margin: 0 auto 8px;
 }
 
 /* Icon Legend */
 .icon-legend {
-  margin-top: 0;
-  padding-top: 0;
-  max-width: 360px;
+  margin-top: 28px;
+  padding: 14px 16px;
+  width: 100%;
+  max-width: 340px;
   text-align: left;
-  border-top: none;
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius);
 }
 
 .icon-legend-header {
@@ -233,12 +330,9 @@ body {
 }
 
 .icon-legend-icon {
-  font-size: 14px;
-  flex-shrink: 0;
-  width: 20px;
-  text-align: center;
-  line-height: 1;
-  opacity: 0.85;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
 }
 
 .icon-legend-content {
@@ -281,7 +375,7 @@ body {
   width: 20px;
   height: 20px;
   border: 2px solid var(--bg-spinner);
-  border-top: 2px solid var(--bg-button);
+  border-top: 2px solid var(--accent);
   border-radius: 50%;
   animation: spin 1s linear infinite;
   margin-bottom: 8px;
@@ -299,10 +393,26 @@ body {
 
 .empty-state {
   text-align: center;
-  padding: 20px;
+  padding: calc(var(--welcome-offset) - var(--log-search-height)) 24px 40px;
   color: var(--text-empty-state);
-  font-size: 11px;
+  font-size: 12px;
   transition: color 0.3s ease;
+}
+
+.empty-state h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+/* Logs could not be loaded: the text says why */
+.empty-state.is-error h4 {
+  color: var(--danger);
+}
+
+.empty-state.is-error p {
+  overflow-wrap: anywhere;
 }
 
 .hidden {

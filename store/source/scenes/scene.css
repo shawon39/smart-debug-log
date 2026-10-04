@@ -1,0 +1,121 @@
+/* Shared look of the store screenshots and promo tiles */
+:root {
+  --navy: #032D60;
+  --blue-dark: #0B5CAB;
+  --blue: #0176D3;
+  --blue-light: #1B96FF;
+  --sky: #A8DBFF;
+  --ink: #0B1A33;
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; overflow: hidden; background: var(--navy); }
+body { font-family: var(--font); -webkit-font-smoothing: antialiased; }
+
+.canvas {
+  position: relative;
+  width: 1280px;
+  height: 800px;
+  overflow: hidden;
+  background:
+    radial-gradient(900px 520px at 12% -8%, rgba(27, 150, 255, 0.55), transparent 70%),
+    radial-gradient(800px 600px at 105% 110%, rgba(144, 208, 254, 0.35), transparent 70%),
+    linear-gradient(158deg, #032D60 0%, #0A4C98 48%, #1580E6 100%);
+}
+body.dark .canvas {
+  background:
+    radial-gradient(900px 520px at 10% -10%, rgba(27, 150, 255, 0.35), transparent 70%),
+    radial-gradient(900px 600px at 105% 110%, rgba(110, 90, 255, 0.28), transparent 70%),
+    linear-gradient(158deg, #020A1C 0%, #05224A 55%, #0A3F80 100%);
+}
+
+/* soft light shapes and a faint dot grid */
+.bg-glow { position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.5; }
+.bg-glow.one { width: 420px; height: 420px; left: -120px; top: 320px; background: #1B96FF; }
+.bg-glow.two { width: 360px; height: 360px; right: -80px; top: -140px; background: #90D0FE; opacity: 0.35; }
+.bg-grid {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.10) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.9), transparent 55%);
+}
+
+/* headline block */
+.copy { position: absolute; left: 0; right: 0; top: 30px; text-align: center; color: #fff; z-index: 2; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 5px 12px; border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.22);
+  font-size: 12.5px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; color: #DCEFFF;
+}
+.copy h1 {
+  margin: 12px 0 0; font-size: 42px; line-height: 1.12; font-weight: 760; letter-spacing: -0.025em;
+  text-shadow: 0 2px 24px rgba(0, 20, 60, 0.35);
+}
+.copy h1 em { font-style: normal; color: var(--sky); }
+.copy p { margin: 10px auto 0; max-width: 820px; font-size: 18px; line-height: 1.45; color: rgba(235, 245, 255, 0.86); font-weight: 450; }
+
+/* browser window holding the live extension page */
+.window {
+  position: absolute; left: 40px; top: 186px; width: 1200px; height: 680px;
+  border-radius: 14px 14px 0 0; overflow: hidden; z-index: 1;
+  background: #fff;
+  box-shadow: 0 30px 80px rgba(0, 12, 40, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.window-bar {
+  height: 40px; display: flex; align-items: center; gap: 14px; padding: 0 16px;
+  background: #E9EDF3; border-bottom: 1px solid #D5DBE5;
+}
+body.dark .window-bar { background: #1E2533; border-bottom-color: #2C3445; }
+.lights { display: inline-flex; gap: 8px; }
+.lights i { width: 12px; height: 12px; border-radius: 50%; background: #FF5F57; display: block; }
+.lights i:nth-child(2) { background: #FEBC2E; }
+.lights i:nth-child(3) { background: #28C840; }
+.omnibox {
+  flex: 1; max-width: 640px; margin: 0 auto; height: 26px; border-radius: 13px;
+  display: flex; align-items: center; gap: 8px; padding: 0 12px;
+  background: #fff; color: #3E4A5C; font-size: 12.5px; white-space: nowrap; overflow: hidden;
+  transform: translateX(-30px);
+}
+.omnibox b { font-weight: 600; color: #1D2737; }
+.omnibox span { color: #7A8699; }
+.omnibox span::before { content: "|"; margin-right: 8px; color: #C3CAD6; }
+body.dark .omnibox { background: #121824; color: #AAB4C5; }
+body.dark .omnibox b { color: #E6ECF5; }
+.window-body { position: absolute; top: 40px; left: 0; right: 0; bottom: 0; }
+.window-body { overflow: hidden; }
+/* The page renders at a real 1280px desktop width (its layout changes below 1200px), scaled to the window */
+.window-body iframe { width: 1280px; height: 683px; border: 0; display: block; transform: scale(0.9375); transform-origin: 0 0; }
+
+/* Chrome toolbar bits for the Salesforce page scene */
+.toolbar-icons { display: inline-flex; align-items: center; gap: 12px; margin-left: auto; }
+.toolbar-icons[hidden] { display: none; }
+.ext-pressed { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: #CFD8E6; }
+.profile { width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, #7F8DE1, #5867E8); color: #fff; font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+.omnibox .url { color: #2B3442; }
+.omnibox .url::before { content: none; }
+.window-body iframe.native { width: 1200px; height: 640px; transform: none; }
+iframe.popup {
+  position: absolute; right: 52px; top: 42px; width: 420px; height: 360px; border: 0; z-index: 4;
+  border-radius: 10px; background: #fff;
+  box-shadow: 0 14px 40px rgba(0, 15, 45, 0.35), 0 0 0 1px rgba(0, 20, 60, 0.12);
+}
+
+/* "before" card: the raw log line next to the formatted result */
+.raw-card {
+  position: absolute; left: 884px; top: 646px; width: 334px; z-index: 3;
+  padding: 14px 16px 40px; border-radius: 12px;
+  background: linear-gradient(180deg, rgba(36, 22, 18, 0.96), rgba(28, 20, 22, 0.96));
+  border: 1px solid rgba(255, 138, 101, 0.45);
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+.raw-tag {
+  display: inline-block; margin-bottom: 9px; padding: 3px 9px; border-radius: 999px;
+  background: rgba(255, 138, 101, 0.16); color: #FFB199;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+}
+.raw-card code {
+  display: block; font: 11.5px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; color: #D9C2BA;
+  word-break: break-all;
+}

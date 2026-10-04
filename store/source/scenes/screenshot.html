@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Store screenshot</title>
+<link rel="stylesheet" href="scene.css">
+</head>
+<body>
+<main class="canvas" id="canvas">
+  <div class="bg-glow one"></div>
+  <div class="bg-glow two"></div>
+  <div class="bg-grid"></div>
+
+  <header class="copy" id="copy">
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1 id="headline"></h1>
+    <p id="subline"></p>
+  </header>
+
+  <section class="window" id="window">
+    <div class="window-bar">
+      <span class="lights"><i></i><i></i><i></i></span>
+      <span class="omnibox" id="omnibox"></span>
+      <span class="toolbar-icons" id="toolbarIcons" hidden>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="#5F6B7C"><path d="M6.2 1.5a1.7 1.7 0 0 1 3.4 0V3H12a1 1 0 0 1 1 1v2.4h-1.5a1.7 1.7 0 0 0 0 3.4H13V13a1 1 0 0 1-1 1H9.4v-1.5a1.7 1.7 0 0 0-3.4 0V14H3a1 1 0 0 1-1-1V9.8h1.5a1.7 1.7 0 0 0 0-3.4H2V4a1 1 0 0 1 1-1h3.2z"/></svg>
+        <span class="ext-pressed"><img src="/icons/icon-16.png" width="16" height="16" alt=""></span>
+        <span class="profile">MP</span>
+      </span>
+    </div>
+    <div class="window-body" id="windowBody"></div>
+  </section>
+
+</main>
+
+<script>
+  const HOST = 'acme--uat.sandbox.my.salesforce.com';
+  const dash = query => `/mock/dashboard.html?host=${HOST}&${query}`;
+  const ICON = '<img src="/icons/icon-32.png" width="16" height="16" alt="">';
+
+  const SCENES = {
+    1: {
+      eyebrow: 'Salesforce Debug Log Beautifier',
+      headline: 'Debug logs you can <em>actually read</em>',
+      subline: 'Errors and stack traces first. JSON formatted. Governor limits at a glance.',
+      frame: dash('log=07L8a00000Zx1AAAA1')
+    },
+    2: {
+      theme: 'dark',
+      eyebrow: 'No JSON.serialize needed',
+      headline: 'Plain <em>System.debug</em>, turned into clean JSON',
+      subline: 'Records, lists, maps and wrapper classes are parsed and highlighted. Dark mode included.',
+      frame: dash('log=07L8a00000Zx1AAAA3&theme=dark'),
+      overlay: `<div class="raw-card">
+        <div class="raw-tag">Before &middot; raw debug log</div>
+        <code>USER_DEBUG|[15]|DEBUG|(Case:{Id=5008a00000GtR2aAAF, CaseNumber=00041872, Subject=Invoice sync failing for EU entity, Priority=High, Status=Escalated, AccountId=0018a00001XkLmRAAV}, Case:{Id=5008a00000GtR2bAAF, CaseNumber=00041877, Subject=SSO login loop after password reset, Priority=Critical, ...</code>
+      </div>`
+    },
+    3: {
+      eyebrow: 'Manage Debug Logs',
+      headline: 'Trace flags in seconds, <em>no Setup pages</em>',
+      subline: 'Turn on logging for any user, choose a debug level, extend or stop it with one click.',
+      frame: dash('scene=trace&log=07L8a00000Zx1AAAA4')
+    },
+    4: {
+      eyebrow: 'Execute Anonymous Apex',
+      headline: 'Run Apex and <em>keep your snippets</em>',
+      subline: 'Save the code you run every day, execute it in one click, then read the log right away.',
+      frame: dash('scene=apex&log=07L8a00000Zx1AAAA2')
+    },
+    5: {
+      eyebrow: 'Works in every org',
+      headline: 'One click from <em>any Salesforce tab</em>',
+      subline: 'Hit an error? Press Alt+Shift+D or open the popup. Production, sandbox and scratch orgs.',
+      frame: 'lightning.html',
+      native: true,
+      popup: '/mock/popup.html',
+      url: 'acme--uat.sandbox.lightning.force.com/lightning/r/Opportunity/0068a00000PqR1sAAF/view'
+    }
+  };
+
+  const n = Number(new URLSearchParams(location.search).get('n')) || 1;
+  const scene = SCENES[n];
+  document.body.classList.add(`scene-${n}`);
+  if (scene.theme === 'dark') document.body.classList.add('dark');
+  document.getElementById('eyebrow').textContent = scene.eyebrow;
+  document.getElementById('headline').innerHTML = scene.headline;
+  document.getElementById('subline').textContent = scene.subline;
+  const LOCK = '<svg width="12" height="12" viewBox="0 0 12 12" fill="#5F6B7C"><path d="M3 5V3.6a3 3 0 0 1 6 0V5h.5a1 1 0 0 1 1 1v4.5a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm1.4 0h3.2V3.6a1.6 1.6 0 0 0-3.2 0z"/></svg>';
+  document.getElementById('omnibox').innerHTML = scene.url
+    ? `${LOCK}<span class="url">${scene.url}</span>`
+    : `${ICON}<b>Salesforce Debug Log Beautifier</b><span>${HOST}</span>`;
+  if (scene.popup) document.getElementById('toolbarIcons').hidden = false;
+
+  if (scene.overlay) document.getElementById('canvas').insertAdjacentHTML('beforeend', scene.overlay);
+
+  const frame = document.createElement('iframe');
+  frame.src = scene.frame;
+  frame.setAttribute('scrolling', 'no');
+  if (scene.native) frame.className = 'native';
+  document.getElementById('windowBody').appendChild(frame);
+
+  let popup = null;
+  if (scene.popup) {
+    popup = document.createElement('iframe');
+    popup.src = scene.popup;
+    popup.className = 'popup';
+    popup.setAttribute('scrolling', 'no');
+    document.getElementById('window').appendChild(popup);
+  }
+
+  (async () => {
+    const frames = [frame, popup].filter(Boolean);
+    for (let i = 0; i < 200; i++) {
+      const states = frames.map(f => f.contentDocument?.documentElement?.dataset.sceneReady);
+      if (states.includes('error')) { document.documentElement.dataset.ready = 'error'; return; }
+      if (states.every(state => state === '1')) break;
+      await new Promise(r => setTimeout(r, 100));
+    }
+    if (popup) {
+      // Size the popup like Chrome does: to its content
+      const footer = popup.contentDocument.querySelector('.popup-footer');
+      popup.style.height = `${Math.ceil(footer.getBoundingClientRect().bottom + 16)}px`;
+    }
+    document.documentElement.dataset.ready = '1';
+  })();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Opportunity | Acme</title>
+<!-- A Lightning Experience style record page for a fictional org. No Salesforce logos or real data. -->
+<style>
+  :root {
+    --brand: #0176D3; --brand-dark: #014486; --text: #181818; --weak: #444; --muted: #706E6B;
+    --border: #E5E5E5; --border-strong: #C9C9C9; --page: #EEF1F6; --success: #2E844A; --error: #BA0517;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    font: 13px/1.5 var(--font); color: var(--text); -webkit-font-smoothing: antialiased;
+    background: linear-gradient(180deg, #BCD3EF 0px, #D9E5F4 150px, var(--page) 320px);
+  }
+  svg { display: block; }
+
+  /* Global header */
+  .global { height: 50px; background: #fff; display: flex; align-items: center; padding: 0 16px; gap: 16px; border-bottom: 1px solid #DDDBDA; }
+  .logo { display: flex; align-items: center; gap: 8px; width: 210px; font-weight: 800; letter-spacing: 0.04em; color: #0B2A55; font-size: 15px; }
+  .logo-mark { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, #FF8A3D, #F2542D); display: grid; place-items: center; }
+  .search { flex: 1; max-width: 560px; margin: 0 auto; height: 32px; border: 1px solid var(--border-strong); border-radius: 4px; display: flex; align-items: center; gap: 8px; padding: 0 10px; color: var(--muted); }
+  .global-icons { display: flex; align-items: center; gap: 14px; color: #706E6B; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, #7F8DE1, #5867E8); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+
+  /* App navigation */
+  .nav { height: 40px; background: #fff; display: flex; align-items: stretch; padding: 0 12px 0 14px; box-shadow: 0 2px 3px rgba(0,0,0,0.08); position: relative; }
+  .waffle { display: grid; grid-template-columns: repeat(3, 4px); gap: 3px; align-self: center; margin-right: 14px; }
+  .waffle i { width: 4px; height: 4px; border-radius: 50%; background: #706E6B; display: block; }
+  .app-name { align-self: center; font-size: 18px; font-weight: 400; padding-right: 22px; margin-right: 6px; border-right: 1px solid transparent; }
+  .tab { display: flex; align-items: center; gap: 6px; padding: 0 12px; color: var(--text); border-bottom: 3px solid transparent; border-top: 3px solid transparent; }
+  .tab small { color: var(--muted); font-size: 10px; }
+  .tab.active { border-bottom-color: var(--brand); background: rgba(1, 118, 211, 0.06); }
+  .tab.active span { font-weight: 600; }
+
+  /* Record page */
+  .page { padding: 12px; }
+  .card { background: #fff; border: 1px solid var(--border); border-radius: 4px; box-shadow: 0 2px 2px rgba(0,0,0,0.06); }
+  .highlights { padding: 14px 16px 12px; }
+  .hl-top { display: flex; align-items: center; gap: 12px; }
+  .obj-icon { width: 32px; height: 32px; border-radius: 4px; background: #FF5D2D; display: grid; place-items: center; }
+  .hl-title small { display: block; font-size: 12px; color: var(--weak); line-height: 1.2; }
+  .hl-title b { font-size: 18px; font-weight: 700; line-height: 1.25; }
+  .actions { margin-left: auto; display: flex; gap: 8px; }
+  .btn { height: 32px; padding: 0 14px; border: 1px solid var(--border-strong); border-radius: 4px; background: #fff; color: var(--brand); font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+  .btn-group { display: flex; }
+  .btn-group .btn { border-radius: 0; margin-left: -1px; }
+  .btn-group .btn:first-child { border-radius: 4px 0 0 4px; margin-left: 0; }
+  .btn-group .btn:last-child { border-radius: 0 4px 4px 0; padding: 0 9px; }
+  .btn.brand { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .hl-fields { display: flex; gap: 48px; margin-top: 14px; }
+  .hl-fields div small { display: block; font-size: 12px; color: var(--weak); }
+  .link { color: var(--brand); }
+
+  .path { display: flex; align-items: center; gap: 12px; padding: 12px 16px; margin-top: 12px; }
+  .stages { flex: 1; display: flex; }
+  .stage {
+    flex: 1; height: 32px; margin-right: 6px; display: grid; place-items: center; font-size: 13px;
+    background: #E5E5E5; color: #444;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%, 12px 50%);
+  }
+  .stage:first-child { clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 50%, calc(100% - 12px) 100%, 0 100%); border-radius: 16px 0 0 16px; }
+  .stage:last-child { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 12px 50%); border-radius: 0 16px 16px 0; margin-right: 0; }
+  .stage.done { background: #3BA755; color: #fff; }
+  .stage.current { background: var(--brand-dark); color: #fff; font-weight: 600; }
+
+  .columns { display: grid; grid-template-columns: 1fr 360px; gap: 12px; margin-top: 12px; }
+  .tabs { display: flex; gap: 22px; padding: 0 16px; border-bottom: 1px solid var(--border); }
+  .tabs span { padding: 11px 0 9px; border-bottom: 3px solid transparent; }
+  .tabs span.on { border-bottom-color: var(--brand); font-weight: 600; }
+  .section { padding: 10px 16px 4px; font-size: 14px; font-weight: 600; background: #F3F3F3; margin: 12px 16px 0; border-radius: 4px; padding: 7px 12px; }
+  .fields { display: grid; grid-template-columns: 1fr 1fr; column-gap: 24px; padding: 4px 16px 12px; }
+  .field { padding: 8px 4px 6px; border-bottom: 1px solid var(--border); }
+  .field small { display: block; font-size: 12px; color: var(--weak); }
+  .field.err small { color: var(--error); }
+  .field.err { border-bottom-color: var(--error); }
+
+  .related { padding: 0; }
+  .rel-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-weight: 700; font-size: 14px; }
+  .rel-icon { width: 24px; height: 24px; border-radius: 4px; display: grid; place-items: center; }
+  .rel-item { padding: 0 14px 12px 48px; font-size: 13px; }
+  .rel-item small { display: block; color: var(--weak); }
+  .rel-gap { height: 12px; }
+
+  /* Error toast (Lightning style) */
+  .toast {
+    position: absolute; left: 60px; top: 104px; width: 600px; z-index: 5;
+    display: flex; gap: 12px; padding: 14px 44px 14px 16px; border-radius: 4px;
+    background: var(--error); color: #fff; box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+  }
+  .toast b { display: block; font-size: 15px; margin-bottom: 2px; }
+  .toast p { margin: 0; font-size: 13px; line-height: 1.45; }
+  .toast .x { position: absolute; right: 14px; top: 14px; opacity: 0.85; }
+</style>
+</head>
+<body>
+  <header class="global">
+    <div class="logo">
+      <span class="logo-mark"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 1.5 14 13H10.6L8 7.6 5.4 13H2z" fill="#fff"/></svg></span>
+      ACME
+    </div>
+    <div class="search">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#706E6B" stroke-width="1.8"><circle cx="7" cy="7" r="5"/><path d="M11 11l3.5 3.5" stroke-linecap="round"/></svg>
+      Search...
+    </div>
+    <div class="global-icons">
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="#706E6B"><path d="M10 2.2l2.3 4.8 5.2.6-3.9 3.6 1.1 5.2L10 13.8 5.3 16.4l1.1-5.2L2.5 7.6l5.2-.6z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#706E6B" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="2.5" width="15" height="15" rx="3"/><path d="M10 6.5v7M6.5 10h7"/></svg>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="#706E6B" stroke-width="1.8" stroke-linecap="round"><circle cx="10" cy="10" r="7.5"/><path d="M7.8 7.6a2.3 2.3 0 1 1 3.2 2.1c-.6.3-1 .8-1 1.5v.4M10 14.3v.2"/></svg>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="#706E6B"><path d="M11.2 1.8l.4 2.1c.6.2 1.1.5 1.6.9l2-.8 1.2 2.1-1.6 1.4c.1.6.1 1.2 0 1.8l1.6 1.4-1.2 2.1-2-.8c-.5.4-1 .7-1.6.9l-.4 2.1H8.8l-.4-2.1c-.6-.2-1.1-.5-1.6-.9l-2 .8-1.2-2.1 1.6-1.4a5 5 0 0 1 0-1.8L3.6 6.1l1.2-2.1 2 .8c.5-.4 1-.7 1.6-.9l.4-2.1zM10 7.3a2.7 2.7 0 1 0 0 5.4 2.7 2.7 0 0 0 0-5.4z"/></svg>
+      <svg width="18" height="18" viewBox="0 0 20 20" fill="#706E6B"><path d="M10 2a5 5 0 0 0-5 5v3.6L3.5 13.5h13L15 10.6V7a5 5 0 0 0-5-5zM8 15a2 2 0 0 0 4 0z"/></svg>
+      <span class="avatar">MP</span>
+    </div>
+  </header>
+
+  <nav class="nav">
+    <span class="waffle"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+    <span class="app-name">Sales</span>
+    <span class="tab"><span>Home</span></span>
+    <span class="tab active"><span>Opportunities</span><small>&#9662;</small></span>
+    <span class="tab"><span>Accounts</span><small>&#9662;</small></span>
+    <span class="tab"><span>Contacts</span><small>&#9662;</small></span>
+    <span class="tab"><span>Cases</span><small>&#9662;</small></span>
+    <span class="tab"><span>Reports</span><small>&#9662;</small></span>
+    <span class="tab"><span>Dashboards</span><small>&#9662;</small></span>
+  </nav>
+
+  <div class="toast">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#fff"/><path d="M8.5 8.5l7 7M15.5 8.5l-7 7" stroke="#BA0517" stroke-width="2.4" stroke-linecap="round"/></svg>
+    <div>
+      <b>We hit a snag.</b>
+      <p>OpportunityTrigger: execution of BeforeUpdate caused by: System.NullPointerException: Attempt to de-reference a null object. Class.OpportunityPricingService.applyDiscount: line 42, column 1</p>
+    </div>
+    <svg class="x" width="14" height="14" viewBox="0 0 14 14" stroke="#fff" stroke-width="2" stroke-linecap="round"><path d="M2 2l10 10M12 2L2 12"/></svg>
+  </div>
+
+  <main class="page">
+    <section class="card highlights">
+      <div class="hl-top">
+        <span class="obj-icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="#fff"><path d="M2.5 6.5l4 3.2L10 4l3.5 5.7 4-3.2-1.6 8.5H4.1zM4.2 16h11.6v1.6H4.2z"/></svg></span>
+        <div class="hl-title"><small>Opportunity</small><b>Northwind - Renewal FY27</b></div>
+        <div class="actions">
+          <span class="btn">+ Follow</span>
+          <span class="btn-group"><span class="btn">Edit</span><span class="btn">Clone</span><span class="btn">Delete</span><span class="btn">&#9662;</span></span>
+        </div>
+      </div>
+      <div class="hl-fields">
+        <div><small>Account Name</small><span class="link">Northwind Traders</span></div>
+        <div><small>Close Date</small>12/15/2026</div>
+        <div><small>Amount</small>$216,000.00</div>
+        <div><small>Opportunity Owner</small><span class="link">Maya Patel</span></div>
+      </div>
+    </section>
+
+    <section class="card path">
+      <div class="stages">
+        <span class="stage done">&#10003;</span>
+        <span class="stage done">&#10003;</span>
+        <span class="stage done">&#10003;</span>
+        <span class="stage current">Negotiation</span>
+        <span class="stage">Closed</span>
+      </div>
+      <span class="btn brand">&#10003; Mark Stage as Complete</span>
+    </section>
+
+    <div class="columns">
+      <section class="card">
+        <div class="tabs"><span>Activity</span><span class="on">Details</span><span>Chatter</span></div>
+        <div class="section">Opportunity Information</div>
+        <div class="fields">
+          <div class="field"><small>Opportunity Name</small>Northwind - Renewal FY27</div>
+          <div class="field"><small>Stage</small>Negotiation</div>
+          <div class="field"><small>Account Name</small><span class="link">Northwind Traders</span></div>
+          <div class="field"><small>Probability (%)</small>75%</div>
+          <div class="field"><small>Type</small>Existing Customer - Upgrade</div>
+          <div class="field err"><small>Discount Percent</small>&nbsp;</div>
+          <div class="field"><small>Lead Source</small>Partner Referral</div>
+          <div class="field"><small>Price Book</small>Enterprise 2026</div>
+        </div>
+      </section>
+      <aside>
+        <section class="card related">
+          <div class="rel-head"><span class="rel-icon" style="background:#A094ED"><svg width="14" height="14" viewBox="0 0 16 16" fill="#fff"><circle cx="8" cy="5" r="3"/><path d="M2 14c.6-3 3-4.5 6-4.5s5.4 1.5 6 4.5z"/></svg></span>Contact Roles (2)</div>
+          <div class="rel-item"><span class="link">Grace Lindqvist</span><small>Decision Maker</small></div>
+          <div class="rel-item"><span class="link">Omar Haddad</span><small>Economic Buyer</small></div>
+        </section>
+        <div class="rel-gap"></div>
+        <section class="card related">
+          <div class="rel-head"><span class="rel-icon" style="background:#FF9A3C"><svg width="14" height="14" viewBox="0 0 16 16" fill="#fff"><path d="M8 1l6 3v8l-6 3-6-3V4z"/></svg></span>Products (2)</div>
+          <div class="rel-item"><span class="link">Platform Licence</span><small>Quantity 120 &middot; $1,500.00</small></div>
+        </section>
+      </aside>
+    </div>
+  </main>
+  <script>document.documentElement.dataset.sceneReady = '1';</script>
+</body>
+</html>

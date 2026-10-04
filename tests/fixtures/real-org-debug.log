@@ -1,0 +1,211 @@
+67.0 APEX_CODE,FINEST;APEX_PROFILING,INFO;CALLOUT,INFO;DB,INFO;SYSTEM,DEBUG
+16:19:41.0 (1000)|EXECUTION_STARTED
+16:19:41.0 (1100)|CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+16:19:41.000 (2000)|USER_DEBUG|[S01]|DEBUG|(Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, Account:{Id=001xx00000T32F8AAJ, Name=Dickenson plc, Industry=Consulting, AnnualRevenue=50000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 1301 Hoch Drive, Lawrence, KS, 66045, USA, KS, US, null, null, null], OwnerId=005xx000008fBEDAA2}, Account:{Id=001xx00000T32F5AAJ, Name=Edge Communications, Industry=Electronics, AnnualRevenue=139000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 312 Constitution Place
+Austin, TX 78767
+USA, Austin, TX, null, United States, TX, US, null, null, null], OwnerId=005xx000008fBEDAA2})
+16:19:41.001 (2001)|USER_DEBUG|[S02]|DEBUG|Account List: (Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, Account:{Id=001xx00000T32F8AAJ, Name=Dickenson plc, Industry=Consulting, AnnualRevenue=50000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 1301 Hoch Drive, Lawrence, KS, 66045, USA, KS, US, null, null, null], OwnerId=005xx000008fBEDAA2}, Account:{Id=001xx00000T32F5AAJ, Name=Edge Communications, Industry=Electronics, AnnualRevenue=139000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 312 Constitution Place
+Austin, TX 78767
+USA, Austin, TX, null, United States, TX, US, null, null, null], OwnerId=005xx000008fBEDAA2})
+16:19:41.002 (2002)|USER_DEBUG|[SHOT]|DEBUG|Account List: (Account:{Id=001xx00000T32F5AAJ, Name=Edge Communications}, Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America})
+16:19:41.003 (2003)|USER_DEBUG|[S03]|DEBUG|Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}
+16:19:41.004 (2004)|USER_DEBUG|[S04]|DEBUG|(Contact:{AccountId=001xx00000T32F6AAJ, Id=003xx00000NAXzIAAX, LastName=Rogers})
+16:19:41.005 (2005)|USER_DEBUG|[S05]|DEBUG|{001xx00000T32F5AAJ=Account:{Id=001xx00000T32F5AAJ, Name=Edge Communications, Industry=Electronics, AnnualRevenue=139000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 312 Constitution Place
+Austin, TX 78767
+USA, Austin, TX, null, United States, TX, US, null, null, null], OwnerId=005xx000008fBEDAA2}, 001xx00000T32F6AAJ=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}}
+16:19:41.006 (2006)|USER_DEBUG|[S06]|DEBUG|{001xx00000T32F5AAJ, 001xx00000T32F6AAJ, 001xx00000T32F8AAJ}
+16:19:41.007 (2007)|USER_DEBUG|[S07]|DEBUG|Wrapper:[acc=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, count=3, detail=Detail:[amount=12.50, d=2026-10-04 00:00:00, flag=true], name=Test, with comma, scores={x=1}, tags=(a, b)]
+16:19:41.008 (2008)|USER_DEBUG|[S08]|DEBUG|(Wrapper:[acc=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, count=3, detail=Detail:[amount=12.50, d=2026-10-04 00:00:00, flag=true], name=Test, with comma, scores={x=1}, tags=(a, b)])
+16:19:41.009 (2009)|USER_DEBUG|[S09]|DEBUG|(Detail:[amount=null, d=null, flag=null], Detail:[amount=null, d=null, flag=null])
+16:19:41.010 (2010)|USER_DEBUG|[S11]|DEBUG|ERROR (INFO, WARN)
+16:19:41.011 (2011)|USER_DEBUG|[S12]|DEBUG|2026-10-04 00:00:00 | 2026-10-04 10:19:41 | 10:15:00.000Z
+16:19:41.012 (2012)|USER_DEBUG|[S13]|DEBUG|Blob[5]
+16:19:41.013 (2013)|USER_DEBUG|[S14]|DEBUG|12.50 (1.0, 2.50)
+16:19:41.014 (2014)|USER_DEBUG|[S15]|DEBUG|{a=1, b=(1, 2, {c=d}), e={f=null}}
+16:19:41.015 (2015)|USER_DEBUG|[S16]|DEBUG|((1, 2), (3))
+16:19:41.016 (2016)|USER_DEBUG|[S17]|DEBUG|{acc=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, n=5}
+16:19:41.017 (2017)|USER_DEBUG|[S18]|DEBUG|Database.SaveResult[getErrors=(Database.Error[getFields=(Name);getMessage=Required fields are missing: [Name];getStatusCode=REQUIRED_FIELD_MISSING;]);getId=null;isSuccess=false;]
+16:19:41.018 (2018)|USER_DEBUG|[S19]|DEBUG|(Database.Error[getFields=(Name);getMessage=Required fields are missing: [Name];getStatusCode=REQUIRED_FIELD_MISSING;])
+16:19:41.019 (2019)|USER_DEBUG|[S21]|DEBUG|System.DmlException: Insert failed. First exception on row 0; first error: REQUIRED_FIELD_MISSING, Required fields are missing: [Name]: [Name]
+16:19:41.020 (2020)|USER_DEBUG|[S22]|DEBUG|Account:{Name=Multi, Description=line1
+line2
+line3}
+16:19:41.021 (2021)|USER_DEBUG|[S23]|DEBUG|Account:{Name=Eq, test, Description=a=b, c=d}
+16:19:41.022 (2022)|USER_DEBUG|[S24]|DEBUG|(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...)
+16:19:41.023 (2023)|USER_DEBUG|[S25]|DEBUG|(Account:{Name=A0}, Account:{Name=A1}, Account:{Name=A2}, Account:{Name=A3}, Account:{Name=A4}, Account:{Name=A5}, Account:{Name=A6}, Account:{Name=A7}, Account:{Name=A8}, Account:{Name=A9}, ...)
+16:19:41.024 (2024)|USER_DEBUG|[R2-SET10]|DEBUG|{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, ...}
+16:19:41.025 (2025)|USER_DEBUG|[R2-MAP10]|DEBUG|{0=v0, 1=v1, 2=v2, 3=v3, 4=v4, 5=v5, 6=v6, 7=v7, 8=v8, 9=v9, ...}
+16:19:41.026 (2026)|USER_DEBUG|[J1]|DEBUG|{"attributes":{"type":"Account"},"Name":"Unsaved"}
+16:19:41.027 (2027)|USER_DEBUG|[S26]|DEBUG|System.HttpRequest[Endpoint=https://example.com/api, Method=POST]
+16:19:41.028 (2028)|USER_DEBUG|[R2-HTTPRES]|DEBUG|System.HttpResponse[Status=null, StatusCode=0]
+16:19:41.029 (2029)|USER_DEBUG|[R2-DESCRIBE]|DEBUG|Schema.DescribeFieldResult[getByteLength=765;getCalculatedFormula=null;getCompoundFieldName=Name;getController=null;getLabel=Account Name;getLength=255;getLocalName=Name;getName=Name;getSoapType=STRING;getSobjectField=Name;getType=STRING;isAccessible=true;isNameField=true;]
+16:19:41.030 (2030)|USER_DEBUG|[S28]|DEBUG|{Account:{Name=K}=1}
+16:19:41.031 (2031)|USER_DEBUG|[S29]|DEBUG|Before Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2} after
+16:19:41.032 (2032)|USER_DEBUG|[S30]|DEBUG|{x, y} {1, 2}
+16:19:41.033 (2033)|USER_DEBUG|[S31]|DEBUG|Account:{Name=Html <b>bold</b> & co}
+16:19:41.034 (2034)|USER_DEBUG|[S32]|DEBUG|Opportunity:{Name=Opp, Amount=1500.00, CloseDate=2026-10-04 00:00:00, StageName=Prospecting}
+16:19:41.035 (2035)|USER_DEBUG|[R2-ONEITEM]|DEBUG|(Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America})
+16:19:41.036 (2036)|USER_DEBUG|[R2-CLASS]|DEBUG|Holder:[accounts=(Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America}), anything=(null, x, 1), groups={even=(), odd=(1, 3)}, stamp=2026-01-02 03:04:05]
+16:19:41.037 (2037)|USER_DEBUG|[R2-MAP]|DEBUG|{a b=c, d, k=v=w}
+16:19:41.038 (2038)|USER_DEBUG|[R2-BRACKETS]|DEBUG|{one=Account:{Name=Paren (x) [y] {z}}}
+16:19:41.039 (2039)|USER_DEBUG|[R2-MIXED]|DEBUG|(Account:{Name=A}, Contact:{LastName=C})
+16:19:41.040 (2040)|USER_DEBUG|[R2-UNCLOSED]|DEBUG|Account:{Name=Unclosed { brace}
+16:19:41.041 (2041)|USER_DEBUG|[S07U]|DEBUG|Wrapper:[acc=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}, count=3, detail=Detail:[amount=12.50, d=2026-10-04 00:00:00, flag=true], name=Test, with comma, scores={x=1}, tags=(a, b)]
+16:19:41.042 (2042)|USER_DEBUG|[S-ERROR]|ERROR|Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Industry=Apparel, AnnualRevenue=350000000, CreatedDate=2026-06-23 23:08:00, BillingAddress=API address [ 525 S. Lexington Ave, Burlington, NC, 27215, USA, NC, US, null, null, null], OwnerId=005xx000008fBEDAA2}
+16:19:41.043 (2043)|USER_DEBUG|[Q04]|DEBUG|Q04 Contact:{LastName=Rel}
+16:19:41.044 (2044)|USER_DEBUG|[Q05]|DEBUG|Q05 (AggregateResult:{total=2, Industry=null}, AggregateResult:{total=1, Industry=Electronics}, AggregateResult:{total=1, Industry=Consulting})
+16:19:41.045 (2045)|USER_DEBUG|[Q06]|DEBUG|Q06 Account:{Name=Nulls, Phone=null, Website=}
+16:19:41.046 (2046)|USER_DEBUG|[Q07]|DEBUG|Q07 System.Location[getLatitude=37.79;getLongitude=-122.39;]
+16:19:41.047 (2047)|USER_DEBUG|[Q08]|DEBUG|Q08 {001xx00000T32F5AAJ=(Contact:{AccountId=001xx00000T32F5AAJ, Id=003xx00000NAXzGAAX})}
+16:19:41.048 (2048)|USER_DEBUG|[Q09]|DEBUG|Q09 Labeled(x) and Empty:[]
+16:19:41.049 (2049)|USER_DEBUG|[Q10]|DEBUG|Q10 {body={"a":1,"b":[1,2]}}
+16:19:41.050 (2050)|USER_DEBUG|[Q11]|DEBUG|Q11 (, , a,b)
+16:19:41.051 (2051)|USER_DEBUG|[Q12]|DEBUG|Q12 (Address:[city=Dhaka, lines=(), street=null], (already output))
+16:19:41.052 (2052)|USER_DEBUG|[Q14]|DEBUG|Q14 OrderWrapper:[account=null, bigNumber=9007199254740993, orderNumber=ORD-2, parent=(already output), payload={list=(1, 2), n=1}, ratio=1.2345E-5]
+16:19:41.053 (2053)|USER_DEBUG|[M1]|DEBUG|OrderWrapper:[account=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Phone=(336) 222-7000}, attachment=Blob[9], bigNumber=9007199254740993, contacts=(Contact:{Id=003xx00000NAXzLAAX, LastName=Barr, Email=barr_tim@grandhotels.com}, Contact:{Id=003xx00000NAXzMAAX, LastName=Bond, Email=bond_john@grandhotels.com}), createdAt=2026-10-04 09:30:00, customer=Customer:[accountId=001xx00000T32F6AAJ, addressesByType={billing=Address:[city=Dhaka, lines=(Floor 2), street=1 Main St, Suite [4]], home office=Address:[city=null, lines=(), street=null]}, name=Acme, Inc. (EMEA), shipping=(already output), tags={net=30, vip}], cutoff=17:00:00.000Z, isRush=false, items=(LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null], LineItem:[BaseItem.price=99.99, BaseItem.sku=SKU-2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null]), itemsByStatus={empty=(), open=(already output)}, large=1.23456789015E10, orderDate=2026-10-04 00:00:00, orderNumber=ORD-001, parent=null, payload={flags=(true, null, x), retries=3, source=web}, ratio=1.2345E-5, trickyText=a, b=c [d] {e} (f) :g; h
+second line	tab "q" 's' <b>bold</b> &amp; done]
+16:19:41.054 (2054)|USER_DEBUG|[M2]|DEBUG|P02 Order: OrderWrapper:[account=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Phone=(336) 222-7000}, attachment=Blob[9], bigNumber=9007199254740993, contacts=(Contact:{Id=003xx00000NAXzLAAX, LastName=Barr, Email=barr_tim@grandhotels.com}, Contact:{Id=003xx00000NAXzMAAX, LastName=Bond, Email=bond_john@grandhotels.com}), createdAt=2026-10-04 09:30:00, customer=Customer:[accountId=001xx00000T32F6AAJ, addressesByType={billing=Address:[city=Dhaka, lines=(Floor 2), street=1 Main St, Suite [4]], home office=Address:[city=null, lines=(), street=null]}, name=Acme, Inc. (EMEA), shipping=(already output), tags={net=30, vip}], cutoff=17:00:00.000Z, isRush=false, items=(LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null], LineItem:[BaseItem.price=99.99, BaseItem.sku=SKU-2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null]), itemsByStatus={empty=(), open=(already output)}, large=1.23456789015E10, orderDate=2026-10-04 00:00:00, orderNumber=ORD-001, parent=null, payload={flags=(true, null, x), retries=3, source=web}, ratio=1.2345E-5, trickyText=a, b=c [d] {e} (f) :g; h
+second line	tab "q" 's' <b>bold</b> &amp; done]
+16:19:41.055 (2055)|USER_DEBUG|[M3]|DEBUG|(LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null], LineItem:[BaseItem.price=99.99, BaseItem.sku=SKU-2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null])
+16:19:41.056 (2056)|USER_DEBUG|[M4]|DEBUG|Customer:[accountId=001xx00000T32F6AAJ, addressesByType={billing=Address:[city=Dhaka, lines=(Floor 2), street=1 Main St, Suite [4]], home office=Address:[city=null, lines=(), street=null]}, name=Acme, Inc. (EMEA), shipping=(already output), tags={net=30, vip}]
+16:19:41.057 (2057)|USER_DEBUG|[M5]|DEBUG|{empty=(), open=(LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null], LineItem:[BaseItem.price=99.99, BaseItem.sku=SKU-2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null])}
+16:19:41.058 (2058)|USER_DEBUG|[M6]|DEBUG|Empty:[]
+16:19:41.059 (2059)|USER_DEBUG|[M7]|DEBUG|Labeled(x)
+16:19:41.060 (2060)|USER_DEBUG|[M8]|DEBUG|(Labeled(x), Labeled(x))
+16:19:41.061 (2061)|USER_DEBUG|[M9]|DEBUG|{DRAFT=1, ACTIVE=2}
+16:19:41.062 (2062)|USER_DEBUG|[M10]|DEBUG|ProbeException:[]: Order ORD-001 failed: [SKU-1] out of stock
+16:19:41.063 (2063)|USER_DEBUG|[M11]|DEBUG|{LineItem:[BaseItem.price=1, BaseItem.sku=S, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null]}
+16:19:41.064 (2064)|USER_DEBUG|[M12]|DEBUG|(text, 5, 2.50, true, null, 2026-01-02 00:00:00, CLOSED, LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null])
+16:19:41.065 (2065)|USER_DEBUG|[M13]|DEBUG|{null=null key, k=null}
+16:19:41.066 (2066)|USER_DEBUG|[M14]|DEBUG|OrderWrapper:[account=Account:{Id=001xx00000T32F6AAJ, Name=Burlington Textiles Corp of America, Phone=(336) 222-7000}, attachment=Blob[9], bigNumber=9007199254740993, contacts=(Contact:{Id=003xx00000NAXzLAAX, LastName=Barr, Email=barr_tim@grandhotels.com}, Contact:{Id=003xx00000NAXzMAAX, LastName=Bond, Email=bond_john@grandhotels.com}), createdAt=2026-10-04 09:30:00, customer=Customer:[accountId=001xx00000T32F6AAJ, addressesByType={billing=Address:[city=Dhaka, lines=(Floor 2), street=1 Main St, Suite [4]], home office=Address:[city=null, lines=(), street=null]}, name=Acme, Inc. (EMEA), shipping=(already output), tags={net=30, vip}], cutoff=17:00:00.000Z, isRush=false, items=(LineItem:[BaseItem.price=0, BaseItem.sku=S0, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=1, BaseItem.sku=S1, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=2, BaseItem.sku=S2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=3, BaseItem.sku=S3, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=4, BaseItem.sku=S4, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=5, BaseItem.sku=S5, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=6, BaseItem.sku=S6, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=7, BaseItem.sku=S7, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=8, BaseItem.sku=S8, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], LineItem:[BaseItem.price=9, BaseItem.sku=S9, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null], ...), itemsByStatus={empty=(), open=(LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null], LineItem:[BaseItem.price=99.99, BaseItem.sku=SKU-2, lineStatus=ACTIVE, note=transient note, quantity=1, secret=hidden, total=null])}, large=1.23456789015E10, orderDate=2026-10-04 00:00:00, orderNumber=ORD-001, parent=null, payload={flags=(true, null, x), retries=3, source=web}, ratio=1.2345E-5, trickyText=a, b=c [d] {e} (f) :g; h
+second line	tab "q" 's' <b>bold</b> &amp; done]
+16:19:41.067 (2067)|USER_DEBUG|[M15]|DEBUG|{
+  "trickyText" : "a, b=c [d] {e} (f) :g; h\nsecond line\ttab \"q\" 's' <b>bold</b> &amp; done",
+  "ratio" : 1.2345E-5,
+  "payload" : {
+    "flags" : [ true, null, "x" ],
+    "retries" : 3,
+    "source" : "web"
+  },
+  "parent" : null,
+  "orderNumber" : "ORD-001",
+  "orderDate" : "2026-10-04",
+  "large" : 1.23456789015E10,
+  "itemsByStatus" : {
+    "empty" : [ ],
+    "open" : [ {
+      "sku" : "SKU-1",
+      "price" : 10.50,
+      "total" : 21.00,
+      "secret" : "hidden",
+      "quantity" : 2,
+      "lineStatus" : "ACTIVE"
+    }, {
+      "sku" : "SKU-2",
+      "price" : 99.99,
+      "total" : 99.99,
+      "secret" : "hidden",
+      "quantity" : 1,
+      "lineStatus" : "ACTIVE"
+    } ]
+  },
+  "items" : [ {
+    "sku" : "SKU-1",
+    "price" : 10.50,
+    "total" : 21.00,
+    "secret" : "hidden",
+    "quantity" : 2,
+    "lineStatus" : "ACTIVE"
+  }, {
+    "sku" : "SKU-2",
+    "price" : 99.99,
+    "total" : 99.99,
+    "secret" : "hidden",
+    "quantity" : 1,
+    "lineStatus" : "ACTIVE"
+  } ],
+  "isRush" : false,
+  "cutoff" : "17:00:00.000Z",
+  "customer" : {
+    "tags" : [ "vip", "net=30" ],
+    "shipping" : {
+      "street" : "1 Main St, Suite [4]",
+      "lines" : [ "Floor 2" ],
+      "city" : "Dhaka"
+    },
+    "name" : "Acme, Inc. (EMEA)",
+    "addressesByType" : {
+      "home office" : {
+        "street" : null,
+        "lines" : [ ],
+        "city" : null
+      },
+      "billing" : {
+        "street" : "1 Main St, Suite [4]",
+        "lines" : [ "Floor 2" ],
+        "city" : "Dhaka"
+      }
+    },
+    "accountId" : null
+  },
+  "createdAt" : "2026-10-04T09:30:00.000Z",
+  "contacts" : [ ],
+  "bigNumber" : 9007199254740993,
+  "attachment" : "cGRmLWJ5dGVz",
+  "account" : null
+}
+16:19:41.068 (2068)|USER_DEBUG|[M16]|DEBUG|{"trickyText":"a, b=c [d] {e} (f) :g; h\nsecond line\ttab \"q\" 's' <b>bold</b> &amp; done","ratio":1.2345E-5,"payload":{"flags":[true,null,"x"],"retries":3,"source":"web"},"orderNumber":"ORD-001","orderDate":"2026-10-04","large":1.23456789015E10,"itemsByStatus":{"empty":[],"open":[{"sku":"SKU-1","price":10.50,"total":21.00,"secret":"hidden","quantity":2,"lineStatus":"ACTIVE"},{"sku":"SKU-2","price":99.99,"total":99.99,"secret":"hidden","quantity":1,"lineStatus":"ACTIVE"}]},"items":[{"sku":"SKU-1","price":10.50,"total":21.00,"secret":"hidden","quantity":2,"lineStatus":"ACTIVE"},{"sku":"SKU-2","price":99.99,"total":99.99,"secret":"hidden","quantity":1,"lineStatus":"ACTIVE"}],"isRush":false,"cutoff":"17:00:00.000Z","customer":{"tags":["vip","net=30"],"shipping":{"street":"1 Main St, Suite [4]","lines":["Floor 2"],"city":"Dhaka"},"name":"Acme, Inc. (EMEA)","addressesByType":{"home office":{"lines":[]},"billing":{"street":"1 Main St, Suite [4]","lines":["Floor 2"],"city":"Dhaka"}}},"createdAt":"2026-10-04T09:30:00.000Z","contacts":[],"bigNumber":9007199254740993,"attachment":"cGRmLWJ5dGVz"}
+16:19:41.069 (2069)|USER_DEBUG|[Q01]|DEBUG|Q01 LineItem:[BaseItem.price=10.50, BaseItem.sku=SKU-1, lineStatus=ACTIVE, note=transient note, quantity=2, secret=hidden, total=null]
+16:19:41.070 (2070)|USER_DEBUG|[Q02]|DEBUG|Q02 cutoff 17:00:00.000Z ratio 1.2345E-5 large 1.23456789015E10 big 9007199254740993
+16:19:41.071 (2071)|USER_DEBUG|[Q03]|DEBUG|OrderWrapper:[account=null, attachment=null, bigNumber=9007199254740993, contacts=null, createdAt=2026-10-04 09:30:00, customer=null, cutoff=17:00:00.000Z, isRush=false, items=null, itemsByStatus=null, large=1.23456789015E10, orderDate=2026-10-04 00:00:00, orderNumber=ORD-2, parent=null, payload={list=(1, 2), n=1}, ratio=1.2345E-5, trickyText=null]
+16:19:41.072 (2072)|USER_DEBUG|[Q13]|DEBUG|Q13 (1, 2) then {a=1}
+16:19:41.073 (2073)|USER_DEBUG|[R01]|DEBUG|R01 Kid:[A1=a1, Beta=B, Zeta=Z, alpha=al, beta2=b2, mm=m, n9=9, x_y=x]
+16:19:41.074 (2074)|USER_DEBUG|[R02]|DEBUG|R02 {Alpha=2, Beta=4, beta=3, zeta=1}
+16:19:41.075 (2075)|USER_DEBUG|[R03]|DEBUG|R03 {Alpha, beta, zeta}
+16:19:41.076 (2076)|USER_DEBUG|[J2]|DEBUG|{
+  "attributes" : {
+    "type" : "Account",
+    "url" : "/services/data/v67.0/sobjects/Account/001xx00000T32F6AAJ"
+  },
+  "Id" : "001xx00000T32F6AAJ",
+  "Name" : "Burlington Textiles Corp of America",
+  "Industry" : "Apparel",
+  "AnnualRevenue" : 350000000,
+  "CreatedDate" : "2026-06-23T23:08:00.000+0000",
+  "BillingAddress" : {
+    "city" : "Burlington",
+    "country" : "USA",
+    "countryCode" : "US",
+    "geocodeAccuracy" : null,
+    "latitude" : null,
+    "longitude" : null,
+    "postalCode" : "27215",
+    "state" : "NC",
+    "stateCode" : "NC",
+    "street" : "525 S. Lexington Ave"
+  },
+  "OwnerId" : "005xx000008fBEDAA2",
+  "Contacts" : {
+    "totalSize" : 1,
+    "done" : true,
+    "records" : [ {
+      "attributes" : {
+        "type" : "Contact",
+        "url" : "/services/data/v67.0/sobjects/Contact/003xx00000NAXzIAAX"
+      },
+      "AccountId" : "001xx00000T32F6AAJ",
+      "Id" : "003xx00000NAXzIAAX",
+      "LastName" : "Rogers"
+    } ]
+  },
+  "Owner" : {
+    "attributes" : {
+      "type" : "User",
+      "url" : "/services/data/v67.0/sobjects/User/005xx000008fBEDAA2"
+    },
+    "Id" : "005xx000008fBEDAA2",
+    "Name" : "OrgFarm EPIC"
+  }
+}
+16:19:42.0 (9000)|CODE_UNIT_FINISHED|execute_anonymous_apex
+16:19:42.0 (9100)|EXECUTION_FINISHED

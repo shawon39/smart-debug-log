@@ -70,10 +70,7 @@
 
 /* User Selection Section */
 .user-selection-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .user-selection-section .section-header {
@@ -244,10 +241,7 @@
 
 /* Debug Level Section */
 .debug-level-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .debug-level-section .section-header {
@@ -318,10 +312,8 @@
 
 /* Create Debug Log Section */
 .debug-create-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .debug-create-section .debug-create-controls {
@@ -652,8 +644,8 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  flex-shrink: 1;
+  /* Keep its height in short windows: the modal content scrolls instead of hiding the list */
+  flex-shrink: 0;
 }
 
 .trace-flags-section .section-header {
@@ -769,19 +761,14 @@
   background: var(--bg-button);
 }
 
-.loading-state,
-.empty-state {
+.debug-log-manager-modal .loading-state,
+.debug-log-manager-modal .empty-state {
   padding: 20px;
   text-align: center;
   color: var(--text-secondary);
   font-size: 12px;
 }
 
-.empty-state .empty-icon {
-  font-size: 24px;
-  margin-bottom: 6px;
-  opacity: 0.4;
-}
 
 /* Trace Flag Item */
 .trace-flag-item {
@@ -854,9 +841,26 @@
   font-weight: 500;
 }
 
+/* LogType badge: User debug / Dev Console / Class/Trigger */
+.trace-flag-user .trace-flag-type {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-primary);
+  padding: 0 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.trace-flag-creator {
+  color: var(--text-muted);
+}
+
 .trace-flag-meta {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 2px 12px;
   font-size: 10px;
   color: var(--text-secondary);
 }
@@ -884,10 +888,8 @@
 }
 
 .trace-flag-expires.scheduled .schedule-range {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 400;
-  font-size: 0.9em;
-  opacity: 0.8;
 }
 
 .trace-flag-expires.expired {
@@ -904,15 +906,33 @@
 }
 
 .trace-flag-actions .button {
-  font-size: 9px;
-  padding: 3px 6px;
-  min-height: auto;
+  font-size: 10px;
+  padding: 3px 7px;
+  min-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-flag-actions .button.delete-btn {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+
+.trace-flag-actions .button.delete-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .trace-flag-actions .button.secondary {
   background: transparent;
-  border: 1px solid var(--border-secondary);
+  /* Visible on both themes (--border-secondary nearly matches the dark background) */
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
   color: var(--text-primary);
+}
+
+.trace-flag-actions .button.secondary:not(.delete-btn):hover {
+  border-color: var(--accent);
 }
 
 .trace-flag-actions .button.danger {
@@ -929,14 +949,69 @@
 /* Delete Logs Section */
 .delete-logs-section {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border-primary);
   margin-bottom: 4px;
   /* Ensure space at the very bottom */
+}
+
+.delete-logs-row,
+.auto-cleanup-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.auto-cleanup-row .toggle-label {
+  white-space: normal;
+  color: var(--text-primary);
+}
+
+.auto-cleanup-row .toggle-switch {
+  flex-shrink: 0;
+}
+
+/* Org log storage meter */
+.log-storage-meter {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.log-storage-text {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.log-storage-bar {
+  height: 6px;
+  background: var(--border-primary);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.log-storage-fill {
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.log-storage-meter.warn .log-storage-fill {
+  background: var(--warning);
+}
+
+.log-storage-warning {
+  font-size: 11px;
+  color: var(--text-dev-warning);
+  background: var(--warning-soft);
+  border-radius: 4px;
+  padding: 5px 8px;
 }
 
 .delete-logs-section .button.danger {
@@ -1165,7 +1240,7 @@
     justify-content: flex-end;
   }
 
-  .delete-logs-section {
+  .delete-logs-row {
     flex-direction: column;
     gap: 8px;
     text-align: center;
@@ -1187,229 +1262,85 @@
   }
 }
 
-/* Trace Status Indicator (Dashboard Header) - Professional Design */
+/* Trace Status Indicator (header pill) */
 .trace-status-indicator {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 14px;
+  height: 28px;
+  padding: 0 12px;
   background: var(--bg-secondary);
-  border: none;
-  border-radius: 6px;
-  font-size: 11px;
-  margin-left: 10px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  position: relative;
-  overflow: hidden;
-  animation: slideInRight 0.4s ease-out;
-}
-
-.trace-status-indicator::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  transition: left 0.5s ease;
-}
-
-.trace-status-indicator:hover::before {
-  left: 100%;
+  border: 1px solid var(--border-primary);
+  border-radius: 999px;
+  font-size: 12px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .trace-status-indicator .status-dot {
-  width: 10px;
-  height: 10px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  display: inline-block;
   flex-shrink: 0;
-  transition: all 0.3s ease;
-  position: relative;
-}
-
-/* Active state - vibrant green with enhanced glow and pulse */
-.trace-status-indicator.active {
-  background: rgba(34, 197, 94, 0.08);
-  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15), 0 0 0 1px rgba(34, 197, 94, 0.1);
-}
-
-.trace-status-indicator.active .status-dot {
-  background: #22c55e;
-  box-shadow:
-    0 0 0 2px rgba(34, 197, 94, 0.2),
-    0 0 12px rgba(34, 197, 94, 0.6),
-    inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
-.trace-status-indicator.active .status-dot::after {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  background: inherit;
-  animation: ripple 2s ease-out infinite;
-}
-
-/* Scheduled state - soft blue with gentle pulse */
-.trace-status-indicator.scheduled {
-  background: rgba(59, 130, 246, 0.08);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15), 0 0 0 1px rgba(59, 130, 246, 0.1);
-}
-
-.trace-status-indicator.scheduled .status-dot {
-  background: #3b82f6;
-  box-shadow:
-    0 0 0 2px rgba(59, 130, 246, 0.2),
-    0 0 12px rgba(59, 130, 246, 0.6),
-    inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  animation: pulseGlow 2s ease-in-out infinite;
-}
-
-.trace-status-indicator.scheduled .status-text {
-  color: #2563eb;
-  font-weight: 600;
-}
-
-.trace-status-indicator.scheduled .schedule-range {
-  color: #94a3b8;
-  font-weight: 400;
-  opacity: 0.9;
-}
-
-/* Expired state - prominent red/orange with warning animation */
-.trace-status-indicator.expired {
-  background: rgba(239, 68, 68, 0.08);
-  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-  animation: slideInRight 0.4s ease-out, warningPulse 3s ease-in-out infinite;
-}
-
-.trace-status-indicator.expired .status-dot {
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  box-shadow:
-    0 0 0 2px rgba(239, 68, 68, 0.2),
-    0 0 10px rgba(239, 68, 68, 0.5),
-    inset 0 1px 2px rgba(255, 255, 255, 0.2);
-  animation: warningBlink 2s ease-in-out infinite;
-}
-
-/* No trace state - subtle gray with hint animation */
-.trace-status-indicator.no-trace {
-  background: var(--bg-secondary);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  opacity: 0.85;
-}
-
-.trace-status-indicator.no-trace .status-dot {
-  background: linear-gradient(135deg, #94a3b8, #64748b);
-  box-shadow:
-    0 0 0 2px rgba(148, 163, 184, 0.15),
-    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  background: var(--status-dot-default);
 }
 
 .trace-status-indicator .status-text {
-  color: var(--text-primary);
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-weight: 500;
   white-space: nowrap;
-  font-size: 11px;
-  letter-spacing: 0.01em;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-status-indicator.active {
+  background: var(--success-soft);
+  border-color: transparent;
+}
+
+.trace-status-indicator.active .status-dot {
+  background: var(--success);
+  box-shadow: 0 0 0 3px var(--success-soft);
+  animation: pulseGlow 2s ease-in-out infinite;
 }
 
 .trace-status-indicator.active .status-text {
-  color: #16a34a;
-  font-weight: 600;
+  color: var(--success);
+}
+
+.trace-status-indicator.scheduled {
+  background: var(--accent-soft);
+  border-color: transparent;
+}
+
+.trace-status-indicator.scheduled .status-dot {
+  background: var(--accent);
+}
+
+.trace-status-indicator.scheduled .status-text {
+  color: var(--accent);
+}
+
+.trace-status-indicator.expired {
+  background: var(--danger-soft);
+  border-color: transparent;
+}
+
+.trace-status-indicator.expired .status-dot {
+  background: var(--danger);
 }
 
 .trace-status-indicator.expired .status-text {
-  color: #dc2626;
-  font-weight: 600;
+  color: var(--danger);
 }
 
-.trace-status-indicator.no-trace .status-text {
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-/* Enhanced animations */
+/* Soft pulse for the active-logging dot */
 @keyframes pulseGlow {
-
-  0%,
-  100% {
-    box-shadow:
-      0 0 0 2px rgba(34, 197, 94, 0.2),
-      0 0 12px rgba(34, 197, 94, 0.6),
-      inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  }
-
-  50% {
-    box-shadow:
-      0 0 0 3px rgba(34, 197, 94, 0.3),
-      0 0 20px rgba(34, 197, 94, 0.8),
-      inset 0 1px 2px rgba(255, 255, 255, 0.4);
-  }
-}
-
-@keyframes ripple {
-  0% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(2.5);
-  }
-}
-
-@keyframes warningBlink {
-
   0%,
   100% {
     opacity: 1;
-    box-shadow:
-      0 0 0 2px rgba(239, 68, 68, 0.2),
-      0 0 10px rgba(239, 68, 68, 0.5),
-      inset 0 1px 2px rgba(255, 255, 255, 0.2);
   }
 
   50% {
-    opacity: 0.7;
-    box-shadow:
-      0 0 0 3px rgba(239, 68, 68, 0.3),
-      0 0 16px rgba(239, 68, 68, 0.7),
-      inset 0 1px 2px rgba(255, 255, 255, 0.3);
-  }
-}
-
-@keyframes warningPulse {
-
-  0%,
-  100% {
-    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-  }
-
-  50% {
-    box-shadow: 0 2px 12px rgba(239, 68, 68, 0.25);
-  }
-}
-
-@keyframes slideInRight {
-  from {
-    opacity: 0;
-    transform: translateX(-20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(0);
+    opacity: 0.45;
   }
 }
 

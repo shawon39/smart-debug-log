@@ -1,6 +1,20 @@
+// Open dashboard tabs. Without the "tabs" permission Chrome hides the URL of our own pages in
+// tabs.query, so read them from runtime.getContexts (Chrome 116+).
+async function getOpenDashboards() {
+  if (!chrome.runtime.getContexts) return [];
+  const baseUrl = chrome.runtime.getURL('dashboard.html');
+  const contexts = await chrome.runtime.getContexts({ contextTypes: ['TAB'] });
+  return contexts
+    .filter(context => context.documentUrl && context.documentUrl.startsWith(baseUrl))
+    .map(context => ({ tabId: context.tabId, windowId: context.windowId, url: context.documentUrl }));
+}
+
 class SmartDebugLogPopup {
   constructor() {
+    // The org is resolved once in checkConnection and used by every action
     this.sfHost = null;
+    this.sourceTab = null; // Salesforce tab the popup was opened on
+    this.dashboardTab = null; // set when the popup was opened on a dashboard tab
     this.hasToken = false;
     this.countdownInterval = null;
     this.init();
@@ -15,7 +29,7 @@ class SmartDebugLogPopup {
       await this.checkConnection();
       await this.checkTokenStatus();
     } catch (error) {
-      this.updateStatus('error', 'Initialization failed');
+      this.showError(`Could not load the popup: ${error.message}`);
     }
   }
 
@@ -44,12 +58,6 @@ class SmartDebugLogPopup {
     // Event listener for revoke token button
     document.getElementById('revokeTokenBtn').addEventListener('click', () => this.revokeAccessToken());
 
-    // Event listener for Go to Setup button
-    const goToSetupBtn = document.getElementById('goToSetupBtn');
-    if (goToSetupBtn) {
-      goToSetupBtn.addEventListener('click', () => this.goToSetup());
-    }
-
     // Event listener for Enable/Extend debug logging
     const enableBtn = document.getElementById('enableLoggingBtn');
     if (enableBtn) {
@@ -57,27 +65,29 @@ class SmartDebugLogPopup {
     }
   }
 
+  // Finds the tab whose org the popup works on. On a dashboard tab that is the dashboard's
+  // ?host= org (not some other Salesforce tab).
+  async resolveTargetTab() {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab) return null;
+
+    const dashboard = (await getOpenDashboards()).find(d => d.tabId === tab.id);
+    if (!dashboard) return tab;
+
+    this.dashboardTab = dashboard;
+    if (new URL(dashboard.url).searchParams.get('host')) {
+      return { id: tab.id, url: dashboard.url };
+    }
+
+    // Dashboard without an org: use the most recently accessed Salesforce tab
+    const salesforceTabs = (await chrome.tabs.query({})).filter(t => t.url && isSalesforceUrl(t.url));
+    salesforceTabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
+    return salesforceTabs[0] || null;
+  }
+
   async checkConnection() {
     try {
-      let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-
-
-      // If the active tab is an extension page (like our dashboard), find a Salesforce tab instead
-      if (tab && tab.url && tab.url.startsWith('chrome-extension://')) {
-        // Find Salesforce tabs, sorted by most recently accessed
-        const salesforceTabs = (await chrome.tabs.query({})).filter(t => {
-          if (!t.url) return false;
-          return isSalesforceUrl(t.url);
-        });
-
-
-        // Sort by lastAccessed (most recent first)
-        salesforceTabs.sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-
-        if (salesforceTabs.length > 0) {
-          tab = salesforceTabs[0]; // Use the most recently accessed Salesforce tab
-        }
-      }
+      const tab = await this.resolveTargetTab();
 
       if (!tab || !tab.url) {
         this.showNotOnSalesforceNotification();
@@ -123,19 +133,14 @@ class SmartDebugLogPopup {
 
       this.hideNotOnSalesforceNotification();
       this.sfHost = sfHost;
+      this.sourceTab = this.dashboardTab ? null : tab;
       this.showOrgInfo(orgName);
       await this.refreshLoggingStatus();
 
-      // Check if we are currently on the dashboard page
-      const [currentTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      const isDashboard = currentTab && currentTab.url && currentTab.url.includes(chrome.runtime.getURL('dashboard.html'));
-
-      if (isDashboard) {
-        await this.showDashboardNavigationButtons(sfHost);
+      if (this.dashboardTab) {
+        this.showDashboardNavigationButtons();
       } else {
         this.showButton();
-        const setupBtn = document.getElementById('goToSetupBtn');
-        if (setupBtn) setupBtn.style.display = 'none';
       }
 
     } catch (error) {
@@ -176,41 +181,28 @@ class SmartDebugLogPopup {
   showButton() {
     const button = document.getElementById('openDashboardBtn');
     if (button) {
-      button.style.display = 'block';
-      button.textContent = 'View Debug Logs';
+      button.style.display = '';
+      // Change only the label so the SVG icon stays
+      (button.querySelector('span') || button).textContent = 'View Debug Logs';
     }
   }
 
   async openDashboard() {
     const btn = document.getElementById('openDashboardBtn');
 
-    // Check if we are in "Go Back" mode
-    if (btn && btn.textContent === 'Go Back Salesforce') {
-      const sfHost = btn.dataset.sfHost;
-      if (sfHost) {
-        return this.goBackToSalesforce(sfHost);
-      }
+    // On a dashboard tab this button goes back to Salesforce
+    if (this.dashboardTab && this.sfHost) {
+      return this.goBackToSalesforce(this.sfHost);
     }
 
-    const originalText = btn.textContent;
+    const label = btn.querySelector('span') || btn;
+    const originalText = label.textContent;
 
     try {
-      btn.textContent = 'Opening...';
+      label.textContent = 'Opening...';
       btn.disabled = true;
 
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      let sfHost = null;
-
-      if (tab && tab.url) {
-        const hostResponse = await chrome.runtime.sendMessage({
-          type: 'GET_SALESFORCE_HOST',
-          url: tab.url,
-        });
-
-        if (hostResponse && hostResponse.success) {
-          sfHost = hostResponse.data.salesforceHost;
-        }
-      }
+      const sfHost = this.sfHost;
 
       // Auto-enable debug logging (45 min) if not already active
       try {
@@ -226,28 +218,23 @@ class SmartDebugLogPopup {
       const baseUrl = chrome.runtime.getURL('dashboard.html');
       const dashboardUrl = sfHost ? `${baseUrl}?host=${encodeURIComponent(sfHost)}&traceFlagCreated=true` : `${baseUrl}?traceFlagCreated=true`;
 
-      if (tab && tab.url && !tab.url.startsWith('chrome-extension://')) {
-        // Save the source URL for this host before leaving
-        if (sfHost) {
-          const storageKey = `lastSfUrl_${sfHost}`;
-          await chrome.storage.local.set({ [storageKey]: tab.url });
-        }
+      // Save the source URL for this host before leaving
+      if (sfHost && this.sourceTab && this.sourceTab.url) {
+        const storageKey = `lastSfUrl_${sfHost}`;
+        await chrome.storage.local.set({ [storageKey]: this.sourceTab.url });
       }
 
-      const tabs = await chrome.tabs.query({});
-      const existingDashboard = tabs.find(tab => {
-        if (!tab.url) return false;
-
+      const existingDashboard = (await getOpenDashboards()).find(dashboard => {
         if (sfHost) {
           const targetUrl = `${baseUrl}?host=${encodeURIComponent(sfHost)}`;
-          return tab.url === targetUrl || tab.url.startsWith(targetUrl + '&');
+          return dashboard.url === targetUrl || dashboard.url.startsWith(targetUrl + '&');
         } else {
-          return tab.url === baseUrl || (tab.url.startsWith(baseUrl) && !tab.url.includes('?host='));
+          return dashboard.url === baseUrl || !dashboard.url.includes('?host=');
         }
       });
 
       if (existingDashboard) {
-        await chrome.tabs.update(existingDashboard.id, { active: true });
+        await chrome.tabs.update(existingDashboard.tabId, { active: true });
         await chrome.windows.update(existingDashboard.windowId, { focused: true });
       } else {
         await chrome.tabs.create({
@@ -257,7 +244,7 @@ class SmartDebugLogPopup {
       }
 
     } catch (error) {
-      this.updateStatus('error', 'Failed to open dashboard');
+      this.showError(`Could not open the dashboard: ${error.message}`);
 
       // Fallback: try to open dashboard without specific host
       try {
@@ -270,7 +257,7 @@ class SmartDebugLogPopup {
         console.error('Dashboard launch failed:', fallbackError);
       }
     } finally {
-      btn.textContent = originalText;
+      label.textContent = originalText;
       btn.disabled = false;
       setTimeout(() => window.close(), 100);
     }
@@ -283,26 +270,12 @@ class SmartDebugLogPopup {
     try {
       tokenBtn.disabled = true;
       tokenBtn.textContent = 'Authenticating...';
-
-      // Get the current Salesforce org URL
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      let orgUrl = null;
-
-      if (tab && tab.url) {
-        const hostResponse = await chrome.runtime.sendMessage({
-          type: 'GET_SALESFORCE_HOST',
-          url: tab.url,
-        });
-
-        if (hostResponse && hostResponse.success) {
-          orgUrl = hostResponse.data.salesforceHost;
-        }
-      }
+      this.clearError();
 
       // Send message to background script to start OAuth flow
       const response = await chrome.runtime.sendMessage({
         type: 'SF_GENERATE_TOKEN',
-        orgUrl: orgUrl
+        orgUrl: this.sfHost
       });
 
       if (response && response.success) {
@@ -316,6 +289,7 @@ class SmartDebugLogPopup {
           tokenBtn.classList.remove('is-success');
           tokenBtn.disabled = false;
           this.renderTokenRow(true);
+          this.refreshLoggingStatus();
         }, 1400);
       } else {
         throw new Error(response?.error || 'Failed to generate token');
@@ -323,6 +297,7 @@ class SmartDebugLogPopup {
 
     } catch (error) {
       console.error('Token generation failed:', error);
+      this.showError(error.message);
       tokenBtn.textContent = 'Failed';
       tokenBtn.classList.add('is-error');
 
@@ -348,29 +323,16 @@ class SmartDebugLogPopup {
     try {
       revokeBtn.disabled = true;
       revokeBtn.textContent = 'Revoking...';
-
-      // Get the current Salesforce org URL
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      let orgUrl = null;
-
-      if (tab && tab.url) {
-        const hostResponse = await chrome.runtime.sendMessage({
-          type: 'GET_SALESFORCE_HOST',
-          url: tab.url,
-        });
-
-        if (hostResponse && hostResponse.success) {
-          orgUrl = hostResponse.data.salesforceHost;
-        }
-      }
+      this.clearError();
 
       // Send message to background script to revoke token
       const response = await chrome.runtime.sendMessage({
         type: 'REVOKE_OAUTH_TOKEN',
-        sfHost: orgUrl
+        sfHost: this.sfHost
       });
 
       if (response && response.success) {
+        if (response.warning) this.showError(response.warning);
         this.hasToken = false;
         revokeBtn.textContent = 'Revoked';
         revokeBtn.classList.add('is-success');
@@ -388,6 +350,7 @@ class SmartDebugLogPopup {
 
     } catch (error) {
       console.error('Token revocation failed:', error);
+      this.showError(error.message);
       revokeBtn.textContent = 'Failed';
       revokeBtn.classList.add('is-error');
 
@@ -401,23 +364,9 @@ class SmartDebugLogPopup {
 
   async checkTokenStatus() {
     try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      let sfHost = null;
-
-      if (tab && tab.url) {
-        const hostResponse = await chrome.runtime.sendMessage({
-          type: 'GET_SALESFORCE_HOST',
-          url: tab.url,
-        });
-
-        if (hostResponse && hostResponse.success) {
-          sfHost = hostResponse.data.salesforceHost;
-        }
-      }
-
       const response = await chrome.runtime.sendMessage({
         type: 'CHECK_TOKEN_STATUS',
-        sfHost: sfHost
+        sfHost: this.sfHost
       });
 
       if (response && response.success && response.data && response.data.hasToken && !response.data.isExpired) {
@@ -444,23 +393,37 @@ class SmartDebugLogPopup {
     // Show exactly one action: Generate when no token, Revoke when present
     if (genBtn) genBtn.style.display = hasToken ? 'none' : 'block';
     if (revokeBtn) revokeBtn.style.display = hasToken ? 'block' : 'none';
+    const hint = document.getElementById('tokenHint');
+    if (hint) hint.hidden = hasToken;
+    this.setLoggingLocked(!hasToken);
   }
 
-  updateStatus(status, message) {
-    const dot = document.getElementById('statusDot');
-    const text = document.getElementById('statusText');
+  // Debug logging needs the token: until there is one the logging controls are off. A running
+  // trace flag keeps showing (Salesforce still records logs), otherwise the label says why.
+  setLoggingLocked(locked) {
+    this.loggingLocked = locked;
+    const row = document.getElementById('loggingRow');
+    const select = document.getElementById('durationSelect');
+    const enableBtn = document.getElementById('enableLoggingBtn');
+    if (row) row.classList.toggle('is-locked', locked);
+    if (select) select.disabled = locked;
+    if (enableBtn) enableBtn.disabled = locked;
+    this.renderLoggingStatus(this.loggingStatus || { active: false });
+  }
 
-    if (!dot || !text) return;
+  // Errors go to a visible line in the popup (not only to the console)
+  showError(message) {
+    const errorEl = document.getElementById('popupError');
+    if (!errorEl) return;
+    errorEl.textContent = message;
+    errorEl.hidden = false;
+  }
 
-    // Remove all status classes
-    dot.classList.remove('connected', 'disconnected', 'error');
-
-    // Add the current status class if not connected
-    if (status !== 'connected') {
-      dot.classList.add(status);
-    }
-
-    text.textContent = message;
+  clearError() {
+    const errorEl = document.getElementById('popupError');
+    if (!errorEl) return;
+    errorEl.textContent = '';
+    errorEl.hidden = true;
   }
 
   showOrgInfo(orgName) {
@@ -509,16 +472,24 @@ class SmartDebugLogPopup {
     const countdown = document.getElementById('loggingCountdown');
 
     this.stopCountdown();
+    this.loggingStatus = data;
 
     if (data && data.active && data.expirationDate) {
       if (dot) { dot.classList.add('active'); dot.classList.remove('warning'); }
-      if (label) label.textContent = 'Logging active';
+      if (label) label.textContent = 'Recording your debug logs';
       if (enableBtn) enableBtn.textContent = 'Extend';
       this.startCountdown(new Date(data.expirationDate).getTime());
     } else {
       if (dot) { dot.classList.remove('active'); dot.classList.remove('warning'); }
-      if (label) label.textContent = 'Logging off';
-      if (enableBtn) enableBtn.textContent = 'Enable';
+      if (label) {
+        // A trace flag can also be scheduled to start later
+        if (data && data.scheduled && data.startTime) {
+          label.textContent = `Recording starts at ${new Date(data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+        } else {
+          label.textContent = this.loggingLocked ? 'Generate a token to record debug logs' : 'Not recording your debug logs';
+        }
+      }
+      if (enableBtn) enableBtn.textContent = 'Start';
       if (countdown) { countdown.textContent = ''; countdown.classList.remove('warning'); }
     }
   }
@@ -573,6 +544,7 @@ class SmartDebugLogPopup {
     try {
       btn.disabled = true;
       btn.textContent = '...';
+      this.clearError();
 
       const response = await chrome.runtime.sendMessage({
         type: 'ENSURE_TRACE_FLAG',
@@ -591,6 +563,7 @@ class SmartDebugLogPopup {
       }
     } catch (error) {
       console.error('Failed to enable logging:', error);
+      this.showError(`Could not turn on logging: ${error.message}`);
     } finally {
       btn.disabled = false;
       // refreshLoggingStatus resets the label; restore it if that path didn't run
@@ -601,77 +574,25 @@ class SmartDebugLogPopup {
   nudgeGenerateToken() {
     const genBtn = document.getElementById('generateTokenBtn');
     const label = document.getElementById('loggingStatusText');
-    if (label) label.textContent = 'Generate a token first';
+    if (label) label.textContent = 'Generate a token to record debug logs';
     if (genBtn) {
       genBtn.classList.add('nudge');
       setTimeout(() => genBtn.classList.remove('nudge'), 1600);
     }
   }
 
-  async showDashboardNavigationButtons(sfHost) {
+  showDashboardNavigationButtons() {
     const mainBtn = document.getElementById('openDashboardBtn');
-    const setupBtn = document.getElementById('goToSetupBtn');
 
     if (mainBtn) {
-      mainBtn.textContent = 'Go Back Salesforce';
-      // Store the host in the button for the click handler
-      mainBtn.dataset.sfHost = sfHost;
-    }
-
-    if (setupBtn) {
-      setupBtn.style.display = 'block';
-    }
-  }
-
-  async goToSetup() {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      let sfHost = null;
-
-      if (tab && tab.url) {
-        const hostResponse = await chrome.runtime.sendMessage({
-          type: 'GET_SALESFORCE_HOST',
-          url: tab.url,
-        });
-
-        if (hostResponse && hostResponse.success) {
-          sfHost = hostResponse.data.salesforceHost;
-        }
-      }
-
-      if (sfHost) {
-        const setupUrl = `https://${sfHost}/lightning/setup/SetupOneHome/home`;
-        await chrome.tabs.create({ url: setupUrl });
-        window.close();
-      }
-    } catch (error) {
-      console.error('Failed to navigate to setup:', error);
+      (mainBtn.querySelector('span') || mainBtn).textContent = 'Back to Salesforce';
     }
   }
 
   async goBackToSalesforce(sfHost) {
     try {
-      const storageKey = `lastSfUrl_${sfHost}`;
-      const result = await chrome.storage.local.get([storageKey]);
-      const lastUrl = result[storageKey];
-
-      if (lastUrl) {
-        // Try to find a tab with this URL first
-        const tabs = await chrome.tabs.query({});
-        const existingTab = tabs.find(t => t.url === lastUrl);
-
-        if (existingTab) {
-          await chrome.tabs.update(existingTab.id, { active: true });
-          await chrome.windows.update(existingTab.windowId, { focused: true });
-        } else {
-          await chrome.tabs.create({ url: lastUrl });
-        }
-        window.close();
-      } else {
-        // Fallback: just open the host root
-        await chrome.tabs.create({ url: `https://${sfHost}` });
-        window.close();
-      }
+      await focusSalesforceTab(sfHost);
+      window.close();
     } catch (error) {
       console.error('Failed to go back to Salesforce:', error);
     }

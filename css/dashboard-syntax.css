@@ -61,6 +61,63 @@
   margin-bottom: 0;
 }
 
+/* Logging level of a System.debug message that is not DEBUG (ERROR, WARN, INFO, FINE...) */
+.debug-level-tag {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.debug-level-tag.level-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.debug-level-tag.level-warn {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.debug-level-tag.level-fine,
+.debug-level-tag.level-finer,
+.debug-level-tag.level-finest {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* Shown when Salesforce cut the log because it was too big */
+.log-truncated-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.log-truncated-banner .icon {
+  flex-shrink: 0;
+  color: var(--warning);
+}
+
+#errorContent .log-truncated-banner {
+  margin: 8px;
+}
+
 /* Line Numbers for Debug Messages */
 .line-number {
   display: inline-block;
@@ -92,88 +149,135 @@
 
 /* Governor Limits Panel */
 .limits-content {
-  padding: 10px 18px;
-  font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  white-space: pre;
-  overflow-x: auto;
+  padding: 12px 14px 14px;
+  font-size: 12px;
   background: var(--bg-limits-content);
-  border-radius: 4px;
+  border-radius: var(--radius);
   border: 1px solid var(--border-limits-content);
-  transition: all 0.3s ease;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
-/* Governor Limits Syntax Highlighting */
-.limits-content .limit-header {
-  color: var(--text-limits-header);
-  font-weight: bold;
-  margin-bottom: 8px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-limits-content);
-  font-size: 11px;
-  transition: color 0.3s ease, border-color 0.3s ease;
-}
-
-.limits-content .limit-category {
-  color: var(--text-limits-category);
+/* Governor limits as progress bars (built by formatGovernorLimits) */
+.limits-ns {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
   font-weight: 600;
-  transition: color 0.3s ease;
+  color: var(--text-primary);
+  margin-bottom: 10px;
 }
 
-.limits-content .limit-value {
-  color: var(--text-limits-value);
+.limits-ns span {
+  font-family: var(--font-mono);
+  font-size: 11px;
   font-weight: 500;
-  margin-left: 3px;
-  transition: color 0.3s ease;
+  color: var(--text-muted);
 }
 
-.limits-content .limit-used {
-  color: var(--text-limits-used);
-  font-weight: bold;
-  margin: 0 3px;
-  transition: color 0.3s ease;
+.limits-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
 }
 
-.limits-content .limit-separator {
-  color: var(--text-limits-separator);
-  margin: 0 1px;
-  transition: color 0.3s ease;
+/* Each namespace (managed package) has its own group */
+.limits-group + .limits-group {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
 }
 
-.limits-content .limit-percentage {
-  color: var(--text-limits-percentage);
-  font-weight: 500;
-  margin-left: 3px;
-  transition: color 0.3s ease;
+.limits-none {
+  font-size: 11.5px;
+  color: var(--text-muted);
 }
 
-/* Improve governor limits number visibility in dark mode */
-[data-theme="dark"] .limits-content .limit-used {
-  color: #fbbf24;
-  /* Bright yellow for used numbers */
-  font-weight: bold;
-  text-shadow: 0 0 2px rgba(251, 191, 36, 0.3);
+/* Limits at 0, folded under a toggle */
+.limits-unused {
+  margin-top: 10px;
 }
 
-[data-theme="dark"] .limits-content .limit-value {
-  color: #60a5fa;
-  /* Bright blue for limit values */
-  font-weight: bold;
+.limits-unused summary {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
 }
 
-[data-theme="dark"] .limits-content .limit-percentage {
-  color: #34d399;
-  /* Bright green for percentages */
-  font-weight: bold;
-  text-shadow: 0 0 2px rgba(52, 211, 153, 0.3);
+.limits-unused summary:hover {
+  color: var(--accent);
 }
 
-[data-theme="dark"] .limits-content .limit-header {
-  color: #5DBEEA;
-  /* Bright cyan for headers */
-  font-weight: bold;
-  text-shadow: 0 0 2px rgba(93, 190, 234, 0.3);
+.limits-unused[open] summary {
+  margin-bottom: 9px;
+}
+
+.limit-row-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 11.5px;
+}
+
+.limit-name {
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.limit-nums {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.limit-nums b {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.limit-bar {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.limit-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+}
+
+.limit-row.level-warn .limit-bar span {
+  background: var(--warning);
+}
+
+.limit-row.level-danger .limit-bar span {
+  background: var(--danger);
+}
+
+.limit-row.level-danger .limit-nums b {
+  color: var(--danger);
+}
+
+.limit-row.is-zero .limit-name,
+.limit-row.is-zero .limit-nums b {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.limits-raw {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: pre-wrap;
+  color: var(--text-secondary);
 }
 
 /* Dynamic Content Classes - Theme-aware styling for JavaScript-generated content */
@@ -204,13 +308,21 @@
 }
 
 /* Error Extraction Display Styles */
+/* Icon and text on one centered line */
+.error-status-success,
+.error-status-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .error-status-success {
   text-align: center;
   padding: 12px 16px;
   color: var(--text-limits-percentage);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg-limits-content);
   border-radius: 6px;
   margin: 8px;
@@ -222,13 +334,12 @@
   text-align: center;
   padding: 12px 16px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg-secondary);
   border-radius: 6px;
   margin: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 /* Error filter checkboxes */
@@ -240,7 +351,7 @@
   background: var(--bg-secondary);
   border-radius: 6px;
   align-items: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 .filter-checkbox {
@@ -263,7 +374,7 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--bg-accent);
+  accent-color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -362,7 +473,7 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   color: var(--text-debug-message);
   margin-bottom: 6px;
-  word-wrap: break-word;
+  overflow-wrap: anywhere;
   font-weight: 500;
   line-height: 1.4;
   font-size: 10px;
@@ -375,6 +486,7 @@
   margin: 8px 0 0 0;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   opacity: 0.8;
+  overflow-wrap: anywhere;
 }
 
 /* New error formatting styles */
@@ -389,14 +501,13 @@
 
 .code-unit-context {
   font-weight: normal;
-  font-size: 9px;
-  color: var(--text-debug-status);
-  opacity: 0.8;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .error-timestamp {
   font-size: 10px;
-  color: var(--text-debug-status);
+  color: var(--text-muted);
   font-weight: normal;
 }
 
@@ -411,7 +522,7 @@
 .stack-trace-header {
   font-size: 10px;
   font-weight: bold;
-  color: var(--text-debug-status);
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
@@ -421,6 +532,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   margin: 2px 0;
   padding-left: 12px;
+  overflow-wrap: anywhere;
 }
 
 .stack-trace-line::before {
@@ -434,7 +546,6 @@
 [data-theme="dark"] .error-status-success {
   color: var(--text-limits-percentage);
   background: var(--bg-limits-content);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -483,7 +594,7 @@
 }
 
 [data-theme="dark"] .error-timestamp {
-  color: var(--text-debug-status);
+  color: var(--text-muted);
 }
 
 [data-theme="dark"] .error-stack-trace {
@@ -492,7 +603,7 @@
 }
 
 [data-theme="dark"] .stack-trace-header {
-  color: var(--text-debug-status);
+  color: var(--text-muted);
 }
 
 [data-theme="dark"] .stack-trace-line {
@@ -566,9 +677,17 @@
 }
 
 /* Prefix text for formatted content */
+/* Text around the data in a debug message, like the label of Console.log('Accounts', accounts) */
 .content-prefix {
-  color: var(--text-prefix);
+  color: var(--text-primary);
+  font-weight: 600;
   transition: color 0.3s ease;
+}
+
+/* Note under a formatted value, e.g. that Salesforce left out list items */
+.content-note {
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 /* Debug message pre styling */

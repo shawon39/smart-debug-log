@@ -1,15 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Salesforce Debug Log Beautifier",
-  "version": "2.5.0",
-  "description": "Transform and manage Salesforce debug logs with syntax highlighting, JSON formatting, error analysis, and anonymous Apex.",
+  "version": "2.6.0",
+  "description": "Readable Salesforce debug logs: System.debug and JSON formatting, errors first, governor limits, trace flags and anonymous Apex.",
   
   "permissions": [
     "cookies",
     "storage",
-    "activeTab",
-    "notifications",
-    "windows",
+    "unlimitedStorage",
     "scripting",
     "identity",
     "alarms"
@@ -22,47 +20,13 @@
     "https://*.salesforce.mil/*",
     "https://*.cloudforce.mil/*",
     "https://*.sfcrmproducts.cn/*",
-    "https://*.visual.force.com/*",
-    "https://*.lightning.force.com/*",
-    "https://*.my.salesforce.com/*",
-    "https://*.sandbox.my.salesforce.com/*",
-    "https://*.develop.my.salesforce.com/*",
-    "https://*.scratch.my.salesforce.com/*",
-    "https://*.salesforce-setup.com/*",
-    "https://login.salesforce.com/*",
-    "https://test.salesforce.com/*"
+    "https://*.salesforce-setup.com/*"
   ],
   
   "background": {
     "service_worker": "background/service-worker.js",
     "type": "module"
   },
-  
-  "content_scripts": [
-    {
-      "matches": [
-        "https://*.salesforce.com/*",
-        "https://*.force.com/*",
-        "https://*.cloudforce.com/*",
-        "https://*.salesforce.mil/*",
-        "https://*.cloudforce.mil/*",
-        "https://*.sfcrmproducts.cn/*",
-        "https://*.visual.force.com/*",
-        "https://*.lightning.force.com/*",
-        "https://*.my.salesforce.com/*",
-        "https://*.sandbox.my.salesforce.com/*",
-        "https://*.develop.my.salesforce.com/*",
-        "https://*.scratch.my.salesforce.com/*",
-        "https://*.salesforce-setup.com/*"
-      ],
-      "js": [
-        "content/api-handler.js",
-        "content/api-operations.js", 
-        "content/session-extraction.js"
-      ],
-      "run_at": "document_idle"
-    }
-  ],
   
   "action": {
     "default_popup": "popup/popup.html",
@@ -92,7 +56,7 @@
     "open-debug-dashboard": {
       "suggested_key": {
         "default": "Alt+Shift+D",
-        "mac": "Option+Shift+D"
+        "mac": "Alt+Shift+D"
       },
       "description": "View Debug Logs"
     }

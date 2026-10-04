@@ -405,13 +405,17 @@ function showToast(message, duration = 3000) {
 
 // Listen for log deletion broadcasts from background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  const handledTypes = ['LOGS_DELETED', 'CLEAR_ALL_LOGS_CACHE_BROADCAST'];
+  const handledTypes = ['LOGS_DELETED'];
 
   if (!handledTypes.includes(request.type)) {
     return false; // Don't handle other message types
   }
 
-  if (request.type === 'LOGS_DELETED' && request.logIds && request.logIds.length > 0) {
+  // Logs deleted in another org (another dashboard) do not concern this one
+  const dashboardHost = getHostFromUrl() || sfHost;
+  const isOtherOrg = !!(request.orgDomain && dashboardHost && !isSameOrgHost(String(request.orgDomain).toLowerCase(), dashboardHost.toLowerCase()));
+
+  if (request.type === 'LOGS_DELETED' && request.logIds && request.logIds.length > 0 && !isOtherOrg) {
 
     // Remove from localStorage cache
     try {
@@ -439,49 +443,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
       // If logs are currently displayed, remove them from view
       if (typeof debugLogs !== 'undefined' && Array.isArray(debugLogs)) {
-        const originalLength = debugLogs.length;
-        debugLogs = debugLogs.filter(log => !logIdSet.has(log.Id));
+        const shownCount = debugLogs.length;
+        loadedLogs = loadedLogs.filter(log => !logIdSet.has(log.Id));
 
-        if (debugLogs.length !== originalLength) {
-          // Re-render the log list
-          if (typeof logRenderer !== 'undefined' && logRenderer.renderLogsList) {
-            logRenderer.renderLogsList(debugLogs);
-          }
-
-          // Update stats
-          if (typeof updateStats === 'function') {
-            updateStats();
-          }
+        if (debugLogs.some(log => logIdSet.has(log.Id))) {
+          // Re-render the log list (keeps the number of shown logs, filling up from the loaded ones)
+          showLoadedLogs(shownCount);
         }
       }
 
     } catch (error) {
       console.error('Failed to handle LOGS_DELETED:', error);
-    }
-  }
-
-  // Handle clear all logs cache broadcast
-  if (request.type === 'CLEAR_ALL_LOGS_CACHE_BROADCAST') {
-
-    try {
-      // Clear all localStorage caches
-      const keysToRemove = [];
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i);
-        if (key && (key.startsWith('cachedLogs_') || key.startsWith('lastFetchTime_'))) {
-          keysToRemove.push(key);
-        }
-      }
-
-      keysToRemove.forEach(key => localStorage.removeItem(key));
-
-      // Reload logs to show empty state
-      if (typeof loadDebugLogs === 'function') {
-        loadDebugLogs();
-      }
-
-    } catch (error) {
-      console.error('Failed to handle CLEAR_ALL_LOGS_CACHE_BROADCAST:', error);
     }
   }
 

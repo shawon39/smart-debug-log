@@ -361,7 +361,8 @@ For each debug message:
    *List*
 
    * Drop outer `(` `)`.
-   * Walk char by char, keep counters for `()`, `{}`, `[]`, quotes.
+   * Walk char by char, keep counters for `()`, `{}`, `[]`.
+   * Do not treat quotes as delimiters: `toString()` does not quote strings, so an apostrophe (`Name=O'Brien`) is plain text. Only real JSON has quoted strings.
    * When you see a comma at depth 0 and not inside quotes, split.
    * For each element, call parser recursively.
 

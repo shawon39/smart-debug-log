@@ -2,68 +2,17 @@
 // This file handles syntax highlighting for different content types
 // Note: escapeHtml() is defined in basic-utilities.js (loaded first)
 
-// Security: when highlighting text that already contains HTML, only the benign,
-// app-generated structural tags are allowed to pass through un-escaped. Anything
-// else originating from log content (e.g. <img src=x onerror=...>,
-// <a href="javascript:...">, or any tag carrying on*= event handlers) is treated
-// as plain text and HTML-escaped, preventing DOM-based XSS in the extension page.
-function isSafePassthroughTag(part) {
-  return /^<(?:span|div|pre)(?:\s+class="[\w \-]*")?>$/i.test(part)
-    || /^<br\s*\/?>$/i.test(part)
-    || /^<\/(?:span|div|pre)>$/i.test(part);
-}
+// Security: the source text is always HTML-escaped first, so nothing from a log (tags, attributes)
+// can become markup. Only the spans added here are real HTML.
+
+// Search matches are wrapped in these private-use characters before highlighting (see raw-view.js) and
+// turned into highlight spans afterwards. No highlight pattern matches them, so a pattern never spans
+// across a match boundary and the spans always nest correctly.
+const SEARCH_MARK_START = '';
+const SEARCH_MARK_END = '';
 
 function applyDebugLogHighlighting(text) {
-  // Check if text already contains actual HTML tags (not debug content like <init>)
-  // Only match proper HTML tags with valid tag names, not arbitrary angle bracket content
-  const hasExistingHTML = /<(span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>/i.test(text) ||
-    /<\/\w+>/.test(text) ||
-    text.includes('§§SEARCH_HIGHLIGHT_START_') ||
-    text.includes('§§SEARCH_HIGHLIGHT_END_');
-
-  if (hasExistingHTML) {
-    // If text already has HTML tags or search markers, apply highlighting carefully
-    return applyDebugLogSyntaxToHTML(text);
-  } else {
-    // Simple case: plain text, escape HTML and apply highlighting
-    let highlighted = escapeHtml(text);
-    return applyDebugLogPatterns(highlighted);
-  }
-}
-
-function applyDebugLogSyntaxToHTML(htmlText) {
-  // Handle search markers and HTML tags separately
-  let result = htmlText;
-
-  // First, protect search markers from processing
-  const markers = [];
-  result = result.replace(/(§§SEARCH_HIGHLIGHT_START_\d+§§|§§SEARCH_HIGHLIGHT_END_\d+§§)/g, (match, marker) => {
-    const index = markers.length;
-    markers.push(marker);
-    return `PROTECTED_MARKER_${index}`;
-  });
-
-  // Split into HTML tags and text content, but only split on actual HTML tags
-  const parts = result.split(/(<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>|<\/\w+>)/i);
-
-  const processedParts = parts.map(part => {
-    // If this part is a benign, app-generated tag, pass it through; otherwise escape it.
-    if (isSafePassthroughTag(part)) {
-      return part;
-    }
-
-    // Otherwise, it's text content - escape and apply debug log highlighting
-    let highlighted = escapeHtml(part);
-    return applyDebugLogPatterns(highlighted);
-  });
-
-  // Restore protected markers
-  let finalResult = processedParts.join('');
-  markers.forEach((marker, index) => {
-    finalResult = finalResult.replace(`PROTECTED_MARKER_${index}`, marker);
-  });
-
-  return finalResult;
+  return applyDebugLogPatterns(escapeHtml(text));
 }
 
 // The debug-operation alternation is large (~200 names); compile the regex once at
@@ -157,86 +106,27 @@ function applyDebugLogPatterns(text) {
     .replace(/(\d+)\s+(out of)\s+(\d+)/g, '<span class="debug-number">$1</span> <span class="debug-text">$2</span> <span class="debug-number">$3</span>');
 }
 
+// One pass over escaped JSON, so a span is never matched again by a later pattern:
+// a string (a key when ":" follows), a number, true/false, or null. Tokens never contain search marks.
+const JSON_SYNTAX_TOKEN = /("(?:[^"\\]|\\[^])*")(\s*:)?|\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\b(true|false)\b|\bnull\b/g;
+
 function applyJsonSyntaxHighlighting(text) {
-  // Check if text already contains actual HTML tags (not content like <init>)
-  const hasExistingHTML = /<(span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>/i.test(text) ||
-    /<\/\w+>/.test(text) ||
-    text.includes('§§SEARCH_HIGHLIGHT_START_') ||
-    text.includes('§§SEARCH_HIGHLIGHT_END_');
+  // Escape HTML first, then add the highlight spans
+  const escaped = text.replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 
-  if (hasExistingHTML) {
-    // If text already has HTML tags or search markers, apply highlighting carefully
-    return applyJsonSyntaxToHTML(text);
-  } else {
-    // Simple case: plain text, escape HTML and apply highlighting
-    let highlighted = text.replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Apply JSON syntax highlighting patterns
-    highlighted = highlighted
-      // Highlight JSON keys (strings followed by colon)
-      .replace(/"([^"\\]|\\.)*"(\s*:)/g, '<span class="json-key">$&</span>')
-      // Highlight JSON strings (not keys)
-      .replace(/"([^"\\]|\\.)*"(?!\s*:)/g, '<span class="json-string">$&</span>')
-      // Highlight numbers
-      .replace(/\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g, '<span class="json-number">$&</span>')
-      // Highlight booleans
-      .replace(/\b(true|false)\b/g, '<span class="json-boolean">$1</span>')
-      // Highlight null
-      .replace(/\bnull\b/g, '<span class="json-null">null</span>');
-
-    return highlighted;
-  }
-}
-
-function applyJsonSyntaxToHTML(htmlText) {
-  // Handle search markers and HTML tags separately
-  let result = htmlText;
-
-  // First, protect search markers from processing
-  const markers = [];
-  result = result.replace(/(SEARCH_HIGHLIGHT_START_\d+_\d+_MARKER|SEARCH_HIGHLIGHT_END_\d+_\d+_MARKER)/g, (match, marker) => {
-    const index = markers.length;
-    markers.push(marker);
-    return `PROTECTED_MARKER_${index}`;
-  });
-
-  // Split into HTML tags and text content, but only split on actual HTML tags
-  const parts = result.split(/(<(?:span|div|p|br|strong|em|code|pre|a|img)\b[^>]*>|<\/\w+>)/i);
-
-  const processedParts = parts.map(part => {
-    // If this part is a benign, app-generated tag, pass it through; otherwise escape it.
-    if (isSafePassthroughTag(part)) {
-      return part;
+  return escaped.replace(JSON_SYNTAX_TOKEN, (token, string, colon, bool) => {
+    if (string !== undefined) {
+      // Highlight JSON keys (strings followed by colon) and other strings
+      return colon ? `<span class="json-key">${string}${colon}</span>` : `<span class="json-string">${string}</span>`;
     }
-
-    // Otherwise, it's text content - escape and apply JSON syntax highlighting
-    let highlighted = part.replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;');
-
-    // Apply JSON syntax highlighting patterns
-    highlighted = highlighted
-      // Highlight JSON keys (strings followed by colon)
-      .replace(/"([^"\\]|\\.)*"(\s*:)/g, '<span class="json-key">$&</span>')
-      // Highlight JSON strings (not keys)
-      .replace(/"([^"\\]|\\.)*"(?!\s*:)/g, '<span class="json-string">$&</span>')
-      // Highlight numbers
-      .replace(/\b-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?\b/g, '<span class="json-number">$&</span>')
-      // Highlight booleans
-      .replace(/\b(true|false)\b/g, '<span class="json-boolean">$1</span>')
-      // Highlight null
-      .replace(/\bnull\b/g, '<span class="json-null">null</span>');
-
-    return highlighted;
+    if (bool !== undefined) {
+      return `<span class="json-boolean">${bool}</span>`;
+    }
+    if (token === 'null') {
+      return '<span class="json-null">null</span>';
+    }
+    return `<span class="json-number">${token}</span>`;
   });
-
-  // Restore protected markers
-  let finalResult = processedParts.join('');
-  markers.forEach((marker, index) => {
-    finalResult = finalResult.replace(`PROTECTED_MARKER_${index}`, marker);
-  });
-
-  return finalResult;
 }

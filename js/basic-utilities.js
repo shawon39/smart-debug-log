@@ -28,39 +28,42 @@ function decodeHtmlEntities(text) {
 // URL and host utilities
 const getHostFromUrl = () => new URLSearchParams(window.location.search).get('host');
 
-const getSalesforceTabs = async () => {
-  const tabs = await chrome.tabs.query({});
-  return tabs.filter(tab =>
-    tab.url && (
-      tab.url.includes('.salesforce.com') ||
-      tab.url.includes('.force.com') ||
-      tab.url.includes('.lightning.force.com') ||
-      tab.url.includes('--c.visualforce.com') ||
-      tab.url.includes('.my.salesforce.com')
-    )
-  );
-};
+// Salesforce domains: a host is Salesforce when it equals one of these or ends with "." + one of them
+const SALESFORCE_HOST_DOMAINS = ['salesforce.com', 'force.com', 'cloudforce.com', 'salesforce-setup.com',
+  'salesforce.mil', 'cloudforce.mil', 'sfcrmproducts.cn', 'visualforce.com'];
 
-const isSalesforceUrl = (url) => url && (
-  url.includes('.salesforce.com') ||
-  url.includes('.force.com') ||
-  url.includes('.lightning.force.com') ||
-  url.includes('--c.visualforce.com') ||
-  url.includes('.my.salesforce.com')
-);
+function isSalesforceHostname(host) {
+  if (!host) return false;
+  const name = String(host).toLowerCase();
+  return SALESFORCE_HOST_DOMAINS.some(domain => name === domain || name.endsWith('.' + domain));
+}
 
-const isRealSalesforceUrl = (url) => url && !url.startsWith('chrome-extension://') && isSalesforceUrl(url);
-
-// Date and time formatting
-function formatDateTime(dateTimeString) {
+// This extension's own pages that carry an org in ?host= (the dashboard). They count as a Salesforce tab
+// for finding the session, but are never used for API calls (tab-manager.js only uses isSalesforceUrl tabs).
+function isExtensionPageForSalesforceHost(url) {
   try {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString();
+    if (!url || !url.startsWith(chrome.runtime.getURL(''))) return false;
+    return isSalesforceHostname(new URL(url).searchParams.get('host'));
   } catch (error) {
-    return dateTimeString || 'Unknown';
+    return false;
   }
 }
 
+const getSalesforceTabs = async () => {
+  const tabs = await chrome.tabs.query({});
+  return tabs.filter(tab => isSalesforceUrl(tab.url) || isExtensionPageForSalesforceHost(tab.url));
+};
+
+const isSalesforceUrl = (url) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && isSalesforceHostname(parsed.hostname);
+  } catch (error) {
+    return false;
+  }
+};
+
+// Date and time formatting
 function formatDateTimeWithHighlight(dateTimeString) {
   try {
     const date = new Date(dateTimeString);
@@ -124,6 +127,58 @@ function formatDurationShort(totalMinutes) {
   return result.length === 0 ? '0min' : result.join(' ');
 }
 
+// Log retention: Salesforce keeps Monitoring logs for 7 days and System logs for 24 hours
+const MONITORING_LOG_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+const SYSTEM_LOG_RETENTION_MS = 24 * 60 * 60 * 1000;
+// Read/cleared markers are kept as long as the longest-lived log can exist (+1 hour buffer)
+const LOG_MARKER_RETENTION_MS = MONITORING_LOG_RETENTION_MS + 60 * 60 * 1000;
+
+function getLogRetentionMs(log) {
+  return log && log.Location === 'Monitoring' ? MONITORING_LOG_RETENTION_MS : SYSTEM_LOG_RETENTION_MS;
+}
+
+// Read/cleared markers are stored per org as [{ logId, <timeField> }]. Each entry keeps the time
+// the log was first marked, so it expires once the log itself is gone.
+function loadLogMarkers(storageKey, timeField) {
+  const markers = new Map();
+  const stored = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  stored.forEach(entry => {
+    if (typeof entry === 'string') {
+      markers.set(entry, Date.now()); // Old format had no time
+    } else if (entry && entry.logId) {
+      markers.set(entry.logId, Number(entry[timeField]) || Date.now());
+    }
+  });
+  return markers;
+}
+
+function isStorageQuotaError(error) {
+  return !!error && (error.name === 'QuotaExceededError' || error.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+    error.code === 22 || error.code === 1014);
+}
+
+// Saves markers without the expired ones. When storage is full, the oldest half is dropped and the save is tried once more.
+function saveLogMarkers(storageKey, markers, timeField) {
+  const expiredBefore = Date.now() - LOG_MARKER_RETENTION_MS;
+  markers.forEach((time, logId) => {
+    if (time < expiredBefore) markers.delete(logId);
+  });
+  const toJson = () => JSON.stringify(Array.from(markers, ([logId, time]) => ({ logId, [timeField]: time })));
+
+  try {
+    localStorage.setItem(storageKey, toJson());
+  } catch (error) {
+    if (!isStorageQuotaError(error)) return;
+    const oldestFirst = Array.from(markers.entries()).sort((a, b) => a[1] - b[1]);
+    oldestFirst.slice(0, Math.ceil(oldestFirst.length / 2)).forEach(([logId]) => markers.delete(logId));
+    try {
+      localStorage.setItem(storageKey, toJson());
+    } catch (retryError) {
+      // Still full: the markers stay in memory for this session
+    }
+  }
+}
+
 // Read/Unread status management
 function getReadLogsStorageKey() {
   if (!currentSession || !sfHost) return null;
@@ -136,38 +191,16 @@ function loadReadLogsFromStorage() {
   if (!storageKey) return;
 
   try {
-    const storedReadLogs = localStorage.getItem(storageKey);
-    if (storedReadLogs) {
-      const readLogsData = JSON.parse(storedReadLogs);
-
-      // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
-      if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
-        // Old format - just load the log IDs
-        readLogs = new Set(readLogsData);
-      } else {
-        // New format - extract log IDs from objects
-        readLogs = new Set(readLogsData.map(entry => entry.logId));
-      }
-    }
+    readLogs = loadLogMarkers(storageKey, 'readAt');
   } catch (error) {
-    readLogs = new Set();
+    readLogs = new Map();
   }
 }
 
 function saveReadLogsToStorage() {
   const storageKey = getReadLogsStorageKey();
   if (!storageKey) return;
-
-  try {
-    // Convert Set to array of objects with timestamps
-    const readLogsArray = Array.from(readLogs).map(logId => ({
-      logId: logId,
-      readAt: Date.now()
-    }));
-    localStorage.setItem(storageKey, JSON.stringify(readLogsArray));
-  } catch (error) {
-    // Ignore storage errors
-  }
+  saveLogMarkers(storageKey, readLogs, 'readAt');
 }
 
 /**
@@ -195,8 +228,8 @@ function formatDateNice(date) {
 }
 
 function markLogAsRead(logId) {
-  if (!logId) return;
-  readLogs.add(logId);
+  if (!logId || readLogs.has(logId)) return;
+  readLogs.set(logId, Date.now());
   saveReadLogsToStorage();
 }
 
@@ -216,43 +249,21 @@ function loadClearedLogsFromStorage() {
   if (!storageKey) return;
 
   try {
-    const storedClearedLogs = localStorage.getItem(storageKey);
-    if (storedClearedLogs) {
-      const clearedLogsData = JSON.parse(storedClearedLogs);
-
-      // Handle backward compatibility: old format (array of strings) vs new format (array of objects)
-      if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
-        // Old format - just load the log IDs
-        clearedLogs = new Set(clearedLogsData);
-      } else {
-        // New format - extract log IDs from objects
-        clearedLogs = new Set(clearedLogsData.map(entry => entry.logId));
-      }
-    }
+    clearedLogs = loadLogMarkers(storageKey, 'clearedAt');
   } catch (error) {
-    clearedLogs = new Set();
+    clearedLogs = new Map();
   }
 }
 
 function saveClearedLogsToStorage() {
   const storageKey = getClearedLogsStorageKey();
   if (!storageKey) return;
-
-  try {
-    // Convert Set to array of objects with timestamps
-    const clearedLogsArray = Array.from(clearedLogs).map(logId => ({
-      logId: logId,
-      clearedAt: Date.now()
-    }));
-    localStorage.setItem(storageKey, JSON.stringify(clearedLogsArray));
-  } catch (error) {
-    // Ignore storage errors
-  }
+  saveLogMarkers(storageKey, clearedLogs, 'clearedAt');
 }
 
 function markLogAsCleared(logId) {
-  if (!logId) return;
-  clearedLogs.add(logId);
+  if (!logId || clearedLogs.has(logId)) return;
+  clearedLogs.set(logId, Date.now());
   saveClearedLogsToStorage();
 }
 
@@ -260,133 +271,64 @@ function isLogCleared(logId) {
   return clearedLogs.has(logId);
 }
 
-// Cleanup functions for expired logs (Salesforce logs expire after 24 hours)
+// Drops read/cleared markers of logs that Salesforce has deleted by now (saving prunes expired entries)
 function cleanupExpiredLogs() {
-  const EXPIRY_HOURS = 25; // 24h + 1h buffer
-  const expiryTime = Date.now() - (EXPIRY_HOURS * 60 * 60 * 1000);
-
-  // Cleanup expired cleared logs
-  cleanupExpiredClearedLogs(expiryTime);
-
-  // Cleanup expired read logs  
-  cleanupExpiredReadLogs(expiryTime);
-}
-
-function cleanupExpiredClearedLogs(expiryTime) {
-  const storageKey = getClearedLogsStorageKey();
-  if (!storageKey) return;
-
-  try {
-    const storedClearedLogs = localStorage.getItem(storageKey);
-    if (!storedClearedLogs) return;
-
-    const clearedLogsData = JSON.parse(storedClearedLogs);
-
-    // Handle both old format (array of strings) and new format (array of objects)
-    let filteredLogs;
-    if (clearedLogsData.length > 0 && typeof clearedLogsData[0] === 'string') {
-      // Old format - can't filter by time, just keep as is for now
-      filteredLogs = clearedLogsData;
-    } else {
-      // New format - filter out expired entries
-      filteredLogs = clearedLogsData.filter(entry => entry.clearedAt > expiryTime);
-    }
-
-    // Update localStorage and memory
-    localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
-
-    // Rebuild clearedLogs Set from filtered data
-    if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
-      clearedLogs = new Set(filteredLogs);
-    } else {
-      clearedLogs = new Set(filteredLogs.map(entry => entry.logId));
-    }
-  } catch (error) {
-    // If cleanup fails, just continue with existing data
-  }
-}
-
-function cleanupExpiredReadLogs(expiryTime) {
-  const storageKey = getReadLogsStorageKey();
-  if (!storageKey) return;
-
-  try {
-    const storedReadLogs = localStorage.getItem(storageKey);
-    if (!storedReadLogs) return;
-
-    const readLogsData = JSON.parse(storedReadLogs);
-
-    // Handle both old format (array of strings) and new format (array of objects)
-    let filteredLogs;
-    if (readLogsData.length > 0 && typeof readLogsData[0] === 'string') {
-      // Old format - can't filter by time, just keep as is for now
-      filteredLogs = readLogsData;
-    } else {
-      // New format - filter out expired entries
-      filteredLogs = readLogsData.filter(entry => entry.readAt > expiryTime);
-    }
-
-    // Update localStorage and memory
-    localStorage.setItem(storageKey, JSON.stringify(filteredLogs));
-
-    // Rebuild readLogs Set from filtered data
-    if (filteredLogs.length > 0 && typeof filteredLogs[0] === 'string') {
-      readLogs = new Set(filteredLogs);
-    } else {
-      readLogs = new Set(filteredLogs.map(entry => entry.logId));
-    }
-  } catch (error) {
-    // If cleanup fails, just continue with existing data
-  }
+  saveClearedLogsToStorage();
+  saveReadLogsToStorage();
 }
 
 // Debug log parsing utilities
+
+// A real log event line: "12:00:00.123 (123456)|EVENT|..."
+const LOG_EVENT_LINE = /^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|/;
+const USER_DEBUG_LINE = /^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|USER_DEBUG\|\[[^\]]*\]\|(\w+)\|(.*)$/s;
+// Lines Salesforce adds when it cuts a log that is too big
+const LOG_TRUNCATION_LINE = /^[ \t]*\*{3}[ \t]*(?:Skipped \d+ bytes of detailed log|MAXIMUM DEBUG LOG SIZE REACHED)/;
+
+function isLogTruncationLine(line) {
+  return LOG_TRUNCATION_LINE.test(line);
+}
+
+function isTruncatedLog(rawLog) {
+  return new RegExp(LOG_TRUNCATION_LINE.source, 'm').test(rawLog || '');
+}
+
+// Returns every System.debug message as { level, message } (any logging level: DEBUG, ERROR, INFO, ...).
+// A message runs until the next log event line, a truncation marker, or the end of the log.
 function extractUserDebugBlocks(rawLog) {
-  const regex = /^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|USER_DEBUG\|\[[^\]]+\]\|DEBUG\|(.*?)(?=\r?\n\d{2}:\d{2}:\d{2}\.\d+)/gms;
   const msgs = [];
-  let m;
-  while ((m = regex.exec(rawLog)) !== null) {
-    // Keep the original formatting - don't collapse newlines for JSON structures
-    const originalText = m[1].trim();
-    msgs.push(originalText);
+  if (!rawLog || typeof rawLog !== 'string') return msgs;
+
+  let current = null;
+  const finish = () => {
+    if (current) {
+      // Keep the original formatting - don't collapse newlines for JSON structures
+      msgs.push({ level: current.level, message: current.lines.join('\n').trim() });
+      current = null;
+    }
+  };
+
+  for (const line of rawLog.split('\n')) {
+    if (LOG_EVENT_LINE.test(line)) {
+      finish();
+      const m = line.match(USER_DEBUG_LINE);
+      if (m) current = { level: m[1], lines: [m[2]] };
+    } else if (isLogTruncationLine(line)) {
+      finish();
+    } else if (current) {
+      current.lines.push(line);
+    }
   }
+  finish();
   return msgs;
 }
 
 // Extract searchable content from raw log with smart filtering
-// Includes relevant execution details while excluding noisy log entries
+// Includes every line except noisy log entries
 function extractSearchableContent(rawLog) {
   if (!rawLog || typeof rawLog !== 'string') {
     return '';
   }
-
-  // Event types to INCLUDE in search (user-relevant execution details)
-  const includePatterns = [
-    'USER_DEBUG',
-    'SOQL_EXECUTE_BEGIN',
-    'SOQL_EXECUTE_END',
-    'METHOD_ENTRY',
-    'METHOD_EXIT',
-    'CODE_UNIT_STARTED',
-    'CODE_UNIT_FINISHED',
-    'FATAL_ERROR',
-    'EXCEPTION_THROWN',
-    'DML_BEGIN',
-    'DML_END',
-    'VALIDATION_RULE',
-    'VALIDATION_FORMULA',
-    'VALIDATION_PASS',
-    'VALIDATION_FAIL',
-    'FLOW_START',
-    'FLOW_CREATE',
-    'CALLOUT_REQUEST',
-    'CALLOUT_RESPONSE',
-    'USER_INFO',
-    'SYSTEM_METHOD_ENTRY',
-    'SYSTEM_METHOD_EXIT',
-    'CONSTRUCTOR_ENTRY',
-    'CONSTRUCTOR_EXIT'
-  ];
 
   // Event types to EXCLUDE from search (noisy, low-value entries)
   const excludePatterns = [
@@ -416,94 +358,55 @@ function extractSearchableContent(rawLog) {
       continue;
     }
 
-    // Check if line should be excluded
-    let shouldExclude = false;
-    for (const excludePattern of excludePatterns) {
-      if (line.includes(`|${excludePattern}|`)) {
-        shouldExclude = true;
-        break;
-      }
-    }
+    // Skip noisy lines; every other line (including custom events) is searchable
+    if (excludePatterns.some(p => line.includes(`|${p}|`))) continue;
 
-    if (shouldExclude) continue;
-
-    // Check if line should be included (or include by default if no match)
-    let shouldInclude = false;
-    for (const includePattern of includePatterns) {
-      if (line.includes(`|${includePattern}|`)) {
-        shouldInclude = true;
-        break;
-      }
-    }
-
-    // Include the line if it matches an include pattern OR if it doesn't match any pattern
-    // (this catches custom events and other potentially useful lines)
-    if (shouldInclude || !excludePatterns.some(p => line.includes(`|${p}|`))) {
-      searchableLines.push(line);
-    }
+    searchableLines.push(line);
   }
 
   return searchableLines.join('\n');
 }
 
-// Helper function to check if log content contains debug messages
-function hasDebugMessages(logContent) {
-  if (!logContent) return false;
-  const debugMessages = extractUserDebugBlocks(logContent);
-  return debugMessages.length > 0;
+// True when some "<word character>:<open>" is followed by "=" before the next <close>.
+// Same result as /\w+:\{[^}]*=/ (for "{" and "}") in linear time, so long or odd texts cannot freeze the page.
+function hasTypedBodyWithEquals(text, open, close) {
+  let inBody = false;
+  for (let i = 2; i < text.length; i++) {
+    const char = text[i];
+    if (char === close) inBody = false;
+    else if (char === '=' && inBody) return true;
+    else if (char === open && text[i - 1] === ':' && /\w/.test(text[i - 2])) inBody = true;
+  }
+  return false;
 }
 
-// Helper function to check if log content contains errors
-function hasErrors(logContent) {
-  if (!logContent) return false;
-  const errorData = extractErrorsFromDebugLog(logContent);
-  return errorData.hasErrors;
-}
-
-// Helper function to check if log content contains fatal errors
-function hasFatalErrors(logContent) {
-  if (!logContent) return false;
-  const errorData = extractErrorsFromDebugLog(logContent);
-  return errorData.hasFatalErrors;
-}
-
-// Helper function to check if log content contains exceptions
-function hasExceptions(logContent) {
-  if (!logContent) return false;
-  const errorData = extractErrorsFromDebugLog(logContent);
-  return errorData.hasExceptions;
-}
-
+// Text is already HTML-decoded by the caller (displayDebugContent decodes once).
+// The checks match the same texts as before, written so that long runs of word characters or many
+// unclosed brackets cannot make them slow.
 function containsSalesforceObjects(text) {
   if (!text) return false;
 
-  // Decode HTML entities first for better pattern matching
-  const decodedText = decodeHtmlEntities(text);
-
   // Check for common Salesforce object patterns anywhere in the text
   return (
-    // Raw map content with Salesforce objects: {key1=Object:{...}, key2=Object:{...}}
-    /\{[^}]*=\w+:\{[^}]*=/.test(decodedText) ||
     // Salesforce object notation: Account:{Id=001..., Name=...}
-    /\w+:\{[^}]*=/.test(decodedText) ||
+    // (also covers maps {key1=Object:{...}} and collections (Account:{...}, Contact:{...}))
+    hasTypedBodyWithEquals(text, '{', '}') ||
     // Salesforce object notation with square brackets: SFrequest:[key=value, ...]
-    /\w+:\[[^\]]*=/.test(decodedText) ||
+    hasTypedBodyWithEquals(text, '[', ']') ||
     // Multi-line Salesforce object: ObjectName:\n"[key=value, ...]"
-    /\w+:\s*[\r\n]+\s*"\[[^\]]*=/.test(decodedText) ||
+    /\w:[^\S\r\n]*[\r\n]\s*"\[[^\]]*=/.test(text) ||
     // JSON arrays: [{"key":"value",...}]
-    /\[\s*\{[^}]*"[^"]*"\s*:/.test(decodedText) ||
+    /\[\s*\{[^}]*"[^"]*"\s*:/.test(text) ||
     // JSON objects: {"key":"value",...}
-    /\{\s*"[^"]*"\s*:/.test(decodedText) ||
+    /\{\s*"[^"]*"\s*:/.test(text) ||
     // Multi-line JSON starting with { or [
-    /^\s*[\{\[][\s\S]*[\}\]]\s*$/.test(decodedText.trim()) ||
+    /^\s*[\{\[][\s\S]*[\}\]]\s*$/.test(text.trim()) ||
     // JSON serialized string: "some text" (starts and ends with quotes, entire content)
-    /^"[^"]*"$/.test(decodedText.trim()) ||
-    // Salesforce collections in parentheses: (Account:{...}, Contact:{...})
-    /\([^)]*\w+:\{[^}]*=/.test(decodedText) ||
+    /^"[^"]*"$/.test(text.trim()) ||
     // Complex nested collections: Bookmarks=(Bookmark:[...], Bookmark:[...])
-    /\w+=\([^)]*\w+:\[/.test(decodedText) ||
+    /\w=\([^)]*\w:\[/.test(text) ||
     // Quoted arrays with key=value: "[key=value, key=value]"
-    /"\[[^\]]*=[^\]]*\]"/.test(decodedText)
+    /"\[[^\]]*=[^\]]*\]"/.test(text)
   );
 }
 
@@ -558,17 +461,6 @@ async function initializeTheme() {
   const savedTheme = await getThemeFromStorage();
   applyTheme(savedTheme);
   return savedTheme;
-}
-
-// Toggle theme and save preference
-async function toggleTheme() {
-  const currentTheme = await getThemeFromStorage();
-  const newTheme = currentTheme === THEME_DARK ? THEME_LIGHT : THEME_DARK;
-
-  applyTheme(newTheme);
-  await saveThemeToStorage(newTheme);
-
-  return newTheme;
 }
 
 // Set specific theme

@@ -403,6 +403,15 @@ body {
   margin-bottom: 4px;
 }
 
+/* Logs could not be loaded: the text says why */
+.empty-state.is-error h4 {
+  color: var(--danger);
+}
+
+.empty-state.is-error p {
+  overflow-wrap: anywhere;
+}
+
 .hidden {
   display: none !important;
 }

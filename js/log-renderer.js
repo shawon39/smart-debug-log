@@ -6,8 +6,13 @@ class LogRenderer {
     this.selectedLogId = null;
     this.searchTerm = '';
     this.searchDebounceTimer = null;
-    this.logContentCache = new Map(); // Cache for log contents during search
+    this.logContentCache = new Map(); // Searchable text of log bodies (lower case), for log search
+    this.logContentCacheSize = 0; // Total characters in logContentCache
+    this.LOG_CONTENT_CACHE_MAX_SIZE = 50 * 1024 * 1024; // About 50 MB of log text
     this.SEARCH_MIN_CHARS = 2; // Minimum characters required to search
+    this.SEARCH_CONCURRENCY = 3; // Log bodies downloaded at the same time while searching
+    this.searchSequence = 0; // Increases with each search; results of older searches are ignored
+    this.defaultEmptyState = null; // Title and text of the empty state in dashboard.html
   }
 
   /**
@@ -22,12 +27,39 @@ class LogRenderer {
 
   /**
    * Shows empty state when no logs are available
+   * @param {Error} [error] - Why the logs could not be loaded; without it the normal "no logs" text is shown
    */
-  showEmptyState() {
+  showEmptyState(error = null) {
     const { logsLoading, emptyState, logsList } = elements;
     logsLoading.classList.add('hidden');
     emptyState.classList.remove('hidden');
     logsList.innerHTML = '';
+
+    const title = emptyState.querySelector('h4');
+    const text = emptyState.querySelector('p');
+    if (!this.defaultEmptyState) {
+      this.defaultEmptyState = { title: title?.textContent || '', text: text?.textContent || '' };
+    }
+    const reason = error ? this.describeLoadError(error) : this.defaultEmptyState;
+    if (title) title.textContent = reason.title;
+    if (text) text.textContent = reason.text;
+    emptyState.classList.toggle('is-error', !!error);
+  }
+
+  /**
+   * Short explanation of why logs could not be loaded
+   * @param {Error} error - Load error
+   * @returns {{title: string, text: string}}
+   */
+  describeLoadError(error) {
+    const message = String(error?.message || error || '');
+    if (message.includes('NO_OAUTH_TOKEN')) {
+      return { title: 'Access token needed', text: 'Use Generate Token above.' };
+    }
+    if (message === 'No valid session found') {
+      return { title: 'No Salesforce session', text: 'Log in to this org in a browser tab, then refresh.' };
+    }
+    return { title: 'Could not load logs', text: message.length > 300 ? `${message.slice(0, 300)}...` : (message || 'Please try again.') };
   }
 
   /**
@@ -168,26 +200,38 @@ class LogRenderer {
       // Get log content
       const content = await logLoader.getLogContent(logId);
 
+      // The user may have picked another log while this one was loading
+      if (this.selectedLogId !== logId) return;
+
       // Extract and display user email
       if (selectedLogIdElement) {
         const userEmail = extractUserEmailFromLog(content);
         selectedLogIdElement.textContent = userEmail ? `Log User: ${userEmail}` : `Log ID: ${logId}`;
       }
 
+      if (!content) {
+        debugContent.innerHTML = '<div class="info-message">This log is empty.</div>';
+        if (errorContent) errorContent.innerHTML = '<div class="info-message">This log is empty.</div>';
+        if (limitsContent) limitsContent.innerHTML = '';
+        logCache.setDebugStatus(logId, false);
+        logCache.setErrorStatus(logId, false);
+        logCache.setExceptionStatus(logId, false);
+        this.updateLogIndicator(logId);
+        return;
+      }
+
       // Store raw response data
       currentRawResponse = content;
 
       // Cache debug, error, and exception status for this log
-      const hasDebugMsgs = hasDebugMessages(content);
-      const hasFatalErrorMsgs = hasFatalErrors(content);
-      const hasExceptionMsgs = hasExceptions(content);
+      // (one parse; the debug and raw views below re-use it)
+      const parsed = parseDebugLogContent(content);
+      logCache.setDebugStatus(logId, parsed.debugMessages.length > 0);
+      logCache.setErrorStatus(logId, parsed.errors.hasFatalErrors);
+      logCache.setExceptionStatus(logId, parsed.errors.hasExceptions);
 
-      logCache.setDebugStatus(logId, hasDebugMsgs);
-      logCache.setErrorStatus(logId, hasFatalErrorMsgs);
-      logCache.setExceptionStatus(logId, hasExceptionMsgs);
-
-      // Update the log display to show the new indicators
-      this.displayDebugLogs(debugLogs);
+      // Show the new indicators on this log (re-rendering the list would also re-run the log search)
+      this.updateLogIndicator(logId);
 
       // Show toggle button and set up view controls
       const { toggleViewBtn } = elements;
@@ -201,11 +245,13 @@ class LogRenderer {
       }
 
     } catch (error) {
+      if (this.selectedLogId !== logId) return;
+
       // Fallback to Log ID on error
       if (selectedLogIdElement) {
         selectedLogIdElement.textContent = `Log ID: ${logId}`;
       }
-      this._handleLogDetailsError(error, logId);
+      this._handleLogDetailsError(error);
     }
   }
 
@@ -348,7 +394,9 @@ class LogRenderer {
       return;
     }
 
-    this.searchTerm = searchTerm.toLowerCase();
+    const sequence = ++this.searchSequence;
+    const term = searchTerm.toLowerCase();
+    this.searchTerm = term;
     const searchResults = document.getElementById('logSearchResults');
 
     // Show searching indicator
@@ -356,33 +404,27 @@ class LogRenderer {
       searchResults.textContent = 'Searching...';
     }
 
-    // Process all logs in parallel for much better performance
-    const searchPromises = debugLogs.map(async (log) => {
-      const logElement = document.querySelector(`[data-log-id="${log.Id}"]`);
-      if (!logElement) return { logId: log.Id, hasMatch: false, element: null };
-
-      try {
-        const hasMatch = await this.logContainsSearchTerm(log.Id, this.searchTerm);
-        return { logId: log.Id, hasMatch, element: logElement };
-      } catch (error) {
-        return { logId: log.Id, hasMatch: false, element: logElement };
+    // Search the listed logs, downloading at most SEARCH_CONCURRENCY bodies at a time
+    const logsToSearch = [...debugLogs];
+    const matches = new Map();
+    let next = 0;
+    const searchNextLog = async () => {
+      while (next < logsToSearch.length && sequence === this.searchSequence) {
+        const log = logsToSearch[next++];
+        matches.set(log.Id, await this.logContainsSearchTerm(log.Id, term));
       }
-    });
+    };
+    await Promise.all(Array.from({ length: Math.min(this.SEARCH_CONCURRENCY, logsToSearch.length) }, searchNextLog));
 
-    // Wait for all searches to complete
-    const results = await Promise.all(searchPromises);
+    // A newer search (or clearing the search) replaced this one
+    if (sequence !== this.searchSequence) return;
 
     // Apply results to UI
     let matchCount = 0;
-    results.forEach(({ hasMatch, element }) => {
-      if (!element) return;
-
-      if (hasMatch) {
-        element.classList.add('search-match');
-        matchCount++;
-      } else {
-        element.classList.remove('search-match');
-      }
+    document.querySelectorAll('.log-item').forEach(element => {
+      const hasMatch = matches.get(element.getAttribute('data-log-id')) === true;
+      element.classList.toggle('search-match', hasMatch);
+      if (hasMatch) matchCount++;
     });
 
     // Update search results count
@@ -406,42 +448,18 @@ class LogRenderer {
    */
   async logContainsSearchTerm(logId, searchTerm) {
     try {
-      // Try to get content from cache first
-      let content = this.logContentCache.get(logId);
+      // Try to get the searchable text from cache first
+      let searchableContent = this.logContentCache.get(logId);
 
-      // If not cached, fetch it
-      if (!content) {
-        content = await logLoader.getLogContent(logId);
-        this.logContentCache.set(logId, content);
-
-        // Limit cache size to prevent memory issues
-        if (this.logContentCache.size > 50) {
-          const firstKey = this.logContentCache.keys().next().value;
-          this.logContentCache.delete(firstKey);
-        }
-      }
-
-      // Adaptive performance optimization based on content size
-      const contentSize = content.length;
-      const SMALL_LOG_SIZE = 50 * 1024; // 50KB
-      const LARGE_LOG_SIZE = 500 * 1024; // 500KB
-
-      let searchableContent;
-
-      if (contentSize < SMALL_LOG_SIZE) {
-        // Tier 1: Small logs - search full smart-filtered content
-        searchableContent = extractSearchableContent(content);
-      } else if (contentSize < LARGE_LOG_SIZE) {
-        // Tier 2: Medium logs - search smart-filtered content
-        searchableContent = extractSearchableContent(content);
-      } else {
-        // Tier 3: Large logs - limit search to first 500KB to prevent UI freeze
-        const limitedContent = content.substring(0, LARGE_LOG_SIZE);
-        searchableContent = extractSearchableContent(limitedContent);
+      // If not cached, fetch the log and keep its smart-filtered, lower-case text (whole log)
+      if (searchableContent === undefined) {
+        const content = await logLoader.getLogContent(logId);
+        searchableContent = extractSearchableContent(content).toLowerCase();
+        this._cacheSearchableContent(logId, searchableContent);
       }
 
       // Perform case-insensitive search
-      return searchableContent.toLowerCase().includes(searchTerm);
+      return searchableContent.includes(searchTerm);
 
     } catch (error) {
       // If we can't get content, treat as no match
@@ -450,10 +468,31 @@ class LogRenderer {
   }
 
   /**
+   * Keeps searchable log text, dropping the oldest entries when the cache gets bigger than its size limit
+   * @private
+   */
+  _cacheSearchableContent(logId, text) {
+    if (text.length > this.LOG_CONTENT_CACHE_MAX_SIZE) return;
+    const previous = this.logContentCache.get(logId);
+    if (previous !== undefined) {
+      this.logContentCache.delete(logId);
+      this.logContentCacheSize -= previous.length;
+    }
+    this.logContentCache.set(logId, text);
+    this.logContentCacheSize += text.length;
+    for (const [key, value] of this.logContentCache) {
+      if (this.logContentCacheSize <= this.LOG_CONTENT_CACHE_MAX_SIZE) break;
+      this.logContentCache.delete(key);
+      this.logContentCacheSize -= value.length;
+    }
+  }
+
+  /**
    * Clears the search highlighting
    */
   clearSearch() {
     this.searchTerm = '';
+    this.searchSequence++; // Results of a search still running are ignored
 
     // Remove all search-match classes
     document.querySelectorAll('.log-item.search-match').forEach(item => {
@@ -476,11 +515,12 @@ class LogRenderer {
   _renderLogItem(log) {
     const logTime = new Date(log.StartTime);
     const now = new Date();
-    const hoursSinceLog = (now - logTime) / (1000 * 60 * 60);
-    const isLikelyExpired = hoursSinceLog > 24;
+    // Salesforce keeps Monitoring logs for 7 days and System logs for 24 hours
+    const isLikelyExpired = (now - logTime) > getLogRetentionMs(log);
+    const retentionText = log.Location === 'Monitoring' ? '7 days' : '24 hours';
 
     const expiredClass = isLikelyExpired ? 'log-item-expired' : '';
-    const expiredIndicator = isLikelyExpired ? `<span class="expired-indicator" title="This log may have expired (older than 24 hours)">${Icons.svg('clock', 13)}</span>` : '';
+    const expiredIndicator = isLikelyExpired ? `<span class="expired-indicator" title="This log may have expired (older than ${retentionText})">${Icons.svg('clock', 13)}</span>` : '';
 
     // Check if this log is unread
     const isUnread = !isLogRead(log.Id);
@@ -589,9 +629,8 @@ class LogRenderer {
    * Handles errors when loading log details
    * @private
    * @param {Error} error - Error object
-   * @param {string} logId - Log ID that failed to load
    */
-  _handleLogDetailsError(error, logId) {
+  _handleLogDetailsError(error) {
     const { debugContent, errorContent, limitsContent } = elements;
 
     const escapedMessage = escapeHtml(error.message || '');
@@ -601,7 +640,7 @@ class LogRenderer {
       errorMessage = `
         <div class="error-message-block">
           <strong>Debug Log Expired</strong><br>
-          This debug log is no longer available. Debug logs in Salesforce automatically expire after 24 hours or may be deleted.<br>
+          This debug log is no longer available. Salesforce keeps monitoring logs for 7 days and system logs for 24 hours, and logs can also be deleted.<br>
           <small>Try generating a new debug log to view recent execution details.</small>
         </div>
       `;
@@ -620,11 +659,7 @@ class LogRenderer {
     // Clear raw response and hide button on error
     clearRawResponse();
 
-    // Cache that this log was checked but has no accessible debug messages  
-    logCache.setDebugStatus(logId, false);
-    logCache.setErrorStatus(logId, false);
-    logCache.setExceptionStatus(logId, false);
-    this.displayDebugLogs(debugLogs);
+    // Nothing is cached for this log: its status is unknown, so it is checked again later
   }
 }
 

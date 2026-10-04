@@ -10,6 +10,9 @@ let searchDebounceTimer = null;
 const SEARCH_DEBOUNCE_DELAY = 300; // milliseconds
 const SEARCH_MIN_CHARS = 2;
 const SEARCH_MAX_MATCHES = 500; // Maximum number of matches to prevent performance issues
+const RAW_RENDER_CHUNK_SIZE = 200 * 1024; // Characters rendered per step; bigger logs are rendered in steps
+const RAW_PLAIN_SEARCH_THRESHOLD = 100000; // 100KB: above this, search results are shown without syntax colors
+let rawRender = null; // The raw view render in progress (only the latest one continues)
 
 // Initialize view preference from storage
 async function initializeViewPreference() {
@@ -122,8 +125,9 @@ function showRawResponse() {
       }
       // If both exist, currentErrorFilters stays as is
 
+      currentLogTruncated = parsedContent.truncated;
       const formattedErrors = formatErrorsForDisplay(parsedContent.errors, currentErrorFilters);
-      errorContent.innerHTML = formattedErrors;
+      errorContent.innerHTML = (currentLogTruncated ? truncatedLogBannerHtml() : '') + formattedErrors;
 
       // Wire up filter checkbox event listeners
       wireUpErrorFilterListeners();
@@ -173,51 +177,92 @@ function showDebugMessages() {
   }
 }
 
-function resetToDebugView() {
-  isRawView = false;
-  clearSearch();
-  showDebugMessages();
-}
-
-
 function displayRawResponse() {
   const { debugContent } = elements;
   if (!debugContent || !currentRawResponse) return;
 
+  // Create raw response container (search and copy use currentRawResponse, not the page text)
+  const rawContainer = document.createElement('div');
+  rawContainer.className = 'raw-response-container';
+
+  // Replace debug content
+  debugContent.innerHTML = isTruncatedLog(currentRawResponse) ? truncatedLogBannerHtml() : '';
+  debugContent.appendChild(rawContainer);
+
   try {
     // Detect content type and apply appropriate highlighting
-    const contentType = detectContentType(currentRawResponse);
-    let highlightedContent;
-
-    if (contentType === 'json') {
-      highlightedContent = applyJsonSyntaxHighlighting(currentRawResponse);
-    } else if (contentType === 'debug_log') {
-      highlightedContent = applyDebugLogHighlighting(currentRawResponse);
-    } else {
-      // Plain text - just escape HTML
-      highlightedContent = escapeHtml(currentRawResponse);
-    }
-
-    // Create raw response container
-    const rawContainer = document.createElement('div');
-    rawContainer.className = 'raw-response-container';
-    rawContainer.innerHTML = highlightedContent;
-
-    // Store the original text for searching
-    rawContainer.dataset.originalText = currentRawResponse;
-
-    // Replace debug content
-    debugContent.innerHTML = '';
-    debugContent.appendChild(rawContainer);
-
+    renderRawContent(rawContainer, currentRawResponse);
   } catch (error) {
     // Fallback to plain text if highlighting fails
-    const rawContainer = document.createElement('div');
-    rawContainer.className = 'raw-response-container';
     rawContainer.textContent = currentRawResponse;
-    rawContainer.dataset.originalText = currentRawResponse;
-    debugContent.innerHTML = '';
-    debugContent.appendChild(rawContainer);
+  }
+}
+
+// Renders text into the raw view container. The first slice is rendered now and the rest in later tasks,
+// so a 20 MB log does not freeze the page. Matches ({index, length}, sorted, not overlapping) become
+// search highlight spans. The text is always HTML-escaped; only the highlight spans are markup.
+function renderRawContent(container, text, matches = []) {
+  if (rawRender) {
+    clearTimeout(rawRender.timer);
+  }
+
+  // Large logs are shown without syntax colors while searching (faster)
+  let highlight = escapeHtml;
+  if (matches.length === 0 || text.length <= RAW_PLAIN_SEARCH_THRESHOLD) {
+    const contentType = detectContentType(text);
+    if (contentType === 'json') {
+      highlight = applyJsonSyntaxHighlighting;
+    } else if (contentType === 'debug_log') {
+      highlight = applyDebugLogHighlighting;
+    }
+  }
+
+  container.innerHTML = '';
+  rawRender = { container, text, matches, highlight, offset: 0, nextMatch: 0, rendered: 0, timer: null };
+  renderNextRawChunk(rawRender);
+}
+
+function renderNextRawChunk(state) {
+  if (state !== rawRender || state.container.isConnected === false) return;
+
+  const { text, matches } = state;
+  let end = Math.min(state.offset + RAW_RENDER_CHUNK_SIZE, text.length);
+  if (end < text.length) {
+    // End the slice after a line break: highlighting works per line, and a match never spans lines
+    const lineEnd = text.indexOf('\n', end);
+    end = lineEnd === -1 ? text.length : lineEnd + 1;
+  }
+
+  // Wrap this slice's matches in search marks (marks that are already in the log become U+FFFD)
+  const clean = (part) => part.replace(/[]/g, '�');
+  let marked = '';
+  let position = state.offset;
+  while (state.nextMatch < matches.length && matches[state.nextMatch].index < end) {
+    const match = matches[state.nextMatch++];
+    marked += clean(text.slice(position, match.index)) + SEARCH_MARK_START +
+      clean(text.slice(match.index, match.index + match.length)) + SEARCH_MARK_END;
+    position = match.index + match.length;
+  }
+  marked += clean(text.slice(position, end));
+
+  const html = state.highlight(marked)
+    .replace(//g, () => `<span class="search-highlight" data-match-index="${state.rendered++}">`)
+    .replace(//g, '</span>');
+  state.container.insertAdjacentHTML('beforeend', html);
+  state.offset = end;
+
+  if (end < text.length) {
+    state.timer = setTimeout(() => renderNextRawChunk(state), 0);
+  }
+}
+
+// Renders the remaining slices right away until match `index` is on the page
+function ensureRawMatchRendered(index) {
+  const state = rawRender;
+  while (state === rawRender && state && state.rendered <= index && state.offset < state.text.length &&
+    state.container.isConnected !== false) {
+    clearTimeout(state.timer);
+    renderNextRawChunk(state);
   }
 }
 
@@ -312,7 +357,7 @@ function performSearch(query) {
   if (!rawContainer) return;
 
   // Get the original text content
-  const originalText = rawContainer.dataset.originalText || currentRawResponse;
+  const originalText = currentRawResponse;
 
   try {
     // Clear any previous search highlights
@@ -346,13 +391,14 @@ function performSearch(query) {
         break;
       }
 
-      startIndex = foundIndex + 1;
+      // Continue after this match so matches never overlap
+      startIndex = foundIndex + searchTerm.length;
       foundIndex = textToSearch.indexOf(searchTerm, startIndex);
     }
 
     if (matches.length > 0) {
-      // Apply search highlighting with clean approach
-      applyCleanSearchHighlighting(rawContainer, originalText, matches);
+      // Apply search highlighting
+      renderRawContent(rawContainer, originalText, matches);
       searchMatches = matches;
       currentMatchIndex = 0;
       highlightCurrentMatch();
@@ -376,124 +422,18 @@ function performSearch(query) {
   }
 }
 
-function applyCleanSearchHighlighting(container, originalText, matches) {
-  // For very large texts, use a more efficient approach
-  const isLargeText = originalText.length > 100000; // 100KB threshold
-
-  if (isLargeText) {
-    // For large texts, skip syntax highlighting and just add search highlights
-    applyFastSearchHighlighting(container, originalText, matches);
-    return;
-  }
-
-  // For smaller texts, use the full highlighting approach
-  let textWithHighlights = originalText;
-
-  // Sort matches by index in reverse order to avoid index shifting during replacement
-  const sortedMatches = [...matches].sort((a, b) => b.index - a.index);
-
-  // Insert search highlight markers using simpler, consistent markers
-  sortedMatches.forEach((match, reverseIndex) => {
-    const matchIndex = matches.length - 1 - reverseIndex;
-    const beforeText = textWithHighlights.substring(0, match.index);
-    const matchText = textWithHighlights.substring(match.index, match.index + match.length);
-    const afterText = textWithHighlights.substring(match.index + match.length);
-
-    // Use simpler markers without timestamp for better performance
-    const startMarker = `§§SEARCH_HIGHLIGHT_START_${matchIndex}§§`;
-    const endMarker = `§§SEARCH_HIGHLIGHT_END_${matchIndex}§§`;
-
-    textWithHighlights = beforeText + startMarker + matchText + endMarker + afterText;
-  });
-
-  // Apply syntax highlighting to the text with markers
-  const contentType = detectContentType(originalText);
-  let syntaxHighlightedContent;
-
-  if (contentType === 'json') {
-    syntaxHighlightedContent = applyJsonSyntaxHighlighting(textWithHighlights);
-  } else if (contentType === 'debug_log') {
-    syntaxHighlightedContent = applyDebugLogHighlighting(textWithHighlights);
-  } else {
-    syntaxHighlightedContent = escapeHtml(textWithHighlights);
-  }
-
-  // Replace markers with actual search highlight spans - use faster replaceAll
-  let finalContent = syntaxHighlightedContent;
-
-  for (let i = 0; i < matches.length; i++) {
-    const startMarker = `§§SEARCH_HIGHLIGHT_START_${i}§§`;
-    const endMarker = `§§SEARCH_HIGHLIGHT_END_${i}§§`;
-    const startSpan = `<span class="search-highlight" data-match-index="${i}">`;
-    const endSpan = `</span>`;
-
-    finalContent = finalContent.replace(startMarker, startSpan).replace(endMarker, endSpan);
-  }
-
-  // Fallback: Clean up any remaining markers
-  finalContent = finalContent.replace(/§§SEARCH_HIGHLIGHT_(START|END)_\d+§§/g, '');
-
-  // Update the container
-  container.innerHTML = finalContent;
-}
-
-// Fast search highlighting for large texts (skips syntax highlighting)
-function applyFastSearchHighlighting(container, originalText, matches) {
-  // Escape HTML first
-  let escapedText = escapeHtml(originalText);
-
-  // Build an array of text segments with highlights
-  const segments = [];
-  let lastIndex = 0;
-
-  // Sort matches by index
-  const sortedMatches = [...matches].sort((a, b) => a.index - b.index);
-
-  for (let i = 0; i < sortedMatches.length; i++) {
-    const match = sortedMatches[i];
-
-    // Add text before this match
-    if (match.index > lastIndex) {
-      segments.push(originalText.substring(lastIndex, match.index));
-    }
-
-    // Add the highlighted match
-    const matchText = originalText.substring(match.index, match.index + match.length);
-    segments.push(`<span class="search-highlight" data-match-index="${i}">${escapeHtml(matchText)}</span>`);
-
-    lastIndex = match.index + match.length;
-  }
-
-  // Add remaining text after last match
-  if (lastIndex < originalText.length) {
-    segments.push(originalText.substring(lastIndex));
-  }
-
-  // Join segments and update container
-  container.innerHTML = segments.join('');
-}
-
 function displayRawResponseWithoutSearch(container, originalText) {
   // Display content without search highlights - just syntax highlighting
-  const contentType = detectContentType(originalText);
-  let highlightedContent;
-
-  if (contentType === 'json') {
-    highlightedContent = applyJsonSyntaxHighlighting(originalText);
-  } else if (contentType === 'debug_log') {
-    highlightedContent = applyDebugLogHighlighting(originalText);
-  } else {
-    highlightedContent = escapeHtml(originalText);
-  }
-
-  container.innerHTML = highlightedContent;
+  renderRawContent(container, originalText);
 }
 
 function highlightCurrentMatch() {
-  const highlights = document.querySelectorAll('.search-highlight');
-  highlights.forEach((highlight, index) => {
-    highlight.classList.toggle('current', index === currentMatchIndex);
-  });
+  // The match may be in a part of a big log that is not rendered yet
+  ensureRawMatchRendered(currentMatchIndex);
+  const container = elements.debugContent?.querySelector('.raw-response-container');
+  if (!container) return;
+  container.querySelector('.search-highlight.current')?.classList.remove('current');
+  container.querySelector(`.search-highlight[data-match-index="${currentMatchIndex}"]`)?.classList.add('current');
 }
 
 function scrollToCurrentMatch() {

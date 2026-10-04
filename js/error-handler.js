@@ -3,8 +3,6 @@
 
 class ErrorHandler {
   constructor() {
-    this.errorLog = [];
-    this.maxErrorLogSize = 100;
     this.debug = false; // Set to true for debugging
   }
 
@@ -22,13 +20,6 @@ class ErrorHandler {
       stack: error instanceof Error ? error.stack : null,
       metadata: metadata
     };
-
-    this.errorLog.push(errorEntry);
-    
-    // Keep error log size manageable
-    if (this.errorLog.length > this.maxErrorLogSize) {
-      this.errorLog = this.errorLog.slice(-this.maxErrorLogSize);
-    }
 
     // Log to console in debug mode
     if (this.debug) {

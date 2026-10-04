@@ -61,6 +61,63 @@
   margin-bottom: 0;
 }
 
+/* Logging level of a System.debug message that is not DEBUG (ERROR, WARN, INFO, FINE...) */
+.debug-level-tag {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.debug-level-tag.level-error {
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.debug-level-tag.level-warn {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.debug-level-tag.level-fine,
+.debug-level-tag.level-finer,
+.debug-level-tag.level-finest {
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+}
+
+/* Shown when Salesforce cut the log because it was too big */
+.log-truncated-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--warning);
+  border-left-width: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.log-truncated-banner .icon {
+  flex-shrink: 0;
+  color: var(--warning);
+}
+
+#errorContent .log-truncated-banner {
+  margin: 8px;
+}
+
 /* Line Numbers for Debug Messages */
 .line-number {
   display: inline-block;
@@ -122,6 +179,13 @@
   display: flex;
   flex-direction: column;
   gap: 9px;
+}
+
+/* Each namespace (managed package) has its own group */
+.limits-list + .limits-ns {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-primary);
 }
 
 .limit-row-head {

@@ -26,8 +26,9 @@ function extractEventType(line) {
  * @returns {string|null} - Code unit name or null
  */
 function extractCodeUnitName(line) {
-  // Extract name from CODE_UNIT_STARTED|[EXTERNAL]|...|TriggerName or ClassName.methodName
-  const match = line.match(/CODE_UNIT_STARTED\|[^|]*\|[^|]*\|(.+)/);
+  // Extract name from CODE_UNIT_STARTED|[EXTERNAL]|...|TriggerName or ClassName.methodName,
+  // or from the short form CODE_UNIT_STARTED|[EXTERNAL]|execute_anonymous_apex
+  const match = line.match(/CODE_UNIT_STARTED\|[^|]*\|[^|]*\|(.+)/) || line.match(/CODE_UNIT_STARTED\|[^|]*\|(.+)/);
   return match ? match[1].trim() : null;
 }
 
@@ -42,8 +43,7 @@ function extractErrorsFromDebugLog(content) {
       hasErrors: false,
       hasFatalErrors: false,
       hasExceptions: false,
-      errors: [],
-      errorSummary: null
+      errors: []
     };
   }
 
@@ -61,12 +61,9 @@ function extractErrorsFromDebugLog(content) {
     if (isPipeLine(line)) {
       const eventType = extractEventType(line);
 
-      // Track CODE_UNIT context
+      // Track CODE_UNIT context (every STARTED is pushed so that each FINISHED pops its own unit)
       if (eventType === 'CODE_UNIT_STARTED') {
-        const unitName = extractCodeUnitName(line);
-        if (unitName) {
-          codeUnitStack.push(unitName);
-        }
+        codeUnitStack.push(extractCodeUnitName(line));
       } else if (eventType === 'CODE_UNIT_FINISHED') {
         if (codeUnitStack.length > 0) {
           codeUnitStack.pop();
@@ -157,6 +154,12 @@ function extractErrorsFromDebugLog(content) {
       }
     }
 
+    // A line Salesforce adds where it cut the log ends the current error (the next lines are from elsewhere)
+    else if (isLogTruncationLine(line)) {
+      collectingStackTrace = false;
+      currentError = null;
+    }
+
     // Collect stack trace lines (non-pipe lines after error)
     else if (collectingStackTrace && currentError) {
       const cleanLine = line.trim();
@@ -225,8 +228,7 @@ function extractErrorsFromDebugLog(content) {
     hasErrors: uniqueErrors.length > 0,
     hasFatalErrors: fatalErrors.length > 0,
     hasExceptions: exceptions.length > 0,
-    errors: uniqueErrors,
-    errorSummary: createErrorSummary(uniqueErrors)
+    errors: uniqueErrors
   };
 }
 
@@ -310,38 +312,6 @@ function parseErrorMessage(errorMessage) {
 function extractTimestamp(line) {
   const timestampMatch = line.match(/^(\d{2}:\d{2}:\d{2}\.\d+)/);
   return timestampMatch ? timestampMatch[1] : null;
-}
-
-/**
- * Creates a summary of errors found
- * @param {array} errors - Array of error objects
- * @returns {object|null} - Error summary object
- */
-function createErrorSummary(errors) {
-  if (errors.length === 0) {
-    return null;
-  }
-
-  const errorTypes = {};
-  let mostRecentError = null;
-
-  errors.forEach(error => {
-    // Count error types
-    const type = error.parsedMessage.exceptionType || error.type;
-    errorTypes[type] = (errorTypes[type] || 0) + 1;
-
-    // Track most recent error
-    if (!mostRecentError || error.line > mostRecentError.line) {
-      mostRecentError = error;
-    }
-  });
-
-  return {
-    totalErrors: errors.length,
-    errorTypes: errorTypes,
-    mostRecentError: mostRecentError,
-    primaryErrorType: mostRecentError ? mostRecentError.parsedMessage.exceptionType : 'Unknown'
-  };
 }
 
 /**

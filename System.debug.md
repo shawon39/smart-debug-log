@@ -397,11 +397,10 @@ For each debug message:
      * Field name = left.
      * Value = right, parse recursively.
 
-   JSON shape example:
+   JSON shape example (the type name is left out: it is noise in the debug view):
 
    ```json
    {
-     "_apexType": "Account",
      "Name": "Test Account",
      "BillingStreet": "123 Test Dr"
    }
@@ -411,9 +410,8 @@ For each debug message:
 
    ```json
    {
-     "_apexType": "ToStringDemo",
-     "companyName": "Salesforce",
-     "city": "SFO"
+     "city": "SFO",
+     "companyName": "Salesforce"
    }
    ```
 
@@ -517,6 +515,34 @@ But you must accept:
 * You should keep it as a helper for debugging, not as the only way to move data between systems.
 
 If you want, next step I can help you design the actual parsing grammar and a small prototype (for example in JavaScript or Apex) based on these rules.
+
+---
+
+## 7. Observed in a real org (API 67, 2026-10-04)
+
+Captured in a Developer Edition org (with a namespace) from anonymous Apex and a deployed test class with wrappers,
+inner classes, inheritance, properties, enums, a `toString()` override and a custom exception. The messages are in
+`tests/fixtures/real-org-debug.log` (Ids anonymised) and checked by `tests/track-b-parsing.test.js`.
+
+| Value | Printed as |
+|---|---|
+| SObject | `Account:{Id=…, Name=…}`. Fields in query or assignment order. Explicit nulls print (`Phone=null`), empty strings print `Website=`. Parent relationships (`Owner.Name`, `c.Account = …`) and child subqueries never print. Multi-line text keeps its line breaks. |
+| Address field | `API address [ street, city, state, postalCode, country, stateCode, countryCode, latitude, longitude, geocodeAccuracy]` (the street can hold commas and line breaks) |
+| Custom class (top-level, inner, namespaced org) | Short name only: `OrderWrapper:[…]`. Fields sorted by character code (A–Z before a–z). Private and transient fields print, static fields do not. Getter-only properties print `null`. Inherited fields print as `BaseItem.price=…`. No fields: `Empty:[]`. |
+| Same object twice, or a cycle | `(already output)` |
+| List / Set / Map | `(…)` / `{…}` / `{key=value}`, items separated by `, `. Only the first 10 items, then `...`. String-keyed maps and sets are sorted; enum-keyed maps are not. |
+| System classes | `Database.SaveResult[getErrors=(…);getId=null;isSuccess=false;]`, `Database.Error[…;]`, `Schema.DescribeFieldResult[…;]`, `System.Location[getLatitude=37.79;getLongitude=-122.39;]`, `System.HttpRequest[Endpoint=…, Method=POST]`, `System.HttpResponse[Status=…, StatusCode=0]` |
+| Exceptions | `System.MathException: Divide by 0`; a custom exception: `ProbeException:[]: message` |
+| Primitives | Date `2026-10-04 00:00:00`, Datetime (GMT) `2026-10-04 10:19:41`, Time `10:15:00.000Z`, Decimal keeps its scale `12.50`, Double `1.2345E-5`, Long `9007199254740993`, Blob `Blob[5]`, enum `ACTIVE` |
+| Raw log body (Tooling API `ApexLog/{id}/Body`) | Not HTML-escaped: `<b>` and a literal `&amp;` appear as debugged |
+
+What the debug view does with it: no type names; inherited fields by their own name; `(already output)` as
+`"(same object as above)"`; the `...` cut as a note under the value; system classes as objects (`getErrors` → `errors`);
+addresses as objects without the nulls; numbers exactly as printed; text around values kept in place.
+
+Still ambiguous (no reliable fix):
+* SObject text with `, Name=value` in it (`Description=a=b, c=d`) shows an extra field `c`.
+* A `Set<String>` element containing `=` (`{net=30, vip}`) looks the same as a map.
 
 [1]: https://medium.com/%40idanblich/why-your-apex-code-is-one-tostring-away-from-breaking-production-2a05fc874ab7?utm_source=chatgpt.com "Why Your Apex Code is One toString() Away from Breaking ..."
 [2]: https://lightningchallenges.com/lessons/apex-syntax/variables-data-types/apex-boolean?utm_source=chatgpt.com "Understanding Boolean Values in Apex"

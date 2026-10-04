@@ -10,21 +10,6 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-function decodeHtmlEntities(text) {
-  if (!text) return '';
-  try {
-    // Use a detached <textarea> (an "escapable raw text" element): it decodes
-    // character references (e.g. &lt; &amp; &quot;) but treats <tags> as literal
-    // text and never instantiates/executes elements. DOMParser+textContent was
-    // used before and silently dropped any <...> markup (e.g. Map<String,Object>).
-    const ta = document.createElement('textarea');
-    ta.innerHTML = text;
-    return ta.value;
-  } catch (e) {
-    return text;
-  }
-}
-
 // URL and host utilities
 const getHostFromUrl = () => new URLSearchParams(window.location.search).get('host');
 
@@ -436,9 +421,81 @@ function hasTypedBodyWithEquals(text, open, close) {
   return false;
 }
 
-// Text is already HTML-decoded by the caller (displayDebugContent decodes once).
+// True when a quoted list holds "=": "[key=value, ...]" closed by ]", or the multi-line form
+// ObjectName:\n"[key=value, ... (closed or not). Same result as /"\[[^\]]*=[^\]]*\]"/ and
+// /\w:[^\S\r\n]*[\r\n]\s*"\[[^\]]*=/ in linear time.
+function hasQuotedKeyValueList(text) {
+  let quoted = false; // a "[ was seen since the last ]
+  let multiLine = false; // one of them starts a multi-line object
+  let equals = false; // "=" after a "["
+  for (let i = 1; i < text.length; i++) {
+    const char = text[i];
+    if (char === '[' && text[i - 1] === '"') {
+      quoted = true;
+      multiLine = multiLine || startsMultiLineObject(text, i - 1);
+    } else if (char === '=' && quoted) {
+      if (multiLine) return true;
+      equals = true;
+    } else if (char === ']') {
+      if (equals && text[i + 1] === '"') return true;
+      quoted = multiLine = equals = false;
+    }
+  }
+  return false;
+}
+
+// True when the quote at quoteIndex follows "<word character>:" and white space with a line break
+function startsMultiLineObject(text, quoteIndex) {
+  let i = quoteIndex - 1;
+  let lineBreak = false;
+  while (i >= 0 && /\s/.test(text[i])) {
+    if (text[i] === '\n' || text[i] === '\r') lineBreak = true;
+    i--;
+  }
+  return lineBreak && i >= 1 && text[i] === ':' && /\w/.test(text[i - 1]);
+}
+
+// True when "[{" (white space allowed) is followed, before the next "}", by a quoted key and ":".
+// Same result as /\[\s*\{[^}]*"[^"]*"\s*:/ in linear time.
+function hasJsonArrayOfObjects(text) {
+  const nextQuote = new Int32Array(text.length + 1).fill(-1);
+  for (let i = text.length - 1; i >= 0; i--) nextQuote[i] = text[i] === '"' ? i : nextQuote[i + 1];
+  let inObject = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '}') {
+      inObject = false;
+    } else if (char === '{' && !inObject) {
+      let j = i - 1;
+      while (j >= 0 && /\s/.test(text[j])) j--;
+      inObject = text[j] === '[';
+    } else if (char === '"' && inObject) {
+      const close = nextQuote[i + 1];
+      if (close === -1) return false;
+      let k = close + 1;
+      while (k < text.length && /\s/.test(text[k])) k++;
+      if (text[k] === ':') return true;
+    }
+  }
+  return false;
+}
+
+// True when a "name=(" list holds a class: Bookmarks=(Bookmark:[...]).
+// Same result as /\w=\([^)]*\w:\[/ in linear time.
+function hasClassListValue(text) {
+  let inList = false;
+  for (let i = 2; i < text.length; i++) {
+    const char = text[i];
+    if (char === ')') inList = false;
+    else if (char === '(' && text[i - 1] === '=' && /\w/.test(text[i - 2])) inList = true;
+    else if (char === '[' && inList && text[i - 1] === ':' && /\w/.test(text[i - 2])) return true;
+  }
+  return false;
+}
+
+// Text is the debug message as Salesforce wrote it (log bodies are not HTML-escaped).
 // The checks match the same texts as before, written so that long runs of word characters or many
-// unclosed brackets cannot make them slow.
+// unclosed brackets cannot make them slow (every check runs in linear time).
 function containsSalesforceObjects(text) {
   if (!text) return false;
 
@@ -449,10 +506,12 @@ function containsSalesforceObjects(text) {
     hasTypedBodyWithEquals(text, '{', '}') ||
     // Salesforce object notation with square brackets: SFrequest:[key=value, ...]
     hasTypedBodyWithEquals(text, '[', ']') ||
-    // Multi-line Salesforce object: ObjectName:\n"[key=value, ...]"
-    /\w:[^\S\r\n]*[\r\n]\s*"\[[^\]]*=/.test(text) ||
+    // System class objects: Database.SaveResult[getErrors=...], System.HttpRequest[Endpoint=...]
+    /\b[A-Za-z]\w*(?:\.\w+)+\[\w+=/.test(text) ||
+    // Multi-line Salesforce object ObjectName:\n"[key=value, ...]" and quoted arrays "[key=value, ...]"
+    hasQuotedKeyValueList(text) ||
     // JSON arrays: [{"key":"value",...}]
-    /\[\s*\{[^}]*"[^"]*"\s*:/.test(text) ||
+    hasJsonArrayOfObjects(text) ||
     // JSON objects: {"key":"value",...}
     /\{\s*"[^"]*"\s*:/.test(text) ||
     // Multi-line JSON starting with { or [
@@ -460,9 +519,7 @@ function containsSalesforceObjects(text) {
     // JSON serialized string: "some text" (starts and ends with quotes, entire content)
     /^"[^"]*"$/.test(text.trim()) ||
     // Complex nested collections: Bookmarks=(Bookmark:[...], Bookmark:[...])
-    /\w=\([^)]*\w:\[/.test(text) ||
-    // Quoted arrays with key=value: "[key=value, key=value]"
-    /"\[[^\]]*=[^\]]*\]"/.test(text)
+    hasClassListValue(text)
   );
 }
 

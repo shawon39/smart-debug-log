@@ -132,6 +132,15 @@ function extractUserEmailFromLog(content) {
   }
 }
 
+// Messages worth formatting: toString values or JSON up to MAX_TOSTRING_MESSAGE_LENGTH, and longer ones up to
+// MAX_JSON_MESSAGE_LENGTH that end with a JSON object or array (e.g. Console.log of many records)
+function isStructuredMessage(message) {
+  if (message.length <= MAX_TOSTRING_MESSAGE_LENGTH) return containsSalesforceObjects(message);
+  if (message.length > MAX_JSON_MESSAGE_LENGTH) return false;
+  const end = message.trimEnd();
+  return end.endsWith('}') || end.endsWith(']');
+}
+
 function displayDebugContent(parsedContent) {
   const { debugContent, errorContent, limitsContent } = elements;
   currentLogTruncated = !!parsedContent.truncated;
@@ -141,25 +150,19 @@ function displayDebugContent(parsedContent) {
   if (parsedContent.debugMessages && parsedContent.debugMessages.length > 0) {
     // Create individual blocks for each debug message
     const messageBlocks = parsedContent.debugMessages.map(({ level, message }, index) => {
-      let formattedMessage = message;
-
-      // Decode HTML entities first (the only decode: the formatters below take decoded text)
-      formattedMessage = decodeHtmlEntities(formattedMessage);
-
-      // Check if this looks like Salesforce object notation and try to format it
-      // (very long messages are shown as text: structure parsing them would freeze the page)
-      if (formattedMessage.length <= MAX_STRUCTURED_MESSAGE_LENGTH && containsSalesforceObjects(formattedMessage)) {
+      // Format records, classes, collections and JSON. The message is used as Salesforce wrote it: log bodies
+      // are not HTML-escaped, so "&amp;" in a message is what the code debugged.
+      let formattedMessage = null;
+      if (isStructuredMessage(message)) {
         try {
-          // Extract and parse the Salesforce object part
-          const result = extractAndParseSalesforceObjects(formattedMessage);
-          formattedMessage = result;
+          formattedMessage = extractAndParseSalesforceObjects(message);
         } catch (e) {
-          // If parsing fails, apply debug log highlighting
-          formattedMessage = applyDebugLogHighlighting(formattedMessage);
+          formattedMessage = null;
         }
-      } else {
-        // For simple text messages, apply debug log highlighting
-        formattedMessage = applyDebugLogHighlighting(formattedMessage);
+      }
+      if (formattedMessage === null) {
+        // Text (and anything that could not be formatted). A custom exception prints as "Name:[]: message".
+        formattedMessage = applyDebugLogHighlighting(message.replace(/^(\w+):\[\]: /, '$1: '));
       }
 
       // Add line numbers to the formatted message

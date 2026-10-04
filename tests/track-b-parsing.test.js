@@ -10,19 +10,15 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
-// escapeHtml / decodeHtmlEntities use a <div> and a <textarea>; mimic what the browser returns
+// escapeHtml uses a <div>; mimic what the browser returns
 function escapeLikeDom(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/ /g, '&nbsp;'); }
-function decodeLikeTextarea(s) {
-  return String(s).replace(/&(lt|gt|amp|quot|apos|#39|#x27|nbsp);/g, (m, e) => ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'", '#39': "'", '#x27': "'", nbsp: ' ' })[e]);
-}
 
 function loadPipeline() {
   const document = {
-    createElement(tag) {
+    createElement() {
       const el = { _t: '' };
       Object.defineProperty(el, 'textContent', { set(v) { this._t = String(v); }, get() { return this._t; } });
-      Object.defineProperty(el, 'innerHTML', { set(v) { this._t = tag === 'textarea' ? decodeLikeTextarea(v) : v; }, get() { return escapeLikeDom(this._t); } });
-      Object.defineProperty(el, 'value', { get() { return this._t; } });
+      Object.defineProperty(el, 'innerHTML', { set(v) { this._t = v; }, get() { return escapeLikeDom(this._t); } });
       return el;
     },
     getElementById() { return null; }, querySelector() { return null; }, querySelectorAll() { return []; },
@@ -72,38 +68,38 @@ const GOOD_CASES = [
   ["text-brackets", "Values [1, 2, 3] were processed for accounts", '5ffe215dac45d32c', "Values [1, 2, 3] were processed for accounts"],
   ["text-pipes", "a|b|c with pipes", 'fc69e3bee3f7a6f6', "a|b|c with pipes"],
   ["text-multiline", "line one\nline two\n  indented three", '8ccdcb923144c5ee', "line one line two indented three"],
-  ["sobj-doc", "Account:{Name=Test Account, BillingStreet=123 Test Dr, BillingCity=Test City}", '410422c2dd3522d6', "{ \"_apexType\": \"Account\", \"Name\": \"Test Account\", \"BillingStreet\": \"12"],
-  ["sobj-stub", "Account:{Id=001Hn00003, Name=Initech, Industry=Finance}", 'cb5e5f3ee3672479', "{ \"_apexType\": \"Account\", \"Id\": \"001Hn00003\", \"Name\": \"Initech\", \"Indu"],
-  ["sobj-address", "Account:{Name=Acme, BillingAddress=API address [ The Landmark @ One Market, SanFrancisco, CA, 94105, US, null ], Id=001A}", '92145885b548aadf', "{ \"_apexType\": \"Account\", \"Name\": \"Acme\", \"BillingAddress\": \"API addre"],
-  ["sobj-custom", "MyCustom__c:{Id=a01A, Name=Rec 1, Count__c=3}", '43b209533d098fbd', "{ \"_apexType\": \"MyCustom__c\", \"Id\": \"a01A\", \"Name\": \"Rec 1\", \"Count__c"],
-  ["sobj-arrow", "Full Account → Account:{Id=001A, Name=Acme}", 'ed21ce1d58201b73', "Full Account → { \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"Acme\" "],
-  ["sobj-prefix", "Inserted account: Account:{Id=001A, Name=Acme}", 'd633cd280258f74c', "Inserted account: { \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"Acm"],
-  ["sobj-truncated", "Account:{Id=001A, Name=Acme, Description=Long text that was cut", '846d107813838493', "\"Account:{Id=001A, Name=Acme, Description=Long text that was cut\""],
-  ["sobj-safe-numbers", "Account:{Id=001A, NumberOfEmployees=250, AnnualRevenue=1250000.75}", '51df12b087657840', "{ \"_apexType\": \"Account\", \"Id\": \"001A\", \"NumberOfEmployees\": 250, \"Ann"],
-  ["sobj-comma-in-value", "Account:{Id=001A, Name=Smith, John, Industry=Tech}", '279c53652db404ec', "{ \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"Smith, John\", \"Indust"],
-  ["sobj-braces-text", "Account:{Description=Uses {braces} here, Id=001A}", '8dc2b6a51f18b3ff', "{ \"_apexType\": \"Account\", \"Description\": \"Uses {braces} here\", \"Id\": \""],
-  ["sobj-paren-text", "Case:{Subject=Re: (urgent) help, Id=500A}", 'f5b68e518ad75720', "{ \"_apexType\": \"Case\", \"Subject\": \"Re: (urgent) help\", \"Id\": \"500A\" }"],
-  ["sobj-null-field", "Account:{Id=001A, ParentId=null, IsDeleted=false}", '81725480d04d352b', "{ \"_apexType\": \"Account\", \"Id\": \"001A\", \"ParentId\": null, \"IsDeleted\":"],
+  ["sobj-doc", "Account:{Name=Test Account, BillingStreet=123 Test Dr, BillingCity=Test City}", '841caad9a79dae09', "{ \"Name\": \"Test Account\", \"BillingStreet\": \"123 Test Dr\", \"BillingCity\":"],
+  ["sobj-stub", "Account:{Id=001Hn00003, Name=Initech, Industry=Finance}", '4333b1b3b3f7eac3', "{ \"Id\": \"001Hn00003\", \"Name\": \"Initech\", \"Industry\": \"Finance\" }"],
+  ["sobj-address", "Account:{Name=Acme, BillingAddress=API address [ The Landmark @ One Market, SanFrancisco, CA, 94105, US, null ], Id=001A}", 'c0bf88fc2562ca45', "{ \"Name\": \"Acme\", \"BillingAddress\": \"API address [ The Landmark @ One Ma"],
+  ["sobj-custom", "MyCustom__c:{Id=a01A, Name=Rec 1, Count__c=3}", '5e744dc01770590e', "{ \"Id\": \"a01A\", \"Name\": \"Rec 1\", \"Count__c\": 3 }"],
+  ["sobj-arrow", "Full Account → Account:{Id=001A, Name=Acme}", 'c6314fd52b6c3fdb', "Full Account → { \"Id\": \"001A\", \"Name\": \"Acme\" }"],
+  ["sobj-prefix", "Inserted account: Account:{Id=001A, Name=Acme}", '7523cc9f2a4f6a03', "Inserted account: { \"Id\": \"001A\", \"Name\": \"Acme\" }"],
+  ["sobj-truncated", "Account:{Id=001A, Name=Acme, Description=Long text that was cut", '9addb9550e01e647', "Account:{Id=001A, Name=Acme, Description=Long text that was cut"],
+  ["sobj-safe-numbers", "Account:{Id=001A, NumberOfEmployees=250, AnnualRevenue=1250000.75}", '1d877b0cbbb8fbc8', "{ \"Id\": \"001A\", \"NumberOfEmployees\": 250, \"AnnualRevenue\": 1250000.75 }"],
+  ["sobj-comma-in-value", "Account:{Id=001A, Name=Smith, John, Industry=Tech}", 'ef7d81c26af185a5', "{ \"Id\": \"001A\", \"Name\": \"Smith, John\", \"Industry\": \"Tech\" }"],
+  ["sobj-braces-text", "Account:{Description=Uses {braces} here, Id=001A}", '1f6ca25b887f4bb7', "{ \"Description\": \"Uses {braces} here\", \"Id\": \"001A\" }"],
+  ["sobj-paren-text", "Case:{Subject=Re: (urgent) help, Id=500A}", 'efb02302f39bc29d', "{ \"Subject\": \"Re: (urgent) help\", \"Id\": \"500A\" }"],
+  ["sobj-null-field", "Account:{Id=001A, ParentId=null, IsDeleted=false}", 'be36e8e2eabf8758', "{ \"Id\": \"001A\", \"ParentId\": null, \"IsDeleted\": false }"],
   ["list-prims", "(47, 52, null)", 'fd71e69a4323265b', "(47, 52, null)"],
-  ["list-sobjects-doc", "(Account:{Id=001xx000003DGb2AAG, Name=sForceTest1}, Account:{Id=001xx000003DGb3AAG, Name=sForceTest2})", '6a260abbac2a80c3', "[ { \"_apexType\": \"Account\", \"Id\": \"001xx000003DGb2AAG\", \"Name\": \"sForc"],
-  ["list-sobjects-prefix", "Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=B})", '1e60cf86469c969b', "Accounts: [ { \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"A\" }, { \""],
-  ["list-one", "(Account:{Id=001A, Name=A})", '25774725815816b1', "{ \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"A\" }"],
+  ["list-sobjects-doc", "(Account:{Id=001xx000003DGb2AAG, Name=sForceTest1}, Account:{Id=001xx000003DGb3AAG, Name=sForceTest2})", 'a89625e4f6513409', "[ { \"Id\": \"001xx000003DGb2AAG\", \"Name\": \"sForceTest1\" }, { \"Id\": \"001xx0"],
+  ["list-sobjects-prefix", "Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=B})", '7c0fea74c9a1898e', "Accounts: [ { \"Id\": \"001A\", \"Name\": \"A\" }, { \"Id\": \"001B\", \"Name\": \"B\" }"],
+  ["list-one", "(Account:{Id=001A, Name=A})", '060c8cf016a5c2d1', "[ { \"Id\": \"001A\", \"Name\": \"A\" } ]"],
   ["list-empty", "()", 'e6dbc4c36124293b', "()"],
   ["list-strings", "(a, b, c)", '5bc85128dab60c6e', "(a, b, c)"],
-  ["list-contacts", "Records: (Contact:{Id=003A, LastName=Doe}, Contact:{Id=003B, LastName=Roe})", '74b734d013fcbc17', "Records: [ { \"_apexType\": \"Contact\", \"Id\": \"003A\", \"LastName\": \"Doe\" }"],
-  ["list-paren-prefix", "Processed (2) records: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=B})", '6ecfb044c9fc65e0', "Processed (2) records: [ { \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name"],
+  ["list-contacts", "Records: (Contact:{Id=003A, LastName=Doe}, Contact:{Id=003B, LastName=Roe})", '576977d108f88ec1', "Records: [ { \"Id\": \"003A\", \"LastName\": \"Doe\" }, { \"Id\": \"003B\", \"LastNam"],
+  ["list-paren-prefix", "Processed (2) records: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=B})", '1db7c51249997204', "Processed (2) records: [ { \"Id\": \"001A\", \"Name\": \"A\" }, { \"Id\": \"001B\", "],
   ["set-ints", "{1, 2, 3}", 'b48a2adffeedc446', "[ 1, 2, 3 ]"],
-  ["set-sobjects", "{Account:{Name=Test1}, Account:{Name=Test2}}", '79eeba067be3106d', "[ { \"_apexType\": \"Account\", \"Name\": \"Test1\" }, { \"_apexType\": \"Account"],
+  ["set-sobjects", "{Account:{Name=Test1}, Account:{Name=Test2}}", '3aee3ce06af078d1', "[ { \"Name\": \"Test1\" }, { \"Name\": \"Test2\" } ]"],
   ["set-strings", "{a, b}", '17313ef659730540', "[ \"a\", \"b\" ]"],
   ["map-doc", "My Mobile prices List = {40000=motorola, 50000=samsung, 60000=nokia, 70000=iphone x}", 'eeaa103725dc386e', "My Mobile prices List = {40000=motorola, 50000=samsung, 60000=nokia, 7"],
-  ["map-id-sobject", "{001A=Account:{Id=001A, Name=A}, 001B=Account:{Id=001B, Name=B}}", '22de18cebc3d3c1b', "{ \"001A\": { \"_apexType\": \"Account\", \"Id\": \"001A\", \"Name\": \"A\" }, \"001B"],
+  ["map-id-sobject", "{001A=Account:{Id=001A, Name=A}, 001B=Account:{Id=001B, Name=B}}", '4e64dcab19f03edf', "{ \"001A\": { \"Id\": \"001A\", \"Name\": \"A\" }, \"001B\": { \"Id\": \"001B\", \"Name\":"],
   ["map-simple", "{key1=value1, key2=value2}", '999be4630e49946e', "{ \"key1\": \"value1\", \"key2\": \"value2\" }"],
   ["map-empty", "{}", 'b7a587198e122931', "{}"],
-  ["class-doc", "ToStringDemo:[city=SFO, companyName=Salesforce]", '57e9a96afffa723a', "{ \"_apexType\": \"ToStringDemo\", \"city\": \"SFO\", \"companyName\": \"Salesfor"],
-  ["class-response", "Response:[status=200, body=OK]", '5bc396af1222efbd', "{ \"_apexType\": \"Response\", \"status\": 200, \"body\": \"OK\" }"],
-  ["class-url", "SFrequest:[method=POST, endpoint=https://x.com/api]", '24a64146eb4f4201', "{ \"_apexType\": \"SFrequest\", \"method\": \"POST\", \"endpoint\": \"https://x.c"],
+  ["class-doc", "ToStringDemo:[city=SFO, companyName=Salesforce]", '21288fa80e76b1db', "{ \"city\": \"SFO\", \"companyName\": \"Salesforce\" }"],
+  ["class-response", "Response:[status=200, body=OK]", '916f33f4ca40fc61', "{ \"status\": 200, \"body\": \"OK\" }"],
+  ["class-url", "SFrequest:[method=POST, endpoint=https://x.com/api]", '31bb5258b0a80961', "{ \"method\": \"POST\", \"endpoint\": \"https://x.com/api\" }"],
   ["class-multiline", "Payload:\n\"[key=value, other=thing]\"", '08c75240733704b0', "{ \"Payload\": { \"key\": \"value\", \"other\": \"thing\" } }"],
-  ["class-wrapped", "(Wrapper:[a=1, b=2])", '9332387dbcdc3533', "{ \"Wrapper\": [ { \"a\": 1 }, { \"b\": 2 } ] }"],
+  ["class-wrapped", "(Wrapper:[a=1, b=2])", '25c52a33225e2b01', "[ { \"a\": 1, \"b\": 2 } ]"],
   ["json-object", "{\"name\":\"Acme\",\"n\":5}", '12af75a9a71e113e', "{ \"name\": \"Acme\", \"n\": 5 }"],
   ["json-array", "[{\"Id\":\"001A\",\"Name\":\"A\"},{\"Id\":\"001B\",\"Name\":\"B\"}]", 'b9be47cbfa7eb0c4', "[ { \"Id\": \"001A\", \"Name\": \"A\" }, { \"Id\": \"001B\", \"Name\": \"B\" } ]"],
   ["json-pretty-attributes", "[\n  {\n    \"attributes\": {\n      \"type\": \"Account\",\n      \"url\": \"/services/data/v62.0/sobjects/Account/001Hn00001\"\n    },\n    \"Id\": \"001Hn00001\",\n    \"Name\": \"Acme Corp\",\n    \"Industry\": \"Technology\",\n    \"AnnualRevenue\": 1250000\n  },\n  {\n    \"Id\": \"001Hn00002\",\n    \"Name\": \"Globex\",\n    \"Industry\": \"Energy\",\n    \"AnnualRevenue\": null\n  }\n]", '0259b39755694e0b', "[ { \"Id\": \"001Hn00001\", \"Name\": \"Acme Corp\", \"Industry\": \"Technology\","],
@@ -113,11 +109,11 @@ const GOOD_CASES = [
   ["json-array-prims", "[1, 2, 3]", 'b48a2adffeedc446', "[ 1, 2, 3 ]"],
   ["json-html-in-string", "{\"html\":\"<b>bold</b>\"}", '1c2d978d0ee32196', "{ \"html\": \"<b>bold</b>\" }"],
   ["html-img", "<img src=x onerror=alert(1)>", '2438392f90723ad9', "<img src=x onerror=alert(1)>"],
-  ["html-entities", "&lt;b&gt;bold&lt;/b&gt;", 'd533091407922264', "<b>bold</b>"],
-  ["html-double-encoded", "Value &amp;lt;tag&amp;gt; stays encoded once", '9b2cb6b4b86a626d', "Value &lt;tag&gt; stays encoded once"],
+  ["html-entities", "&lt;b&gt;bold&lt;/b&gt;", '32e7335737644863', "&lt;b&gt;bold&lt;/b&gt;"],
+  ["html-double-encoded", "Value &amp;lt;tag&amp;gt; stays encoded once", '0bf067d93060ec10', "Value &amp;lt;tag&amp;gt; stays encoded once"],
   ["num-list-zero", "(007, 8)", 'e256c035c0d30e80', "(007, 8)"],
-  ["quote-single", "Contact:{LastName=D'Angelo, FirstName=Tom}", '7857896af040def8', "{ \"_apexType\": \"Contact\", \"LastName\": \"D'Angelo\", \"FirstName\": \"Tom\" }"],
-  ["trunc-list", "Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=Tru", '46edd940a0d3d58e', "\"Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=Tru\""]
+  ["quote-single", "Contact:{LastName=D'Angelo, FirstName=Tom}", '4c940ecb823a7db5', "{ \"LastName\": \"D'Angelo\", \"FirstName\": \"Tom\" }"],
+  ["trunc-list", "Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=Tru", 'a94330f6a460e2c8', "Accounts: (Account:{Id=001A, Name=A}, Account:{Id=001B, Name=Tru"]
 ];
 
 // A realistic full log (same as the UI harness log) and the hashes of its views before the fix
@@ -190,7 +186,7 @@ test('regression corpus: full log views (raw highlighting, messages, errors, lim
     'errors:stub-log': P.elements.errorContent.innerHTML,
     'limits:stub-log': P.elements.limitsContent.innerHTML,
   };
-  for (const [id, expectedSha] of [["raw:debug-log", 'f54fa815f7c5fda6'], ["debug-view:stub-log", '30b416472aad7b65'],
+  for (const [id, expectedSha] of [["raw:debug-log", 'f54fa815f7c5fda6'], ["debug-view:stub-log", '3d35d84c6f7053f1'],
     ["errors:stub-log", 'b8d7b854da293634'], ["limits:stub-log", 'c636e40d96d33a09']]) {
     assert.strictEqual(sha(views[id]), expectedSha, `${id} changed`);
   }
@@ -198,25 +194,25 @@ test('regression corpus: full log views (raw highlighting, messages, errors, lim
 
 test('P3: an apostrophe in a value does not merge records (toString has no quotes)', () => {
   assert.deepStrictEqual(parse("(Account:{Name=O'Brien, Id=001A}, Account:{Name=Bob, Id=001B})"), [
-    { _apexType: 'Account', Name: "O'Brien", Id: '001A' },
-    { _apexType: 'Account', Name: 'Bob', Id: '001B' },
+    { Name: "O'Brien", Id: '001A' },
+    { Name: 'Bob', Id: '001B' },
   ]);
   const text = textOf(render(logFor("Accounts: (Account:{Name=O'Brien, Id=001A}, Account:{Name=Bob, Id=001B})")));
-  assert.match(text, /^Accounts: \[ \{ "_apexType": "Account", "Name": "O'Brien"/);
+  assert.match(text, /^Accounts: \[ \{ "Name": "O'Brien"/);
 });
 
 test('P4: keys are split on the first "=" at depth 0 (nested objects, URLs, "=" in values)', () => {
   assert.deepStrictEqual(parse('Wrapper:[acc=Account:{Id=001xx000003DGb2AAG, Name=Acme}, count=5]'),
-    { _apexType: 'Wrapper', acc: { _apexType: 'Account', Id: '001xx000003DGb2AAG', Name: 'Acme' }, count: 5 });
+    { acc: { Id: '001xx000003DGb2AAG', Name: 'Acme' }, count: 5 });
   assert.deepStrictEqual(parse('Account:{Id=001A, Website=https://x.com/?a=1&b=2, Name=Acme}'),
-    { _apexType: 'Account', Id: '001A', Website: 'https://x.com/?a=1&b=2', Name: 'Acme' });
-  assert.deepStrictEqual(parse('Account:{Id=001A, Description=a=b, Name=Acme}'), { _apexType: 'Account', Id: '001A', Description: 'a=b', Name: 'Acme' });
-  assert.deepStrictEqual(parse('Outer:[inner=Inner:[a=1, b=2], c=3]'), { _apexType: 'Outer', inner: { _apexType: 'Inner', a: 1, b: 2 }, c: 3 });
-  assert.deepStrictEqual(parse('(Wrapper:[a=1, b=2], Wrapper:[a=3, b=4])'), [{ _apexType: 'Wrapper', a: 1, b: 2 }, { _apexType: 'Wrapper', a: 3, b: 4 }]);
-  assert.deepStrictEqual(parse('Wrapper:[items=(1, 2, 3), name=x]'), { _apexType: 'Wrapper', items: [1, 2, 3], name: 'x' });
+    { Id: '001A', Website: 'https://x.com/?a=1&b=2', Name: 'Acme' });
+  assert.deepStrictEqual(parse('Account:{Id=001A, Description=a=b, Name=Acme}'), { Id: '001A', Description: 'a=b', Name: 'Acme' });
+  assert.deepStrictEqual(parse('Outer:[inner=Inner:[a=1, b=2], c=3]'), { inner: { a: 1, b: 2 }, c: 3 });
+  assert.deepStrictEqual(parse('(Wrapper:[a=1, b=2], Wrapper:[a=3, b=4])'), [{ a: 1, b: 2 }, { a: 3, b: 4 }]);
+  assert.deepStrictEqual(parse('Wrapper:[items=(1, 2, 3), name=x]'), { items: [1, 2, 3], name: 'x' });
   assert.deepStrictEqual(parse('{a=1, b=(1, 2), c={x=y}}'), { a: 1, b: [1, 2], c: { x: 'y' } });
   // An unclosed bracket inside a text value does not swallow the next fields
-  assert.deepStrictEqual(parse('Account:{Name=Sad :(, Id=001A}'), { _apexType: 'Account', Name: 'Sad :(', Id: '001A' });
+  assert.deepStrictEqual(parse('Account:{Name=Sad :(, Id=001A}'), { Name: 'Sad :(', Id: '001A' });
   const text = textOf(render(logFor('Accounts: (Account:{Id=001A, Name=Acme (US)}, Account:{Id=001B, Name=Beta (UK)})')));
   assert.match(text, /"Name": "Beta \(UK\)"/);
 });
@@ -226,12 +222,17 @@ test('P7: map keys can be objects or contain spaces', () => {
   assert.deepStrictEqual(parse('{first name=Bob, last name=Smith}'), { 'first name': 'Bob', 'last name': 'Smith' });
 });
 
-test('P6: numbers are only converted when nothing is lost', () => {
-  assert.deepStrictEqual(parse('Account:{Id=001A, BillingPostalCode=02134, AccountNumber=00012345678901234567, Big=12345678901234567890}'),
-    { _apexType: 'Account', Id: '001A', BillingPostalCode: '02134', AccountNumber: '00012345678901234567', Big: '12345678901234567890' });
-  assert.deepStrictEqual(parse('Account:{A=250, B=-5, C=1500.5, D=1500.50, E=0.25, F=12345678901234567.5}'),
-    { _apexType: 'Account', A: 250, B: -5, C: 1500.5, D: 1500.5, E: 0.25, F: '12345678901234567.5' });
+test('P6: numbers are shown exactly as Apex printed them; leading zeros stay text', () => {
+  assert.deepStrictEqual(parse('Account:{Id=001A, BillingPostalCode=02134, AccountNumber=00012345678901234567}'),
+    { Id: '001A', BillingPostalCode: '02134', AccountNumber: '00012345678901234567' });
+  assert.deepStrictEqual(parse('Account:{A=250, B=-5, C=1500.5, E=0.25}'), { A: 250, B: -5, C: 1500.5, E: 0.25 });
   assert.deepStrictEqual(parse('(007, 8)'), ['007', 8]);
+  // Numbers a JavaScript number would change keep their text: scale, Long beyond 2^53, Double exponents
+  const html = render(logFor('Account:{Amount=1500.50, Big=12345678901234567890, F=12345678901234567.5, Ratio=1.2345E-5, Lng=-122.39}'));
+  assert.match(textOf(html), /"Amount": 1500\.50, "Big": 12345678901234567890, "F": 12345678901234567\.5, "Ratio": 1\.2345E-5, "Lng": -122\.39/);
+  for (const number of ['1500.50', '12345678901234567890', '1.2345E-5', '-122.39']) {
+    assert.ok(html.includes(`<span class="json-number">${number}</span>`), number);
+  }
 });
 
 test('P6: text before (and after) JSON is kept; only real Salesforce metadata is removed', () => {
@@ -259,8 +260,9 @@ test('P7: JSON highlighting never matches inside strings or its own markup', () 
     '<span class="json-key">"none":</span> <span class="json-null">null</span>}');
 });
 
-test('P7: HTML entities are decoded once', () => {
-  assert.match(render(logFor('Account:{Id=001A, Name=A &amp;lt; B}')), /"A &amp;lt; B"/);
+test('HTML entities in a message are shown as written (log bodies are not HTML-escaped)', () => {
+  assert.strictEqual(textOf(render(logFor('Account:{Id=001A, Name=A &amp; B}'))), '{ "Id": "001A", "Name": "A &amp; B" }');
+  assert.strictEqual(textOf(render(logFor('&lt;b&gt;bold&lt;/b&gt;'))), '&lt;b&gt;bold&lt;/b&gt;');
 });
 
 test('S7: tags inside log text are always shown as text', () => {
@@ -343,7 +345,7 @@ test('R3: the same log is parsed once and the result is re-used', () => {
   assert.strictEqual(P.parseDebugLogContent(log), P.parseDebugLogContent(log));
 });
 
-test('P1: big and odd messages are formatted fast (40 KB unclosed braces under 200 ms)', () => {
+test('P1: big and odd messages (up to 300 KB) are formatted fast (under 200 ms each)', () => {
   const unclosed = 'Processing ' + Array.from({ length: 3100 }, (_, i) => `item${i}={ok}`).join(' ') + ' then {"partial":';
   assert.ok(unclosed.length > 40000);
   const record = (i) => `Account:{Id=001A0000000${i}, Name=Acct ${i}, Website=https://x.com/?a=1&b=2}`;
@@ -354,6 +356,11 @@ test('P1: big and odd messages are formatted fast (40 KB unclosed braces under 2
     'a:{'.repeat(15000),
     '('.repeat(45000),
   ];
+  // Up to the toString limit (300 KB): texts that made the old checks quadratic (seconds per message)
+  const limit = P.MAX_TOSTRING_MESSAGE_LENGTH - 100;
+  inputs.push('a=('.repeat(limit / 3), 'x:\n"['.repeat(limit / 5), '"[' + '='.repeat(limit), '[{'.repeat(limit / 2) + '"x"',
+    'A:[a='.repeat(limit / 5) + ']'.repeat(limit / 5), 'Label A:{a=' + ')'.repeat(limit) + '}',
+    Array.from({ length: limit / 20 }, (_, i) => `x A:{a=${i}}`).join(' '));
   for (const input of inputs) {
     const start = process.hrtime.bigint();
     P.containsSalesforceObjects(input);
@@ -365,11 +372,24 @@ test('P1: big and odd messages are formatted fast (40 KB unclosed braces under 2
   }
 });
 
-test('P1: messages over the size limit are shown as escaped text without structure parsing', () => {
-  const big = 'Account:{Name=<b>x</b>, ' + 'Field=value, '.repeat(5000) + 'Id=001A}';
-  assert.ok(big.length > P.MAX_STRUCTURED_MESSAGE_LENGTH);
+test('P1: toString messages over 300 KB are shown as escaped text without structure parsing', () => {
+  const big = 'Account:{Name=<b>x</b>, ' + 'Field=value, '.repeat(25000) + 'Id=001A}';
+  assert.ok(big.length > P.MAX_TOSTRING_MESSAGE_LENGTH);
   const html = render(logFor(big));
   assert.ok(!html.includes('json-key') && html.includes('&lt;b&gt;x&lt;/b&gt;'));
+});
+
+test('P1: JSON up to 2 MB is formatted (Console.log of many records), longer JSON is text', () => {
+  const records = (n) => JSON.stringify(Array.from({ length: n }, (_, i) => ({ attributes: { type: 'Account', url: '/x/001A' + i }, Id: '001A' + i, Name: 'Account ' + i })), null, 2);
+  const medium = 'Account List\n' + records(3000);
+  assert.ok(medium.length > P.MAX_TOSTRING_MESSAGE_LENGTH && medium.length < P.MAX_JSON_MESSAGE_LENGTH);
+  const start = process.hrtime.bigint();
+  const text = textOf(render(logFor(medium)));
+  assert.ok(Number(process.hrtime.bigint() - start) / 1e6 < 1000, 'formats in under a second');
+  assert.match(text, /^Account List \[ \{ "Id": "001A0", "Name": "Account 0" \}/);
+  const huge = records(30000);
+  assert.ok(huge.length > P.MAX_JSON_MESSAGE_LENGTH);
+  assert.ok(!render(logFor(huge)).includes('json-key'));
 });
 
 test('Console.log(label, value) is one debug message: the label above the formatted JSON', () => {
@@ -379,4 +399,96 @@ test('Console.log(label, value) is one debug message: the label above the format
   const html = render(logFor('Account List\n[ {\n  "attributes" : {\n    "type" : "Account",\n    "url" : "/services/data/v62.0/sobjects/Account/001A"\n  },\n  "Name" : "Acme"\n} ]'));
   assert.match(html, /<span class="content-prefix">Account List<\/span>/);
   assert.match(textOf(html), /^Account List \[ \{ "Name": "Acme" \} \]$/);
+});
+
+// Real System.debug and Console.log output, captured on 2026-10-04 in a Developer Edition org (API 67) with anonymous
+// Apex and a test class (wrappers, inner classes, inheritance, enums, a toString override). Record Ids are
+// anonymised; the [line] field of each USER_DEBUG line holds the scenario name (see System.debug.md, section 7).
+const REAL_LOG = fs.readFileSync(path.join(__dirname, 'fixtures', 'real-org-debug.log'), 'utf8');
+const REAL = (() => {
+  const names = [...REAL_LOG.matchAll(/\|USER_DEBUG\|\[([^\]]+)\]\|/g)].map(m => m[1]);
+  const messages = P.extractUserDebugBlocks(REAL_LOG).map(m => m.message);
+  return Object.fromEntries(names.map((name, i) => [name, messages[i]]));
+})();
+const realText = (name) => textOf(render(logFor(REAL[name])));
+
+test('real org output: every message is formatted (or text) without type names, broken keys, fake items or changed numbers', () => {
+  assert.strictEqual(Object.keys(REAL).length, 77);
+  // Shown as text: values Salesforce prints as plain text, a label with a simple map or set, and two sets in one message
+  const TEXT = new Set(['S11', 'S12', 'S13', 'S14', 'S16', 'S21', 'S24', 'S30', 'Q02', 'Q09', 'Q11', 'Q13', 'M6', 'M7', 'M8', 'M10', 'R02', 'R03']);
+  for (const [name, message] of Object.entries(REAL)) {
+    const formatted = P.isStructuredMessage(message) && P.extractAndParseSalesforceObjects(message) !== null;
+    const text = textOf(render(logFor(message)));
+    assert.strictEqual(formatted, !TEXT.has(name), `${name}: ${text.slice(0, 100)}`);
+    assert.doesNotMatch(text, /_apexType|"[^"]*=[^"]*": null|"\.\.\."|, \.\.\."|"attributes"/, name);
+    for (const exact of ['9007199254740993', '10.50', '1.2345E-5', '&amp; done']) {
+      if (message.includes(exact)) assert.ok(text.includes(exact), `${name} keeps ${exact}`);
+    }
+  }
+});
+
+test('real org output: records, classes and system classes read as Salesforce printed them', () => {
+  // A street with line breaks (and no postal code) in a compound address
+  const accounts = parse(REAL.S01);
+  assert.strictEqual(accounts.length, 3);
+  assert.deepStrictEqual(accounts[2].BillingAddress, { street: '312 Constitution Place\nAustin, TX 78767\nUSA', city: 'Austin',
+    state: 'TX', country: 'United States', stateCode: 'TX', countryCode: 'US' });
+  assert.deepStrictEqual(parse(REAL.S22), { Name: 'Multi', Description: 'line1\nline2\nline3' });
+  // One-item lists stay lists, also a list with one custom class
+  assert.deepStrictEqual(parse(REAL.S04), [{ AccountId: '001xx00000T32F6AAJ', Id: '003xx00000NAXzIAAX', LastName: 'Rogers' }]);
+  const wrappers = parse(REAL.S08);
+  assert.strictEqual(wrappers.length, 1);
+  assert.deepStrictEqual(Object.keys(wrappers[0]), ['acc', 'count', 'detail', 'name', 'scores', 'tags']);
+  assert.strictEqual(wrappers[0].name, 'Test, with comma');
+  // Inherited fields (BaseItem.price) by their own name
+  assert.deepStrictEqual(parse(REAL.M3)[0], { price: 10.5, sku: 'SKU-1', lineStatus: 'ACTIVE', note: 'transient note', quantity: 2, secret: 'hidden', total: null });
+  // ", name=value" inside a text field stays in that field (class fields are printed sorted)
+  const order = parse(REAL.M1);
+  assert.strictEqual(order.trickyText, 'a, b=c [d] {e} (f) :g; h\nsecond line\ttab "q" \'s\' <b>bold</b> &amp; done');
+  assert.strictEqual(order.customer.shipping, '(same object as above)');
+  assert.deepStrictEqual(order.customer.addressesByType.billing.lines, ['Floor 2']);
+  // ...but a toString() override that only looks like a class keeps every field
+  assert.deepStrictEqual(parse('Response:[status=200, body=OK]'), { status: 200, body: 'OK' });
+  // System classes
+  assert.deepStrictEqual(parse(REAL.S18), { errors: [{ fields: ['Name'], message: 'Required fields are missing: [Name]', statusCode: 'REQUIRED_FIELD_MISSING' }],
+    id: null, isSuccess: false });
+  assert.strictEqual(realText('Q07'), 'Q07 { "latitude": 37.79, "longitude": -122.39 }');
+  assert.deepStrictEqual(parse(REAL.S26), { Endpoint: 'https://example.com/api', Method: 'POST' });
+  // Shared references, explicit nulls, empty strings and a custom exception
+  assert.strictEqual(realText('Q12'), 'Q12 [ { "city": "Dhaka", "lines": [], "street": null }, "(same object as above)" ]');
+  assert.strictEqual(realText('Q06'), 'Q06 { "Name": "Nulls", "Phone": null, "Website": "" }');
+  assert.strictEqual(realText('M10'), 'ProbeException: Order ORD-001 failed: [SKU-1] out of stock');
+});
+
+test("real org output: Salesforce's 10-item cut is a note under the value, not an item", () => {
+  for (const name of ['S25', 'R2-SET10', 'R2-MAP10', 'M14']) {
+    assert.match(render(logFor(REAL[name])), /<span class="content-note">Salesforce prints only the first 10 items of a list, set or map\. Use Console\.log to see all of them\.<\/span>/, name);
+  }
+  assert.strictEqual(parse(REAL.S25).length, 10);
+  const map = parse(REAL['R2-MAP10']);
+  assert.strictEqual(Object.keys(map).length, 10);
+  assert.strictEqual(map['9'], 'v9');
+});
+
+test('real org output: Console.log / JSON keeps exact numbers and drops only Salesforce metadata', () => {
+  const text = realText('M15');
+  assert.match(text, /"bigNumber": 9007199254740993/);
+  assert.match(text, /"price": 10\.50, "total": 21\.00/);
+  assert.match(text, /"ratio": 1\.2345E-5/);
+  assert.match(text, /&amp; done/);
+  assert.strictEqual(realText('J1'), '{ "Name": "Unsaved" }');
+  assert.doesNotMatch(realText('J2'), /attributes|"done"/);
+});
+
+test('text around values: each value is formatted where it is, the text stays text', () => {
+  const html = render(logFor('Old: Account:{Name=A, Phone=1} New: Account:{Name=B, Phone=2}'));
+  assert.strictEqual(textOf(html), 'Old: { "Name": "A", "Phone": 1 } New: { "Name": "B", "Phone": 2 }');
+  assert.match(html, /<span class="content-prefix">New:<\/span>/);
+  assert.strictEqual(textOf(render(logFor('Before (Account:{Name=A}) after'))), 'Before [ { "Name": "A" } ] after');
+  assert.match(realText('S29'), /^Before \{ "Id": .* \} after$/);
+  // Stray brackets in a text value
+  assert.strictEqual(textOf(render(logFor('Label Account:{Name=Smile :)}'))), 'Label { "Name": "Smile :)" }');
+  assert.strictEqual(textOf(render(logFor('Label Account:{Name=Unclosed { brace}'))), 'Label { "Name": "Unclosed { brace" }');
+  // Two sets are not read as one
+  assert.strictEqual(realText('S30'), '{x, y} {1, 2}');
 });

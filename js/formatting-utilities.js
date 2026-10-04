@@ -1,12 +1,17 @@
 // Formatting Utilities
 // This file contains functions for JSON highlighting, governor limits formatting, and main object extraction
 
-// Debug messages longer than this are not structure-parsed (they are shown as escaped text)
-const MAX_STRUCTURED_MESSAGE_LENGTH = 50000;
+// Debug messages longer than these are shown as escaped text. JSON (Console.log, JSON.serialize) is read in
+// linear time; toString text is split level by level, so it gets a lower limit.
+const MAX_JSON_MESSAGE_LENGTH = 2000000;
+const MAX_TOSTRING_MESSAGE_LENGTH = 300000;
+
+// Shown under a value when Salesforce left out items (it prints the first 10 of a list, set or map, then "...")
+const TOSTRING_CUT_NOTE = 'Salesforce prints only the first 10 items of a list, set or map. Use Console.log to see all of them.';
 
 // One pass over escaped JSON: a key string, a ": value" pair, or any other string (read whole,
 // so a ":" or digits inside a string are never highlighted)
-const JSON_KEY_VALUE_TOKEN = /("(?:[^"\\]|\\.)*")(?=\s*:)|:\s*("(?:[^"\\]|\\.)*"|\d+\.?\d*|true\b|false\b|null\b)|"(?:[^"\\]|\\.)*"/g;
+const JSON_KEY_VALUE_TOKEN = /("(?:[^"\\]|\\.)*")(?=\s*:)|:\s*("(?:[^"\\]|\\.)*"|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?|true\b|false\b|null\b)|"(?:[^"\\]|\\.)*"/g;
 
 // Simple JSON key highlighting only
 function highlightJsonKeys(jsonString) {
@@ -18,7 +23,7 @@ function highlightJsonKeys(jsonString) {
       if (value === undefined) {
         return token;
       }
-      const type = value.startsWith('"') ? 'json-string' : /^\d/.test(value) ? 'json-number' : 'json-boolean';
+      const type = value.startsWith('"') ? 'json-string' : /^-?\d/.test(value) ? 'json-number' : 'json-boolean';
       return `: <span class="${type}">${value}</span>`;
     });
   } catch (error) {
@@ -90,202 +95,161 @@ function formatGovernorLimits(limitsText) {
   }
 }
 
-// Start/end of the rightmost top-level (...) group that holds Salesforce objects, or null (one linear scan)
-function findLastSObjectListGroup(text) {
-  const paired = pairedBrackets(text);
-  let depth = 0;
-  let groupStart = -1;
-  let last = null;
+// For each bracket, the index of the bracket that pairs with it, or -1 (same pairing as pairedBrackets)
+function bracketPartners(text) {
+  const partner = new Int32Array(text.length).fill(-1);
+  const openers = [];
   for (let i = 0; i < text.length; i++) {
-    if (!paired[i]) continue;
     const char = text[i];
     if (char === '(' || char === '{' || char === '[') {
-      if (depth === 0) groupStart = char === '(' ? i : -1;
-      depth++;
-    } else {
-      depth--;
-      if (depth === 0 && groupStart !== -1 && char === ')' && hasTypedBodyWithEquals(text.slice(groupStart, i + 1), '{', '}')) {
-        last = { start: groupStart, end: i + 1 };
-      }
+      openers.push(i);
+    } else if ((char === ')' || char === '}' || char === ']') && openers.length > 0) {
+      const open = openers.pop();
+      partner[open] = i;
+      partner[i] = open;
     }
   }
-  return last;
+  return partner;
 }
 
-// Same result as /^([^<stop>]*?)(\w+:<open>.*<close>)$/s ("Some text Account:{...}"), in linear time:
-// the object starts at the word before the first stop character, which must be "<word>:<open>"
-function matchTypedObjectTail(text, open, close, stopChars) {
-  if (!text.endsWith(close)) return null;
-  let first = 0;
-  while (first < text.length && !stopChars.includes(text[first])) first++;
-  if (first < 2 || text[first] !== open || text[first - 1] !== ':' || !/\w/.test(text[first - 2])) return null;
-  let start = first - 2;
-  while (start > 0 && /\w/.test(text[start - 1])) start--;
-  return [text, text.slice(0, start), text.slice(start)];
+// Start of the type name when the bracket at i opens a record, class or system object
+// ("Account:{", "Wrapper:[", "Database.SaveResult["), else -1
+function typedValueStart(text, i) {
+  const char = text[i];
+  if ((char === '{' || char === '[') && text[i - 1] === ':' && i >= 2 && /\w/.test(text[i - 2])) {
+    let start = i - 2;
+    while (start > 0 && /\w/.test(text[start - 1])) start--;
+    return start;
+  }
+  if (char === '[' && i >= 1 && /\w/.test(text[i - 1])) {
+    let start = i - 1;
+    while (start > 0 && /[\w.]/.test(text[start - 1])) start--;
+    return /^[A-Za-z]\w*(?:\.\w+)+$/.test(text.slice(start, i)) ? start : -1;
+  }
+  return -1;
 }
 
-function extractAndParseSalesforceObjects(text) {
-  if (!text) return escapeHtml(text);
+const TYPED_VALUE_AT = /\w+:[{[]/y;
 
-  // The caller has already decoded HTML entities (once)
-  let decodedText = text;
+// The values in a message and the text around them: { segments: [{ text } | { value }], cut }, or null when the
+// message holds no value. The whole message can be one value of any kind ({1, 2, 3}); inside text, a value is a
+// record or class (Type:{...}, Class:[...]), a system object (Ns.Type[...]), or a list, set or map holding them.
+// A value that does not close (the message was cut) leaves the whole message as text.
+function splitValueSegments(text) {
+  const whole = parseApexValueText(text);
+  if (whole) return { segments: [{ value: whole.value }], cut: whole.cut };
 
-  // First, try to clean Salesforce API responses (JSON with attributes/metadata)
-  try {
-    const cleanedResponse = cleanSalesforceResponse(decodedText);
-    if (cleanedResponse && cleanedResponse.json !== decodedText) {
-      // Keep the text around the JSON, e.g. "Response:" in "Response: {...}"
-      let highlightedJson = highlightJsonKeys(cleanedResponse.json);
-      if (cleanedResponse.prefix) {
-        highlightedJson = `<span class="content-prefix">${escapeHtml(cleanedResponse.prefix)}</span>\n${highlightedJson}`;
-      }
-      if (cleanedResponse.suffix) {
-        highlightedJson = `${highlightedJson}\n<span class="content-prefix">${escapeHtml(cleanedResponse.suffix)}</span>`;
-      }
-      return highlightedJson;
-    }
-  } catch (error) {
-    // Continue with original parsing if cleaning fails
+  const partner = bracketPartners(text);
+  const typedStart = new Int32Array(text.length).fill(-1);
+  const typedBefore = new Int32Array(text.length + 1);
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === '(' || text[i] === '{' || text[i] === '[') typedStart[i] = typedValueStart(text, i);
+    typedBefore[i + 1] = typedBefore[i] + (typedStart[i] >= 0 ? 1 : 0);
   }
 
-  // Check for multi-line Salesforce object pattern: ObjectName:\n"[...]"
-  const multiLineMatch = decodedText.match(/^(\w+):[^\S\r\n]*[\r\n]\s*"(\[.*\])"$/s);
-  if (multiLineMatch) {
-    const [, objectName, content] = multiLineMatch;
-
-    try {
-      // Parse the content inside the quotes
-      const parsed = {
-        [objectName]: parseComplexContent(content.slice(1, -1)) // Remove [ and ]
-      };
-      const jsonString = JSON.stringify(parsed, null, 2);
-      const highlightedJson = highlightJsonKeys(jsonString);
-      return highlightedJson;
-    } catch (error) {
-      return escapeHtml(decodedText);
+  const last = text.length - 1;
+  const firstBracket = text.search(/[({[]/);
+  const segments = [];
+  let cut = false;
+  let textStart = 0;
+  let triedToEnd = false;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char !== '(' && char !== '{' && char !== '[') continue;
+    const end = partner[i];
+    let start = typedStart[i];
+    if (start < 0 && char !== '[') {
+      // A list, set or map counts when it holds a record or class, or when it follows a label to the end of
+      // the message ("Prices: {a=1, b=2}")
+      TYPED_VALUE_AT.lastIndex = i + 1;
+      const holdsTyped = end > i ? typedBefore[end] - typedBefore[i + 1] > 0 : TYPED_VALUE_AT.test(text);
+      if (holdsTyped || (i === firstBracket && end === last)) start = i;
     }
-  }
+    if (start < textStart) continue;
 
-  // Convert literal \n sequences to spaces for single-line processing
-  // But preserve actual newlines for JSON.serializePretty() output
-  decodedText = decodedText
-    .replace(/\\n/g, ' ');
-
-  // Try to find where the Salesforce object data starts
-  let objectPart = decodedText;
-  let prefix = '';
-
-  // First, try to find the rightmost parentheses group containing Salesforce objects
-  const lastParenGroup = findLastSObjectListGroup(decodedText);
-
-  // If we found parentheses groups with Salesforce objects, use the rightmost one
-  if (lastParenGroup) {
-    prefix = decodedText.substring(0, lastParenGroup.start).trim();
-    objectPart = decodedText.substring(lastParenGroup.start, lastParenGroup.end);
-  } else {
-    // Fallback to original pattern matching
-    // Look for common patterns where object data starts
-    // (patterns that can only match a text with a given last character are skipped otherwise)
-    const patterns = [
-      // Pattern: "Full Account → Account:{Id=001..., Name=...}"
-      /^([^→]*→\s*)(\w+:\{.*\})$/s,
-      // Pattern: "Some text:(Account:{...}, Contact:{...})"
-      decodedText.endsWith(')') ? /^([^(]*?)(\([^)]*\w:\{.*\))$/s : null,
-      // Pattern: "Some text Account:{...}"
-      (t) => matchTypedObjectTail(t, '{', '}', '{'),
-      // Pattern: "Some text Account:[...]"
-      (t) => matchTypedObjectTail(t, '[', ']', '{[]'),
-      // Pattern: "Some text {"key":"value",...}"
-      /^([^{[\]]*?)([\{\[].*[\}\]])$/s,
-      // Pattern: Multi-line JSON from JSON.serializePretty
-      /^([^{[\]]*?)([\{\[][\s\S]*[\}\]])$/,
-      // Pattern: Quoted content "[key=value, ...]"
-      /\]"?$/.test(decodedText) ? /^([^"]*)("?\[.*\]"?)$/s : null,
-      // Pattern: Direct object/array (no prefix)
-      /^()([\{\[].*[\}\]])$/s,
-      // Pattern: Direct Salesforce object (no prefix)
-      /^()(\w+:\{.*\})$/s
-    ];
-
-    for (const pattern of patterns) {
-      if (!pattern) continue;
-      const match = typeof pattern === 'function' ? pattern(decodedText) : decodedText.match(pattern);
-      if (match) {
-        prefix = match[1];
-        objectPart = match[2];
+    // The value ends at its closing bracket. A stray bracket in a text value (e.g. "Smile :)") can pair with the
+    // wrong one, so the value may also run to the end of the message (tried once, so long texts stay fast).
+    const ends = end > i ? [end] : [];
+    if (!triedToEnd && end !== last && BRACKET_CLOSERS[char] === text[last]) ends.push(last);
+    let found = null;
+    for (const valueEnd of ends) {
+      if (valueEnd === last && valueEnd !== end) triedToEnd = true;
+      const ctx = { cut: false };
+      const value = parseStructure(text.slice(start, valueEnd + 1), 1, ctx);
+      if (value !== undefined) {
+        found = { value, end: valueEnd, cut: ctx.cut };
         break;
       }
     }
+    if (!found) {
+      if (end < 0) return null;
+      continue;
+    }
+    if (start > textStart) segments.push({ text: text.slice(textStart, start) });
+    segments.push({ value: found.value });
+    cut = cut || found.cut;
+    textStart = found.end + 1;
+    i = found.end;
   }
+  if (segments.length === 0) return null;
+  if (textStart <= last) segments.push({ text: text.slice(textStart) });
+  return { segments, cut };
+}
+
+// Text around a value: one label line per line of text
+function textLinesHtml(text) {
+  const trimmed = (text || '').trim();
+  return trimmed ? trimmed.split('\n').map(line => `<span class="content-prefix">${escapeHtml(line)}</span>`).join('\n') : '';
+}
+
+// Formats a debug message that holds JSON or toString values: each value as highlighted JSON, the text around
+// it as label lines. Returns null when nothing can be formatted (the caller shows the message as text).
+function extractAndParseSalesforceObjects(text) {
+  if (!text) return null;
+
+  // JSON (Console.log, JSON.serialize): the whole message or its last {...} / [...] block, without Salesforce
+  // metadata, and the text around it (e.g. "Response:" in "Response: {...}")
+  if (text.length <= MAX_JSON_MESSAGE_LENGTH) {
+    try {
+      const cleaned = cleanSalesforceResponse(text);
+      if (cleaned && /^[[{]/.test(cleaned.json)) {
+        return [textLinesHtml(cleaned.prefix), highlightJsonKeys(cleaned.json), textLinesHtml(cleaned.suffix)].filter(Boolean).join('\n');
+      }
+      // The whole message is one JSON string, e.g. System.debug(JSON.serialize('text')): show the text
+      if (cleaned && cleaned.json.startsWith('"') && !cleaned.prefix && !cleaned.suffix) {
+        return escapeHtml(JSON.parse(cleaned.json));
+      }
+    } catch (error) {
+      // Not JSON: continue with toString values
+    }
+  }
+  if (text.length > MAX_TOSTRING_MESSAGE_LENGTH) return null;
 
   try {
-    let parsed;
-    let jsonString;
-
-    // First, try to parse the entire objectPart as JSON (including potential quoted strings)
-    let tryJsonFirst = false;
-    let originalObjectPart = objectPart;
-
-    // Check if it looks like JSON (starts with {, [, or ")
-    if (objectPart.trim().startsWith('{') || objectPart.trim().startsWith('[') || objectPart.trim().startsWith('"')) {
-      tryJsonFirst = true;
+    // Multi-line object: ObjectName:\n"[key=value, ...]"
+    const multiLineMatch = text.match(/^(\w+):[^\S\r\n]*[\r\n]\s*"(\[.*\])"$/s);
+    if (multiLineMatch) {
+      const [, objectName, content] = multiLineMatch;
+      return highlightJsonKeys(JSON.stringify({ [objectName]: parseComplexContent(content.slice(1, -1)) }, null, 2));
     }
 
-    if (tryJsonFirst) {
-      try {
-        parsed = JSON.parse(objectPart);
-
-        // Check if parsed result is a simple string (not object/array)
-        if (typeof parsed === 'string') {
-          // Return the plain string without JSON quotes
-          const escapedString = escapeHtml(parsed);
-          if (prefix.trim()) {
-            const escapedPrefix = escapeHtml(prefix.trim());
-            return `<span class="content-prefix">${escapedPrefix}</span>\n${escapedString}`;
-          } else {
-            return escapedString;
-          }
-        }
-
-        // For objects and arrays, format as JSON
-        jsonString = JSON.stringify(parsed, null, 2);
-      } catch (jsonError) {
-        // JSON parsing failed, continue with other parsing methods
-        tryJsonFirst = false;
-      }
+    const found = splitValueSegments(text.trim());
+    if (found) {
+      const lines = found.segments.map(segment => 'value' in segment
+        ? highlightJsonKeys(JSON.stringify(segment.value, null, 2))
+        : textLinesHtml(segment.text));
+      if (found.cut) lines.push(`<span class="content-note">${escapeHtml(TOSTRING_CUT_NOTE)}</span>`);
+      return lines.filter(Boolean).join('\n');
     }
 
-    // If we haven't successfully parsed as JSON yet, try other methods
-    if (!tryJsonFirst || !jsonString) {
-      // Remove surrounding quotes if present (for non-JSON quoted content)
-      if (objectPart.startsWith('"') && objectPart.endsWith('"')) {
-        objectPart = objectPart.slice(1, -1);
-      }
-
-      // Check if it's Salesforce notation or array content
-      if (objectPart.trim().startsWith('[') && objectPart.trim().endsWith(']')) {
-        // Handle quoted array content: [key=value, key=value]
-        const arrayContent = objectPart.slice(1, -1); // Remove [ and ]
-        parsed = parseComplexContent(arrayContent);
-        jsonString = JSON.stringify(parsed, null, 2);
-      } else {
-        // Try to parse as Salesforce object notation
-        parsed = parseSalesforceObjectNotation(objectPart);
-        jsonString = JSON.stringify(parsed, null, 2);
-      }
+    // Quoted key=value list: Label "[key=value, ...]"
+    const quoteStart = text.indexOf('"[');
+    if (text.endsWith(']"') && quoteStart !== -1 && text.indexOf('=', quoteStart) !== -1 && !text.slice(0, quoteStart).includes('"')) {
+      const parsed = parseComplexContent(text.slice(quoteStart + 2, -2));
+      return [textLinesHtml(text.slice(0, quoteStart)), highlightJsonKeys(JSON.stringify(parsed, null, 2))].filter(Boolean).join('\n');
     }
-
-    const highlightedJson = highlightJsonKeys(jsonString);
-
-    // Combine prefix (if any) with formatted JSON
-    if (prefix.trim()) {
-      const escapedPrefix = escapeHtml(prefix.trim());
-      return `<span class="content-prefix">${escapedPrefix}</span>\n${highlightedJson}`;
-    } else {
-      return highlightedJson;
-    }
-  } catch (e) {
-    // If all parsing fails, just escape the decoded text
-    return escapeHtml(decodedText);
+  } catch (error) {
+    // Shown as text
   }
-} 
+  return null;
+}

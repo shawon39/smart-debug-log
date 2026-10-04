@@ -32,7 +32,7 @@ function cleanSalesforceResponse(rawText) {
 function removeUnwantedFields(data) {
   if (Array.isArray(data)) {
     return data.map(item => removeUnwantedFields(item));
-  } else if (data && typeof data === 'object') {
+  } else if (data && typeof data === 'object' && !isRawJson(data)) {
     const isQueryResult = 'totalSize' in data && 'done' in data && 'records' in data;
     const cleaned = {};
     
@@ -52,9 +52,24 @@ function removeUnwantedFields(data) {
   return data;
 }
 
+// A record's attributes: { type, url }, or { type } alone for a record that is not saved yet
 function isRecordAttributes(value) {
-  return !!value && typeof value === 'object' && !Array.isArray(value) &&
-    typeof value.type === 'string' && typeof value.url === 'string';
+  return !!value && typeof value === 'object' && !Array.isArray(value) && typeof value.type === 'string' &&
+    (value.url === undefined || typeof value.url === 'string') &&
+    Object.keys(value).every(key => key === 'type' || key === 'url');
+}
+
+function isRawJson(value) {
+  return typeof JSON.isRawJSON === 'function' && JSON.isRawJSON(value);
+}
+
+// JSON.parse reviver that keeps numbers as written (10.50, 9007199254740993); see exactNumber in basic-parsing.js
+function keepNumberText(key, value, context) {
+  if (typeof value === 'number' && context && typeof context.source === 'string') {
+    const number = exactNumber(context.source);
+    if (number !== undefined) return number;
+  }
+  return value;
 }
 
 // Extracts JSON from a raw text string: the whole text, or else the last {...} / [...] block in it.
@@ -62,7 +77,7 @@ function isRecordAttributes(value) {
 function extractJsonFromText(text) {
   // First try direct parsing
   try {
-    const data = JSON.parse(text.trim());
+    const data = JSON.parse(text.trim(), keepNumberText);
     const start = text.length - text.trimStart().length;
     return { data, start, end: start + text.trim().length };
   } catch (e) {
@@ -75,7 +90,7 @@ function extractJsonFromText(text) {
   }
     
   try {
-    return { data: JSON.parse(text.slice(block.start, block.end)), start: block.start, end: block.end };
+    return { data: JSON.parse(text.slice(block.start, block.end), keepNumberText), start: block.start, end: block.end };
   } catch (e) {
     return null;
   }

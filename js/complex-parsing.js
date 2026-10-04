@@ -6,7 +6,7 @@ function parseComplexContent(content) {
   try {
     // This function handles complex content that can contain key=value pairs
     // and nested collections like Bookmarks=(Bookmark:[...], Bookmark:[...])
-    return parseEntries(content, 1, true);
+    return parseFields(content, 'record', 1, { cut: false });
   } catch (error) {
     return content;
   }

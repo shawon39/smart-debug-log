@@ -684,6 +684,12 @@
   transition: color 0.3s ease;
 }
 
+/* Note under a formatted value, e.g. that Salesforce left out list items */
+.content-note {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* Debug message pre styling */
 .debug-message-pre {
   margin: 0;

@@ -97,6 +97,8 @@ function cacheElements() {
     dismissWarningBtn: document.getElementById('dismissWarningBtn'),
     revokeTokenDashboardBtn: document.getElementById('revokeTokenDashboardBtn'),
     logLimit: document.getElementById('logLimit'),
+    logFilter: document.getElementById('logFilter'),
+    logsFilterNote: document.getElementById('logsFilterNote'),
     refreshLogsBtn: document.getElementById('refreshLogsBtn'),
     clearLogsBtn: document.getElementById('clearLogsBtn'),
     markAllReadBtn: document.getElementById('markAllReadBtn'),
@@ -176,6 +178,13 @@ function setupEventListeners() {
   logLimit?.addEventListener('change', async () => {
     savePreferences();
     await loadDebugLogs();
+  });
+
+  elements.logFilter?.addEventListener('change', () => setLogFilter(elements.logFilter.value));
+  elements.logsFilterNote?.addEventListener('click', (e) => {
+    const action = e.target.closest('[data-filter-action]')?.dataset.filterAction;
+    if (action === 'delete-empty') deleteEmptyLogs();
+    else if (action) setLogFilter(action);
   });
 
   logTypeFilter?.addEventListener('change', async () => {
@@ -455,9 +464,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       // If logs are currently displayed, remove them from view
       if (typeof debugLogs !== 'undefined' && Array.isArray(debugLogs)) {
         const shownCount = debugLogs.length;
+        const loadedCount = loadedLogs.length;
         loadedLogs = loadedLogs.filter(log => !logIdSet.has(log.Id));
 
-        if (debugLogs.some(log => logIdSet.has(log.Id))) {
+        // Hidden logs count too: the line under the list says how many the filter hides
+        if (loadedLogs.length !== loadedCount) {
           // Re-render the log list (keeps the number of shown logs, filling up from the loaded ones)
           showLoadedLogs(shownCount);
         }

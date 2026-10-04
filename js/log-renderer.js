@@ -28,8 +28,9 @@ class LogRenderer {
   /**
    * Shows empty state when no logs are available
    * @param {Error} [error] - Why the logs could not be loaded; without it the normal "no logs" text is shown
+   * @param {{title: string, text: string}} [reason] - Other text (the filter hides every log)
    */
-  showEmptyState(error = null) {
+  showEmptyState(error = null, reason = null) {
     const { logsLoading, emptyState, logsList } = elements;
     logsLoading.classList.add('hidden');
     emptyState.classList.remove('hidden');
@@ -40,9 +41,9 @@ class LogRenderer {
     if (!this.defaultEmptyState) {
       this.defaultEmptyState = { title: title?.textContent || '', text: text?.textContent || '' };
     }
-    const reason = error ? this.describeLoadError(error) : this.defaultEmptyState;
-    if (title) title.textContent = reason.title;
-    if (text) text.textContent = reason.text;
+    const shown = reason || (error ? this.describeLoadError(error) : this.defaultEmptyState);
+    if (title) title.textContent = shown.title;
+    if (text) text.textContent = shown.text;
     emptyState.classList.toggle('is-error', !!error);
   }
 
@@ -219,6 +220,7 @@ class LogRenderer {
         logCache.setDebugStatus(logId, false);
         logCache.setErrorStatus(logId, false);
         logCache.setExceptionStatus(logId, false);
+        logCache.setEmptyStatus(logId, true);
         this.updateLogIndicator(logId);
         return;
       }
@@ -232,6 +234,7 @@ class LogRenderer {
       logCache.setDebugStatus(logId, parsed.debugMessages.length > 0);
       logCache.setErrorStatus(logId, parsed.errors.hasFatalErrors);
       logCache.setExceptionStatus(logId, parsed.errors.hasExceptions);
+      logCache.setEmptyStatus(logId, isEmptyLogBody(content));
 
       // Show the new indicators on this log (re-rendering the list would also re-run the log search)
       this.updateLogIndicator(logId);

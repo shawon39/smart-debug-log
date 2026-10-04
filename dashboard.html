@@ -139,8 +139,14 @@
       <!-- Search Box for Debug Logs -->
       <div class="log-search-container" id="logSearchContainer">
         <span class="search-icon" data-icon="search" data-size="14"></span>
-        <input type="text" id="logSearchInput" placeholder="Search inside log bodies..." aria-label="Search logs" />
+        <input type="text" id="logSearchInput" placeholder="Search log bodies..." aria-label="Search logs" />
         <span id="logSearchResults" class="log-search-info"></span>
+        <select id="logFilter" aria-label="Which logs to show" title="Useful hides empty logs (under 1 KB, no Apex ran)">
+          <option value="useful" selected>Useful</option>
+          <option value="all">All</option>
+          <option value="debug">With debug</option>
+          <option value="errors">With errors</option>
+        </select>
       </div>
       <div class="panel-content">
         <div class="loading" id="logsLoading">
@@ -153,6 +159,7 @@
           <p>Turn on a trace flag, then run your code</p>
         </div>
         <div class="logs-grid" id="logsList"></div>
+        <div class="logs-filter-note hidden" id="logsFilterNote" aria-live="polite"></div>
       </div>
     </div>
 

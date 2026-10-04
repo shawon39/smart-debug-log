@@ -10,6 +10,7 @@ const MAX_INCREMENTAL_LOGS = 2000;
 class LogLoader {
   constructor() {
     this.batchSize = 3;
+    this.statusChecks = new Map(); // logId -> running body download for the icon statuses
     this.MAX_CACHED_LOGS = 1000; // Prevent unlimited growth
     this.cacheGeneration = 0; // Changes on clearCache(); a load that started before does not write the cache
 
@@ -332,6 +333,21 @@ class LogLoader {
   }
 
   /**
+   * Caches the three icon statuses (debug messages, fatal error, exception) of a log body, and
+   * whether it is empty (no Apex output)
+   * @param {string} logId - Log ID
+   * @param {string} content - Log body
+   */
+  cacheStatusFromContent(logId, content) {
+    // One parse gives all three icons
+    const parsed = parseDebugLogContent(content);
+    logCache.setDebugStatus(logId, parsed.debugMessages.length > 0);
+    logCache.setErrorStatus(logId, parsed.errors.hasFatalErrors);
+    logCache.setExceptionStatus(logId, parsed.errors.hasExceptions);
+    logCache.setEmptyStatus(logId, isEmptyLogBody(content));
+  }
+
+  /**
    * Progressively checks debug status for uncached logs
    * @param {Array} logs - Array of log objects
    * @param {Function} updateCallback - Callback to update UI for individual logs
@@ -350,13 +366,15 @@ class LogLoader {
       // Process each log in the batch using Promise.all for proper async handling
       const batchPromises = batch.map(async (log) => {
         try {
-          const content = await this.getLogContent(log.Id);
-          // One parse gives all three icons
-          const parsed = parseDebugLogContent(content);
-
-          logCache.setDebugStatus(log.Id, parsed.debugMessages.length > 0);
-          logCache.setErrorStatus(log.Id, parsed.errors.hasFatalErrors);
-          logCache.setExceptionStatus(log.Id, parsed.errors.hasExceptions);
+          // A log another check is already downloading is not downloaded twice
+          let check = this.statusChecks.get(log.Id);
+          if (!check) {
+            check = this.getLogContent(log.Id)
+              .then(content => this.cacheStatusFromContent(log.Id, content))
+              .finally(() => this.statusChecks.delete(log.Id));
+            this.statusChecks.set(log.Id, check);
+          }
+          await check;
 
           // Update UI immediately for this specific log
           if (updateCallback) {

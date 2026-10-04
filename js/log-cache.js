@@ -6,6 +6,7 @@ class LogCache {
     this.debugStatusCache = new Map();
     this.errorStatusCache = new Map();
     this.exceptionStatusCache = new Map();
+    this.emptyStatusCache = new Map(); // true when the body has no Apex output (see isEmptyLogBody)
     this.maxCacheSize = 1000; // Maximum number of entries per cache
     this.cleanupThreshold = 800; // When to start cleanup
     this._loadedOrgId = null;
@@ -62,6 +63,7 @@ class LogCache {
       this.debugStatusCache.clear();
       this.errorStatusCache.clear();
       this.exceptionStatusCache.clear();
+      this.emptyStatusCache.clear();
       if (json) {
         const data = JSON.parse(json);
         if (Array.isArray(data)) {
@@ -82,6 +84,9 @@ class LogCache {
             }
             if (typeof status.hasException === 'boolean') {
               this.exceptionStatusCache.set(logId, status.hasException);
+            }
+            if (typeof status.isEmpty === 'boolean') {
+              this.emptyStatusCache.set(logId, status.isEmpty);
             }
           });
         }
@@ -125,6 +130,10 @@ class LogCache {
       this.exceptionStatusCache.forEach((hasException, logId) => {
         if (!result[logId]) result[logId] = { updatedAt: now };
         result[logId].hasException = hasException;
+      });
+      this.emptyStatusCache.forEach((isEmpty, logId) => {
+        if (!result[logId]) result[logId] = { updatedAt: now };
+        result[logId].isEmpty = isEmpty;
       });
       // Prune entries older than 24h just before saving
       const twentyFourHoursMs = 24 * 60 * 60 * 1000;
@@ -236,6 +245,28 @@ class LogCache {
   hasExceptionStatus(logId) {
     this._ensureOrgLoaded();
     return this.exceptionStatusCache.has(logId);
+  }
+
+  /**
+   * Gets whether the log body was found empty (no Apex output)
+   * @param {string} logId - Log ID
+   * @returns {boolean|undefined} Empty status or undefined if the body was not checked
+   */
+  getEmptyStatus(logId) {
+    this._ensureOrgLoaded();
+    return this.emptyStatusCache.get(logId);
+  }
+
+  /**
+   * Sets whether the log body is empty (no Apex output)
+   * @param {string} logId - Log ID
+   * @param {boolean} isEmpty - Whether the body is empty
+   */
+  setEmptyStatus(logId, isEmpty) {
+    this._ensureOrgLoaded();
+    this._ensureCacheSize(this.emptyStatusCache);
+    this.emptyStatusCache.set(logId, isEmpty);
+    this._saveDebounced();
   }
 
   /**

@@ -329,6 +329,18 @@ const USER_DEBUG_LINE = /^\d{2}:\d{2}:\d{2}\.\d+\s+\(\d+\)\|USER_DEBUG\|\[[^\]]*
 // Lines Salesforce adds when it cuts a log that is too big
 const LOG_TRUNCATION_LINE = /^[ \t]*\*{3}[ \t]*(?:Skipped \d+ bytes of detailed log|MAXIMUM DEBUG LOG SIZE REACHED)/;
 
+// A log smaller than this holds no Apex output: only the header and USER_INFO (about 320 bytes),
+// sometimes ENTERING_MANAGED_PKG lines. Any Apex run writes more (its limits summary alone is about 1 KB).
+const EMPTY_LOG_MAX_BYTES = 1024;
+
+// Events a log has even when no code of the org ran
+const EMPTY_LOG_EVENTS = new Set(['USER_INFO', 'ENTERING_MANAGED_PKG', 'EXECUTION_STARTED', 'EXECUTION_FINISHED']);
+
+// True when a log body has no other event (checked before "empty" logs are deleted)
+function isEmptyLogBody(content) {
+  return String(content || '').split('\n').every(line => !LOG_EVENT_LINE.test(line) || EMPTY_LOG_EVENTS.has(line.split('|')[1]));
+}
+
 function isLogTruncationLine(line) {
   return LOG_TRUNCATION_LINE.test(line);
 }

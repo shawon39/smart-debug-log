@@ -19,7 +19,7 @@ async function ensureAutoRefreshDefault() {
 // Preference management
 async function loadPreferences() {
   try {
-    const result = await chrome.storage.local.get(['logLimit', 'autoRefresh', 'logTypeFilter']);
+    const result = await chrome.storage.local.get(['logLimit', 'autoRefresh', 'logTypeFilter', 'logFilter']);
     
     if (result.logLimit && elements.logLimit) {
       elements.logLimit.value = result.logLimit;
@@ -37,6 +37,11 @@ async function loadPreferences() {
     if (logTypeFilter) {
       const logTypeValue = result.logTypeFilter || 'Monitoring';
       logTypeFilter.value = logTypeValue;
+    }
+
+    // Log filter (default 'useful': empty logs are hidden)
+    if (result.logFilter && elements.logFilter) {
+      elements.logFilter.value = result.logFilter;
     }
   } catch (error) {
     // Silent error handling
@@ -60,6 +65,10 @@ async function savePreferences() {
     if (logTypeFilter) {
       preferences.logTypeFilter = logTypeFilter.value;
     }
+
+    if (elements.logFilter) {
+      preferences.logFilter = elements.logFilter.value;
+    }
     
     await chrome.storage.local.set(preferences);
   } catch (error) {
@@ -69,22 +78,26 @@ async function savePreferences() {
 
 // Clear all logs from UI
 function clearAllLogs() {
-  if (!debugLogs || debugLogs.length === 0) {
+  // Logs the log filter hides are cleared too, so an all-hidden list can be cleared
+  const unclearedLogs = loadedLogs.filter(log => !isLogCleared(log.Id));
+  if (unclearedLogs.length === 0) {
     return;
   }
+  stopFilterScan();
   
   // Mark all cached logs as cleared for persistent filtering (per org)
   try {
     const allCachedLogs = (typeof logLoader?.getCachedLogs === 'function') ? (logLoader.getCachedLogs() || []) : [];
-    const targetLogs = allCachedLogs.length > 0 ? allCachedLogs : debugLogs;
+    // The cached list and the shown (loaded) logs are normally the same; marking twice is harmless
+    const targetLogs = allCachedLogs.concat(unclearedLogs);
     targetLogs.forEach(log => {
       if (log?.Id) {
         markLogAsCleared(log.Id);
       }
     });
   } catch (e) {
-    // Fallback to current visible logs
-    debugLogs.forEach(log => {
+    // Fallback to the logs of the last load
+    unclearedLogs.forEach(log => {
       if (log?.Id) {
         markLogAsCleared(log.Id);
       }
@@ -135,6 +148,7 @@ function clearAllLogs() {
 
   // Update stats (debugLogs array remains for future filtering)
   updateStats();
+  updateLogsFilterNote();
   
   // Show confirmation message
   const { clearLogsBtn } = elements;

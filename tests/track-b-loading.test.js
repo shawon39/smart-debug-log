@@ -130,7 +130,7 @@ function makeDashboard({ respond = () => ({ success: true, data: { records: [] }
 }
 
 const iso = (msAgo) => new Date(Date.now() - msAgo).toISOString().replace('Z', '+0000');
-const apexLog = (i, msAgo = i * 60000, location = 'Monitoring') => ({ Id: `07L${String(i).padStart(12, '0')}`, StartTime: iso(msAgo), Location: location, Operation: 'Api', LogLength: 100 });
+const apexLog = (i, msAgo = i * 60000, location = 'Monitoring') => ({ Id: `07L${String(i).padStart(12, '0')}`, StartTime: iso(msAgo), Location: location, Operation: 'Api', LogLength: 5000 });
 
 test('S9: Salesforce URLs are checked by host name, not by text anywhere in the URL', () => {
   const { run } = makeDashboard();
@@ -468,4 +468,165 @@ test('Dashboards opened without ?host= use the detected org for queries and log 
   await d.run(`logLoader.getLogContent('07L1')`);
   assert.deepStrictEqual(d.sent.map(m => [m.type, m.sfHost]), [['EXECUTE_TOOLING_QUERY', 'acme.my.salesforce.com'], ['GET_LOG_CONTENT', 'acme.my.salesforce.com']]);
   assert.strictEqual(d.sent[1].targetHost, 'acme.my.salesforce.com');
+});
+
+// "Show" filter: empty logs (under 1 KB, no Apex ran) and the debug/errors filters
+const HEADER = '67.0 APEX_CODE,FINEST;APEX_PROFILING,INFO;SYSTEM,DEBUG';
+const USER_INFO = '01:48:06.1 (1055041)|USER_INFO|[EXTERNAL]|005g50000095t57|me@example.com|(GMT-07:00) Pacific Daylight Time|GMT-07:00';
+const emptyLog = (i) => ({ ...apexLog(i), LogLength: 323 });
+
+function filterDashboard({ logs, bodies = {}, filter = 'useful' }) {
+  const d = makeDashboard({
+    respond: (msg) => {
+      if (msg.type === 'GET_LOG_CONTENT') return msg.logId in bodies ? { success: true, data: { content: bodies[msg.logId] } } : { success: false, error: 'Network error' };
+      if (msg.type === 'DELETE_APEX_LOGS') return { success: true, data: { deleted: msg.logIds.length, failed: 0, deletedIds: msg.logIds } };
+      return { success: true, data: { records: [] } };
+    },
+  });
+  d.ctx.__logs = logs;
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', 'dashboard-monitoring.js'), 'utf8'), d.ctx, { filename: 'dashboard-monitoring.js' });
+  d.run(`
+    var savePreferences = async () => {};
+    var confirmAnswer = true; var confirm = () => confirmAnswer;
+    elements.logFilter = __getEl('logFilter'); elements.logFilter.value = ${JSON.stringify(filter)};
+    elements.logsFilterNote = __getEl('logsFilterNote');
+    loadedLogs = __logs;
+  `);
+  return d;
+}
+
+test('an empty log body has only the header, USER_INFO or managed package lines', () => {
+  const { run } = makeDashboard();
+  const isEmpty = (body) => run(`isEmptyLogBody(${JSON.stringify(body)})`);
+  assert.strictEqual(isEmpty(`${HEADER}\n${USER_INFO}\n`), true);
+  assert.strictEqual(isEmpty(`${HEADER}\n${USER_INFO}\n01:41:31.1 (4407167)|ENTERING_MANAGED_PKG|devedapp\n`), true);
+  assert.strictEqual(isEmpty(`${HEADER}\n${USER_INFO}\n01:41:31.1 (5)|USER_DEBUG|[1]|DEBUG|hi\n`), false);
+  assert.strictEqual(isEmpty(`${HEADER}\n${USER_INFO}\n01:41:31.1 (5)|CODE_UNIT_STARTED|[EXTERNAL]|Flow:Account\n`), false);
+});
+
+test('"Useful" hides empty logs before the page is cut, says how many, and keeps read small logs with output', () => {
+  const logs = [emptyLog(1), apexLog(2), emptyLog(3), emptyLog(4), apexLog(5), { ...apexLog(6), LogLength: undefined }];
+  const d = filterDashboard({ logs });
+  // Body read: logs[3] is small but has output, logs[1] is big but empty (only managed package lines)
+  d.run(`logLoader.cacheStatusFromContent('${logs[3].Id}', ${JSON.stringify(`${HEADER}
+${USER_INFO}
+01:00:00.1 (5)|FLOW_START_INTERVIEWS_BEGIN|1`)})`);
+  d.run(`logLoader.cacheStatusFromContent('${logs[1].Id}', ${JSON.stringify(`${HEADER}
+${USER_INFO}
+01:00:00.1 (5)|ENTERING_MANAGED_PKG|pkg`)})`);
+  d.run('showLoadedLogs(0)');
+  assert.deepStrictEqual(plain(d.run('debugLogs.map(l => l.Id)')), [logs[3].Id, logs[4].Id, logs[5].Id], 'a log without a size is not hidden');
+  const note = d.getEl('logsFilterNote');
+  assert.match(note.innerHTML, /^<span>3 empty logs hidden<\/span>.*data-filter-action="all">Show<.*data-filter-action="delete-empty">Delete</);
+  assert.ok(!note.classList.contains('hidden'));
+
+  d.run(`setLogFilter('all')`);
+  assert.strictEqual(d.run('debugLogs.length'), 6, '"All" shows every log');
+  assert.match(note.innerHTML, /^<span>3 empty logs<\/span>.*data-filter-action="useful">Hide</);
+});
+
+test('only empty logs: the panel says so instead of "No debug logs yet"', () => {
+  const d = filterDashboard({ logs: [emptyLog(1), emptyLog(2)] });
+  d.run('showLoadedLogs(0)');
+  assert.strictEqual(d.run('debugLogs.length'), 0);
+  assert.strictEqual(d.getEl('emptyState').child('h4').textContent, 'Only empty logs');
+  assert.match(d.getEl('logsFilterNote').innerHTML, /2 empty logs hidden/);
+});
+
+test('"With debug" scans unscanned logs until the page is full and skips empty ones', async () => {
+  const logs = Array.from({ length: 8 }, (_, i) => apexLog(i + 1)).concat([emptyLog(9)]);
+  const debugBody = `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|USER_DEBUG|[1]|DEBUG|hi`;
+  const bodies = Object.fromEntries(logs.slice(0, 8).map((log, i) => [log.Id, i % 2 ? debugBody : `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|SOQL_EXECUTE_BEGIN|[1]|x`]));
+  const d = filterDashboard({ logs, bodies, filter: 'debug' });
+  d.getEl('logLimit').value = '3';
+  d.run('showLoadedLogs(0)');
+  await d.run('filterScan');
+  assert.deepStrictEqual(plain(d.run('debugLogs.map(l => l.Id)')), [logs[1].Id, logs[3].Id, logs[5].Id]);
+  assert.ok(!d.sent.some(m => m.type === 'GET_LOG_CONTENT' && m.logId === logs[8].Id), 'the empty log is not downloaded');
+  assert.ok(d.sent.filter(m => m.type === 'GET_LOG_CONTENT').length < 8, 'scanning stops once the page is full');
+  assert.strictEqual(d.run('hasMoreLogs'), true);
+
+  // A body that cannot be downloaded ends the scan instead of being retried forever
+  const failing = filterDashboard({ logs: [apexLog(1)], filter: 'errors' });
+  failing.run('showLoadedLogs(0)');
+  await failing.run('filterScan');
+  assert.strictEqual(failing.getEl('emptyState').child('h4').textContent, 'No logs with errors');
+});
+
+test('Delete empty logs checks every body and deletes only the empty ones', async () => {
+  const logs = [emptyLog(1), emptyLog(2), apexLog(3), emptyLog(4)];
+  const bodies = {
+    [logs[0].Id]: `${HEADER}\n${USER_INFO}\n`,
+    [logs[1].Id]: `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|USER_DEBUG|[1]|DEBUG|small but useful`,
+    // logs[3] cannot be downloaded: not checked, so not deleted
+  };
+  const d = filterDashboard({ logs, bodies });
+  d.run('showLoadedLogs(0)');
+  d.run('confirmAnswer = false');
+  await d.run('deleteEmptyLogs()');
+  assert.ok(!d.sent.some(m => m.type === 'DELETE_APEX_LOGS'), 'nothing happens without confirmation');
+
+  d.run('confirmAnswer = true');
+  await d.run('deleteEmptyLogs()');
+  const del = d.sent.filter(m => m.type === 'DELETE_APEX_LOGS');
+  assert.deepStrictEqual(plain(del.map(m => m.logIds)), [[logs[0].Id]]);
+  assert.strictEqual(del[0].sfHost, 'acme.my.salesforce.com');
+  assert.match(d.run('toasts').slice(-1)[0], /^Deleted 1 empty log$/);
+  assert.ok(d.run('debugLogs').some(l => l.Id === logs[1].Id), 'the small log with output is shown from now on');
+
+  // The background then reports the delete: the hidden count drops although no shown log changed
+  const handler = d.listeners.message[d.listeners.message.length - 1];
+  handler({ type: 'LOGS_DELETED', logIds: [logs[0].Id] }, {}, () => {});
+  assert.match(d.getEl('logsFilterNote').innerHTML, /^<span>1 empty log hidden<\/span>/);
+});
+
+test('log filter: "See more" during a scan raises its target; the empty state says "Checking logs..." at once', async () => {
+  const logs = Array.from({ length: 12 }, (_, i) => apexLog(i + 1));
+  const errorBody = `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|FATAL_ERROR|System.NullPointerException: x`;
+  const bodies = Object.fromEntries(logs.map((log, i) => [log.Id, i % 3 === 2 ? errorBody : `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|SOQL_EXECUTE_BEGIN|[1]|x`]));
+  const d = filterDashboard({ logs, bodies, filter: 'errors' });
+  d.getEl('logLimit').value = '2';
+  d.run('showLoadedLogs(0)');
+  assert.strictEqual(d.getEl('emptyState').child('p').textContent, 'Checking logs...', 'not "None of the loaded logs has one"');
+  d.run('loadMoreLogs()'); // while the first scan runs: 4 wanted now
+  await d.run('filterScan');
+  assert.strictEqual(d.run('debugLogs.length'), 4);
+});
+
+test('log filter: Clear all works when every log is hidden; a reload or load error drops the old note', async () => {
+  const d = filterDashboard({ logs: [emptyLog(1), emptyLog(2)] });
+  d.run('showLoadedLogs(0)');
+  d.run('clearAllLogs()');
+  assert.ok(d.run(`isLogCleared('${emptyLog(1).Id}') && isLogCleared('${emptyLog(2).Id}')`));
+  assert.ok(d.getEl('logsFilterNote').classList.contains('hidden'), 'no "2 empty logs hidden" after Clear all');
+
+  const e = filterDashboard({ logs: [emptyLog(3), apexLog(4)] });
+  e.run('showLoadedLogs(0)');
+  assert.ok(!e.getEl('logsFilterNote').classList.contains('hidden'));
+  e.run('tabManager.findWorkingTabForQuery = async () => null; logLoader.loadDebugLogs = async () => { throw new Error("NO_OAUTH_TOKEN"); }');
+  await e.run('loadDebugLogs()');
+  assert.ok(e.getEl('logsFilterNote').classList.contains('hidden'));
+  assert.strictEqual(e.run('getEmptyLogs().length'), 0, 'Delete cannot act on the old list');
+});
+
+test('log filter: "All" reads small logs too (icons and exact empty status); one download per log', async () => {
+  const small = emptyLog(1);
+  const d = filterDashboard({ logs: [small, apexLog(2)], bodies: { [small.Id]: `${HEADER}\n${USER_INFO}\n01:00:00.1 (5)|USER_DEBUG|[1]|DEBUG|hi`, [apexLog(2).Id]: 'x' } });
+  d.run(`setLogFilter('all')`);
+  await d.run(`logLoader.checkDebugStatusProgressive(__logs, null)`); // runs alongside the filter's own check
+  await new Promise(resolve => setTimeout(resolve, 10));
+  assert.strictEqual(d.sent.filter(m => m.type === 'GET_LOG_CONTENT' && m.logId === small.Id).length, 1);
+  assert.strictEqual(d.run(`logCache.getDebugStatus('${small.Id}')`), true);
+  d.run(`setLogFilter('useful')`);
+  assert.ok(d.run('debugLogs').some(l => l.Id === small.Id), 'a small log with output is not hidden once read');
+});
+
+test('Delete empty logs says how many belong to other users', async () => {
+  const mine = { ...emptyLog(1), LogUserId: '005ME' };
+  const theirs = { ...emptyLog(2), LogUserId: '005OTHER' };
+  const d = filterDashboard({ logs: [mine, theirs] });
+  d.run('var confirmText = ""; confirm = (text) => { confirmText = text; return false; }; window.debugLogManagerUI = { userId: "005ME" }');
+  d.run('showLoadedLogs(0)');
+  await d.run('deleteEmptyLogs()');
+  assert.match(d.run('confirmText'), /^Delete 2 empty debug logs \(1 of them from other users\) in Salesforce\?/);
 });

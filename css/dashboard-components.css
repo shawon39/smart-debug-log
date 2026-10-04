@@ -388,6 +388,7 @@ input:checked + .toggle-slider:before {
 
 #logSearchInput {
   flex: 1;
+  min-width: 0;
   height: 32px;
   padding: 0 10px 0 32px;
   background: var(--bg-secondary);
@@ -408,6 +409,25 @@ input:checked + .toggle-slider:before {
 
 #logSearchInput::placeholder {
   color: var(--text-muted);
+}
+
+/* Log filter next to the search box */
+#logFilter {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.3s ease;
+}
+
+#logFilter:hover {
+  border-color: var(--text-muted);
 }
 
 .log-search-info {
@@ -610,6 +630,40 @@ input:checked + .toggle-slider:before {
 
 .see-more-logs-btn .button {
   width: 100%;
+}
+
+/* What the log filter hides, under the list: "12 empty logs hidden · Show · Delete" */
+.logs-filter-note {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 2px 6px;
+  padding: 4px 12px 14px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.logs-filter-note button {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.logs-filter-note button:hover {
+  text-decoration: underline;
+}
+
+.logs-filter-note button.danger:hover {
+  color: var(--danger);
+}
+
+.logs-filter-sep {
+  color: var(--text-muted);
+  opacity: 0.6;
 }
 
 .see-more-logs-btn .loading-spinner {

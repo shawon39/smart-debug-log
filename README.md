@@ -70,7 +70,7 @@ This project intentionally uses **no npm/build tooling** — it's plain ES6+ Jav
 
 - **Reload after changes:** the reload button on `chrome://extensions` (or Ctrl/Cmd+R on that page).
 - **Debugging:** use the extension's DevTools (dashboard page) and the service‑worker console (`chrome://extensions` → *Inspect views: service worker*).
-- **Testing:** `node --test` (run in the project folder) runs the unit tests in `tests/` (plain Node 22, nothing to install). Check UI changes by hand against a live Salesforce org.
+- **Testing:** `node --test tests/*.test.js` (run in the project folder) runs the unit tests (plain Node 22, nothing to install). Check UI changes by hand against a live Salesforce org.
 
 A high‑level architecture overview (background/content/UI layers, message passing, the log‑processing pipeline) is documented in [CLAUDE.md](CLAUDE.md).
 

@@ -408,7 +408,6 @@ class LogLoader {
     const response = await chrome.runtime.sendMessage({
       type: 'EXECUTE_TOOLING_QUERY',
       query: query,
-      session: currentSession,
       sfHost: getHostFromUrl() || sfHost // For org-aware token selection (dashboards without ?host= use the detected org)
     });
 

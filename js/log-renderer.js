@@ -57,7 +57,7 @@ class LogRenderer {
       return { title: 'Access token needed', text: 'Use Generate Token above.' };
     }
     if (message === 'No valid session found') {
-      return { title: 'No Salesforce session', text: 'Log in to this org in a browser tab, then refresh.' };
+      return { title: 'Not connected', text: 'Log in to this org in a browser tab, or click Generate Token above. Then refresh.' };
     }
     return { title: 'Could not load logs', text: message.length > 300 ? `${message.slice(0, 300)}...` : (message || 'Please try again.') };
   }

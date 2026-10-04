@@ -4,6 +4,13 @@
 // Connection status management
 async function checkConnectionStatus(targetHost = null) {
   try {
+    // The dashboard knows its org (?host=): read that org's session cookie directly. Chrome hides
+    // the URL of our own dashboard tab (no "tabs" permission), and the org's browser tab is often
+    // on another host name (*.lightning.force.com), so a tab search cannot be relied on.
+    if (targetHost && await connectToHost(targetHost)) {
+      return;
+    }
+
     const salesforceTabs = await getSalesforceTabs();
 
     if (salesforceTabs.length === 0) {
@@ -34,7 +41,7 @@ async function checkConnectionStatus(targetHost = null) {
       }
       
       // If no valid session found for target host, show helpful error
-      updateConnectionStatus(false, `No valid session found for ${targetHost}`);
+      updateConnectionStatus(false, `Not connected to ${targetHost}. Log in to this org in a browser tab or generate an access token, then refresh.`);
       return;
     }
 
@@ -83,6 +90,41 @@ async function checkConnectionStatus(targetHost = null) {
   } catch (error) {
     updateConnectionStatus(false, 'Connection check failed');
   }
+}
+
+// Connects to the given org host: its browser session if there is one, else its OAuth token
+// (the API calls only need the token). Returns true when connected.
+async function connectToHost(targetHost) {
+  let session = null;
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'GET_SESSION', sfHost: targetHost });
+    if (response && response.success && response.data) session = response.data;
+  } catch (error) {
+    // Fall through to the token check
+  }
+
+  if (!session) {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_USER_INFO', sfHost: targetHost });
+      if (response && response.success && response.data && response.data.orgId) {
+        // Token only: no session cookie (Copy Session URL and Incognito Login need one)
+        session = { hostname: targetHost, orgId: response.data.orgId.substring(0, 15), tokenOnly: true };
+      }
+    } catch (error) {
+      // No token either
+    }
+  }
+
+  if (!session) return false;
+  if (!session.orgName) session.orgName = session.hostname || targetHost;
+
+  sfHost = targetHost;
+  currentSession = session;
+  loadReadLogsFromStorage(); // Load read logs for this org
+  loadClearedLogsFromStorage(); // Load cleared logs for this org
+  cleanupExpiredLogs(); // Cleanup expired logs after loading
+  updateConnectionStatus(true, `Connected to ${targetHost}`, session);
+  return true;
 }
 
 // Helper function to try getting session for a specific tab
@@ -158,6 +200,9 @@ function updateConnectionStatus(connected, statusText = '', session = null) {
     connectionStatusText.title = statusText;
     connectionStatusText.classList.remove('is-connected');
     connectionStatusText.classList.add('is-error');
+
+    // Not connected: still offer Generate Token for this org (a token alone is enough to connect)
+    if (getHostFromUrl()) setTimeout(checkOAuthTokenStatus, 500);
     
     if (orgActions) {
       orgActions.classList.add('hidden');

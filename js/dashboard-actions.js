@@ -19,7 +19,7 @@ async function getSessionLoginUrl() {
   }
 
   const sessionId = currentSession.key || currentSession.sessionId;
-  if (!sessionId) throw new Error('No session found for this org');
+  if (!sessionId) throw new Error('Log in to this org in a browser tab first (this needs a browser session, not only the access token)');
   return { url: `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`, oneTime: false };
 }
 
@@ -193,11 +193,6 @@ async function deployPrettierClass() {
   }
 
   // Pre-deployment validation
-  // Validate session has required properties
-  if (!currentSession.sessionId && !currentSession.key) {
-    showToast('Invalid session: No authentication token found. Please refresh Salesforce and try again.', 5000);
-    return;
-  }
 
   const className = 'Console';
   const classBody = `public with sharing class Console {

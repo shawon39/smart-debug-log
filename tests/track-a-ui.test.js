@@ -202,3 +202,66 @@ test('M1 a failed Generate Token shows the mapped OAuth error in the token banne
   assert.equal(d.subtitle.textContent, message);
   assert.equal(d.subtitle.classList.contains('is-error'), true);
 });
+
+// Deploy Console Class: new org, current class, older class of ours, the org's own class
+function loadDeployConsole({ existingBody = null, confirmAnswer = true }) {
+  const messages = [];
+  const toasts = [];
+  const alerts = [];
+  const button = makeElement('deployPrettierBtn');
+  button.classList.remove = () => { };
+  const context = vm.createContext({
+    console,
+    setTimeout: () => 0,
+    document: { addEventListener() { }, getElementById: () => null },
+    chrome: {
+      runtime: {
+        sendMessage: async (m) => {
+          messages.push(m);
+          if (m.type === 'EXECUTE_TOOLING_QUERY') return { success: true, data: { records: existingBody === null ? [] : [{ Id: '01pCONSOLE', Body: existingBody }] } };
+          return { success: true, data: { id: '01pNEW' } };
+        }
+      }
+    },
+    getHostFromUrl: () => 'acme.my.salesforce.com',
+    sfHost: 'acme.my.salesforce.com',
+    currentSession: { orgId: '00D' },
+    elements: { deployPrettierBtn: button },
+    Icons: { svg: () => '' },
+    showToast: (m) => toasts.push(m),
+    confirm: () => confirmAnswer,
+    alert: (m) => alerts.push(m)
+  });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/dashboard-actions.js'), 'utf8'), context, { filename: 'dashboard-actions.js' });
+  context.showCodeDeployDialog = async () => true;
+  return { context, messages, toasts, alerts };
+}
+
+test('Deploy Console Class: one debug message per log(label, value); older versions of ours are updated, the org\'s own is kept', async () => {
+  const fresh = loadDeployConsole({});
+  await fresh.context.deployPrettierClass();
+  const created = fresh.messages.find(m => m.type === 'TOOLING_CREATE');
+  assert.match(created.data.Body, /System\.debug\(label \+ '\\n' \+ JSON\.serializePretty\(obj\)\);/);
+  assert.ok(!/👉/.test(created.data.Body));
+  assert.deepStrictEqual(fresh.toasts, ['Console class deployed']);
+
+  const oldBody = vm.runInContext('OLD_CONSOLE_CLASS_BODIES[0]', fresh.context).replace(/\n/g, '\r\n'); // Salesforce may store CRLF
+  const old = loadDeployConsole({ existingBody: oldBody });
+  await old.context.deployPrettierClass();
+  const update = old.messages.find(m => m.type === 'TOOLING_UPDATE');
+  assert.deepStrictEqual([update.sobjectType, update.recordId, update.data.Body], ['ApexClass', '01pCONSOLE', created.data.Body]);
+  assert.deepStrictEqual(old.toasts, ['Console class updated']);
+
+  const declined = loadDeployConsole({ existingBody: oldBody, confirmAnswer: false });
+  await declined.context.deployPrettierClass();
+  assert.ok(!declined.messages.some(m => m.type === 'TOOLING_UPDATE'));
+
+  const current = loadDeployConsole({ existingBody: created.data.Body });
+  await current.context.deployPrettierClass();
+  assert.deepStrictEqual(current.toasts, ['The Console class is already up to date.']);
+
+  const own = loadDeployConsole({ existingBody: 'public class Console { public static void log(Object o) { System.debug(o); } }' });
+  await own.context.deployPrettierClass();
+  assert.ok(!own.messages.some(m => m.type === 'TOOLING_UPDATE' || m.type === 'TOOLING_CREATE'));
+  assert.deepStrictEqual(own.toasts, ['This org has its own Console class, so it was not changed.']);
+});

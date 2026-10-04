@@ -98,16 +98,21 @@ function showCodeDeployDialog(description) {
   });
 }
 
-async function deployPrettierClass() {
-  if (!currentSession || !sfHost) {
-    showToast('No active Salesforce session found. Please ensure you are logged into Salesforce.', 5000);
-    return;
-  }
+// The Console helper class (Deploy Console Class). log(label, value) writes the label and the data in one
+// debug message, so the dashboard shows them in one card: the label above the formatted JSON.
+const CONSOLE_CLASS_BODY = `public with sharing class Console {
+    public static void log(Object obj) {
+        System.debug(JSON.serializePretty(obj));
+    }
 
-  // Pre-deployment validation
+    public static void log(String label, Object obj) {
+        System.debug(label + '\\n' + JSON.serializePretty(obj));
+    }
+}`;
 
-  const className = 'Console';
-  const classBody = `public with sharing class Console {
+// Earlier versions wrote the label in a debug message of its own. Orgs that have one are offered the update.
+const OLD_CONSOLE_CLASS_BODIES = [
+  `public with sharing class Console {
     public static void log(Object obj) {
         System.debug(JSON.serializePretty(obj));
     }
@@ -116,9 +121,87 @@ async function deployPrettierClass() {
         System.debug('👉 ' + label);
         System.debug(JSON.serializePretty(obj));
     }
-}`;
+}`,
+  `public with sharing class Console {
+    public static void log(Object obj) {
+        System.debug(JSON.serializePretty(obj));
+    }
+    
+    public static void log(String label, Object obj) {
+        System.debug(label);
+        System.debug(JSON.serializePretty(obj));
+    }
+}`
+];
 
-  const classDescription = `Console Utility Class
+// Same Apex code, ignoring whitespace and line endings
+const sameApexCode = (a, b) => String(a || '').replace(/\s+/g, '') === String(b || '').replace(/\s+/g, '');
+
+async function deployPrettierClass() {
+  if (!currentSession || !sfHost) {
+    showToast('No active Salesforce session found. Please ensure you are logged into Salesforce.', 5000);
+    return;
+  }
+
+  const host = getHostFromUrl() || sfHost;
+  const { deployPrettierBtn } = elements;
+  const originalText = deployPrettierBtn.innerHTML;
+  const showBusy = (label) => {
+    deployPrettierBtn.innerHTML = `${Icons.svg('loader')}${label}`;
+    deployPrettierBtn.disabled = true;
+  };
+  const showDone = (label, message) => {
+    showToast(message);
+    deployPrettierBtn.innerHTML = `${Icons.svg('check')}${label}`;
+    deployPrettierBtn.classList.add('deploy-success');
+    setTimeout(() => {
+      deployPrettierBtn.innerHTML = originalText;
+      deployPrettierBtn.classList.remove('deploy-success');
+      deployPrettierBtn.disabled = false;
+    }, 3000);
+  };
+
+  try {
+    // A Console class may exist already: this one, an older one of ours, or the org's own
+    const existingCheck = await chrome.runtime.sendMessage({
+      type: 'EXECUTE_TOOLING_QUERY',
+      query: "SELECT Id, Body FROM ApexClass WHERE Name = 'Console' LIMIT 1",
+      sfHost: host
+    });
+
+    // Do not deploy when we could not check
+    if (!existingCheck || !existingCheck.success) {
+      throw new Error(`Could not check if the class exists: ${existingCheck?.error || existingCheck?.message || 'no response'}`);
+    }
+
+    const existing = existingCheck.data?.records?.[0];
+    if (existing) {
+      if (sameApexCode(existing.Body, CONSOLE_CLASS_BODY)) {
+        showToast('The Console class is already up to date.');
+        return;
+      }
+      if (!OLD_CONSOLE_CLASS_BODIES.some(body => sameApexCode(existing.Body, body))) {
+        showToast('This org has its own Console class, so it was not changed.', 5000);
+        return;
+      }
+      if (!confirm('Update the Console class in this org to the latest version? Console.log(label, value) then writes the label and the data in one debug message.')) {
+        return;
+      }
+
+      showBusy('Updating...');
+      const result = await chrome.runtime.sendMessage({
+        type: 'TOOLING_UPDATE',
+        sobjectType: 'ApexClass',
+        recordId: existing.Id,
+        data: { Body: CONSOLE_CLASS_BODY },
+        sfHost: host
+      });
+      if (!result || !result.success) throw new Error(result?.error || 'Unknown update error');
+      showDone('Updated', 'Console class updated');
+      return;
+    }
+
+    const classDescription = `Console Utility Class
 
 Ready to use enhanced debug logging for your Salesforce development.
 
@@ -131,67 +214,22 @@ Console.log('Account Results', accountList);
 
 Deploy to org: ${sfHost}`;
 
-  // Show confirmation dialog with better formatting
-  const confirmed = await showCodeDeployDialog(classDescription);
-  if (!confirmed) {
-    return;
-  }
-
-  // Update button state
-  const { deployPrettierBtn } = elements;
-  const originalText = deployPrettierBtn.innerHTML;
-  deployPrettierBtn.innerHTML = `${Icons.svg('loader')}Deploying...`;
-  deployPrettierBtn.disabled = true;
-
-  try {
-    // Check if class already exists
-    const existingCheck = await chrome.runtime.sendMessage({
-      type: 'EXECUTE_TOOLING_QUERY',
-      query: `SELECT Id FROM ApexClass WHERE Name = '${className}' LIMIT 1`,
-      sfHost: getHostFromUrl() || sfHost
-    });
-
-    // Do not deploy when we could not check
-    if (!existingCheck || !existingCheck.success) {
-      throw new Error(`Could not check if the class exists: ${existingCheck?.error || existingCheck?.message || 'no response'}`);
-    }
-
-    if (existingCheck.data?.records?.length > 0) {
-      showToast('Console class already exists in this org.');
-      deployPrettierBtn.innerHTML = originalText;
-      deployPrettierBtn.disabled = false;
+    // Show confirmation dialog with better formatting
+    if (!(await showCodeDeployDialog(classDescription))) {
       return;
     }
 
-    // Prepare the class data for deployment
-    const classData = {
-      Name: className,
-      Body: classBody
-    };
+    showBusy('Deploying...');
 
     // Deploy using the Tooling API
     const result = await chrome.runtime.sendMessage({
       type: 'TOOLING_CREATE',
       sobjectType: 'ApexClass',
-      data: classData,
-      sfHost: getHostFromUrl() || sfHost // For org-aware token selection
+      data: { Name: 'Console', Body: CONSOLE_CLASS_BODY },
+      sfHost: host // For org-aware token selection
     });
-
-    if (result.success) {
-      showToast('Console class deployed');
-
-      // Update button to show success
-      deployPrettierBtn.innerHTML = `${Icons.svg('check')}Deployed`;
-      deployPrettierBtn.classList.add('deploy-success');
-
-      setTimeout(() => {
-        deployPrettierBtn.innerHTML = originalText;
-        deployPrettierBtn.classList.remove('deploy-success');
-        deployPrettierBtn.disabled = false;
-      }, 3000);
-    } else {
-      throw new Error(result.error || 'Unknown deployment error');
-    }
+    if (!result || !result.success) throw new Error(result?.error || 'Unknown deployment error');
+    showDone('Deployed', 'Console class deployed');
   } catch (error) {
     console.error('Deployment error:', error);
 

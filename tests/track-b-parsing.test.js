@@ -371,3 +371,12 @@ test('P1: messages over the size limit are shown as escaped text without structu
   const html = render(logFor(big));
   assert.ok(!html.includes('json-key') && html.includes('&lt;b&gt;x&lt;/b&gt;'));
 });
+
+test('Console.log(label, value) is one debug message: the label above the formatted JSON', () => {
+  // What the Console class writes: System.debug(label + '\n' + JSON.serializePretty(obj))
+  const parsed = P.parseDebugLogContent(logFor('Account List\n[ {\n  "attributes" : {\n    "type" : "Account",\n    "url" : "/services/data/v62.0/sobjects/Account/001A"\n  },\n  "Name" : "Acme"\n} ]'));
+  assert.strictEqual(parsed.debugMessages.length, 1);
+  const html = render(logFor('Account List\n[ {\n  "attributes" : {\n    "type" : "Account",\n    "url" : "/services/data/v62.0/sobjects/Account/001A"\n  },\n  "Name" : "Acme"\n} ]'));
+  assert.match(html, /<span class="content-prefix">Account List<\/span>/);
+  assert.match(textOf(html), /^Account List \[ \{ "Name": "Acme" \} \]$/);
+});

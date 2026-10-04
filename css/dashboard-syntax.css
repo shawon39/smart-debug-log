@@ -677,8 +677,10 @@
 }
 
 /* Prefix text for formatted content */
+/* Text around the data in a debug message, like the label of Console.log('Accounts', accounts) */
 .content-prefix {
-  color: var(--text-prefix);
+  color: var(--text-primary);
+  font-weight: 600;
   transition: color 0.3s ease;
 }
 

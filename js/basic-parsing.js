@@ -35,45 +35,52 @@ function parseSalesforceObjectNotation(text) {
   return result ? result.value : String(text).trim();
 }
 
-// Marks the brackets that belong to a pair. An opener that is never closed (e.g. "Sad :(" in a text value)
-// and a closer without an opener are plain text, so they do not change the depth.
-function pairedBrackets(text) {
-  const paired = new Uint8Array(text.length);
+// A custom exception prints as "ProbeException:[]: message" (its class body is empty). It is shown like a System
+// exception, "ProbeException: message" (Apex exception class names end with "Exception").
+function tidyExceptionText(text) {
+  return text.replace(/\b(\w*Exception):\[\]: /g, '$1: ');
+}
+
+// For each bracket, the index of the bracket that pairs with it, or -1. An opener that is never closed (e.g.
+// "Sad :(" in a text value) and a closer without an opener are plain text, so they do not change the depth.
+function bracketPartners(text) {
+  const partner = new Int32Array(text.length).fill(-1);
   const openers = [];
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (char === '(' || char === '{' || char === '[') {
       openers.push(i);
     } else if ((char === ')' || char === '}' || char === ']') && openers.length > 0) {
-      paired[openers.pop()] = 1;
-      paired[i] = 1;
+      const open = openers.pop();
+      partner[open] = i;
+      partner[i] = open;
     }
   }
-  return paired;
+  return partner;
 }
 
-// True when the bracket at openIndex closes at the last character: no closer of its kind is left over between
-// them (a left-over "}" in "{x} {y}" means the first bracket closed earlier)
-function closesAtEnd(text, openIndex) {
+// { body, partner } for the text between the bracket at openIndex and the last character, when that bracket closes
+// at the end: no closer of its kind is left over in the body (a left-over "}" in "{x} {y}" means the first bracket
+// closed earlier). Null otherwise.
+function closedBody(text, openIndex) {
   const close = BRACKET_CLOSERS[text[openIndex]];
-  if (!close || text.length - 1 <= openIndex || text[text.length - 1] !== close) return false;
+  if (!close || text.length - 1 <= openIndex || text[text.length - 1] !== close) return null;
   const body = text.slice(openIndex + 1, -1);
-  const paired = pairedBrackets(body);
+  const partner = bracketPartners(body);
   for (let i = 0; i < body.length; i++) {
-    if (body[i] === close && !paired[i]) return false;
+    if (body[i] === close && partner[i] < 0) return null;
   }
-  return true;
+  return { body, partner };
 }
 
 // Splits text on a separator (one or more characters) that is at depth 0 (outside brackets)
-function splitTopLevel(text, separator) {
-  const paired = pairedBrackets(text);
+function splitTopLevel(text, separator, partner = bracketPartners(text)) {
   const parts = [];
   let depth = 0;
   let start = 0;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    if (paired[i]) {
+    if (partner[i] >= 0) {
       depth += (char === '(' || char === '{' || char === '[') ? 1 : -1;
     } else if (depth === 0 && text.startsWith(separator, i)) {
       parts.push(text.slice(start, i));
@@ -87,17 +94,27 @@ function splitTopLevel(text, separator) {
 
 // Index of the first separator character at depth 0, or -1
 function indexOfTopLevel(text, separator) {
-  const paired = pairedBrackets(text);
+  const partner = bracketPartners(text);
   let depth = 0;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
-    if (paired[i]) {
+    if (partner[i] >= 0) {
       depth += (char === '(' || char === '{' || char === '[') ? 1 : -1;
     } else if (char === separator && depth === 0) {
       return i;
     }
   }
   return -1;
+}
+
+// The items of a list, set or map, or the fields of a record or class: { parts, joiner }. Salesforce separates them
+// with ", "; text built in code often uses "," alone, so "," is used when there is no ", " at depth 0.
+function splitItems({ body, partner = bracketPartners(body) }) {
+  if (body === '') return { parts: [], joiner: ', ' };
+  const parts = splitTopLevel(body, ', ', partner);
+  if (parts.length > 1) return { parts, joiner: ', ' };
+  const commaParts = splitTopLevel(body, ',', partner);
+  return commaParts.length > 1 ? { parts: commaParts.map(part => part.trim()), joiner: ',' } : { parts, joiner: ', ' };
 }
 
 // Converts number text only when nothing is lost: no leading zeros (02134), within the safe
@@ -114,13 +131,16 @@ function parseSafeNumber(text) {
   return undefined;
 }
 
-const JSON_NUMBER_TEXT = /^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$/;
+// Numbers as Apex prints them: Integer, Long and Decimal (10.50), Double in scientific notation (1.2345E-5,
+// 1.23456789015E10: a decimal point before the E) and Decimal in scientific notation (1E-7, 1.5E+8: a sign after
+// the E). Text such as 02134 or the code 1E5 stays text.
+const APEX_NUMBER_TEXT = /^-?(?:(?:0|[1-9]\d*)(?:\.\d+)?|\d(?:\.\d+E[+-]?|E[+-])\d+)$/;
 
 // A number exactly as Apex printed it: 10.50 stays 10.50, 9007199254740993 and 1.2345E-5 are not rewritten.
 // Numbers that a JavaScript number would change are kept as JSON.rawJSON (Chrome 114+); without it, only numbers
-// that convert without loss become numbers. Text that is not a number (02134) gives undefined.
+// that convert without loss become numbers. Text that is not a number gives undefined.
 function exactNumber(text) {
-  if (!JSON_NUMBER_TEXT.test(text)) return undefined;
+  if (!APEX_NUMBER_TEXT.test(text)) return undefined;
   const number = Number(text);
   if (String(number) === text) return number;
   if (typeof JSON.rawJSON === 'function') return JSON.rawJSON(text);
@@ -137,33 +157,34 @@ function parseValue(text, depth, ctx) {
   if (text === TOSTRING_ALREADY_OUTPUT) return ALREADY_OUTPUT_LABEL;
   if (depth > TOSTRING_MAX_DEPTH) return text;
   const structure = parseStructure(text, depth, ctx);
-  return structure === undefined ? text : structure;
+  return structure === undefined ? tidyExceptionText(text) : structure;
 }
 
 // The whole text as one structure: a record Type:{...}, a class Class:[...], a system object Ns.Type[...],
 // a compound address, a list (...), or a set or map {...}. Undefined for anything else (also cut-off text).
 function parseStructure(text, depth, ctx) {
   const typed = text.match(/^(\w+):([{[])/);
-  if (typed && closesAtEnd(text, typed[0].length - 1)) {
-    return parseFields(text.slice(typed[0].length, -1), typed[2] === '{' ? 'record' : 'class', depth, ctx);
+  const typedBody = typed && closedBody(text, typed[0].length - 1);
+  if (typedBody) {
+    return parseFields(splitItems(typedBody), typed[2] === '{' ? 'record' : 'class', depth, ctx);
   }
   const system = text.match(/^[A-Za-z]\w*(?:\.\w+)+\[/);
-  if (system && closesAtEnd(text, system[0].length - 1)) {
-    return parseSystemFields(text.slice(system[0].length, -1), depth, ctx);
-  }
-  if (text.startsWith('API address [') && closesAtEnd(text, 12)) {
-    const address = parseAddress(text.slice(13, -1));
+  const systemBody = system && closedBody(text, system[0].length - 1);
+  if (systemBody) return parseSystemFields(systemBody, depth, ctx);
+  const addressBody = text.startsWith('API address [') && closedBody(text, 12);
+  if (addressBody) {
+    const address = parseAddress(addressBody.body);
     if (address !== undefined) return address;
   }
-  if (text[0] === '(' && closesAtEnd(text, 0)) {
-    return parseItems(text.slice(1, -1), depth, ctx);
-  }
+  const listBody = text[0] === '(' && closedBody(text, 0);
+  if (listBody) return parseItems(splitItems(listBody), depth, ctx);
   // A JSON text value such as {"a":1} stays text
-  if (text[0] === '{' && closesAtEnd(text, 0) && !/^\{\s*"/.test(text)) {
-    const body = text.slice(1, -1);
-    if (body === '') return {};
+  const braceBody = text[0] === '{' && !/^\{\s*"/.test(text) && closedBody(text, 0);
+  if (braceBody) {
+    if (braceBody.body === '') return {};
+    const items = splitItems(braceBody);
     // A map entry always has "=" (a set of texts with "=" in them looks the same and is read as a map)
-    return indexOfTopLevel(splitTopLevel(body, ', ')[0], '=') > 0 ? parseFields(body, 'map', depth, ctx) : parseItems(body, depth, ctx);
+    return indexOfTopLevel(items.parts[0], '=') > 0 ? parseFields(items, 'map', depth, ctx) : parseItems(items, depth, ctx);
   }
   return undefined;
 }
@@ -177,70 +198,91 @@ function dropCutMarker(parts, ctx) {
   return parts;
 }
 
-// Items of a list or set: "a, b, c" -> array
-function parseItems(body, depth, ctx) {
-  if (body === '') return [];
-  return dropCutMarker(splitTopLevel(body, ', '), ctx).map(part => parseValue(part, depth + 1, ctx));
+// Items of a list or set -> array
+function parseItems({ parts }, depth, ctx) {
+  return dropCutMarker(parts, ctx).map(part => parseValue(part, depth + 1, ctx));
 }
 
-const FIELD_NAME = /^[A-Za-z]\w*$/;
-const CLASS_FIELD_NAME = /^[A-Za-z]\w*(?:\.[A-Za-z]\w*)*$/;
+const FIELD_NAME = /^\w+$/;
+const CLASS_FIELD_NAME = /^\w+(?:\.\w+)*$/;
 
-// "key=value, key=value" -> object. Each entry splits on its first "=" at depth 0. A part that does not start a
-// new entry belongs to the previous value (e.g. Name=Smith, John):
+// Fields "key=value" -> object. Each entry splits on its first "=" at depth 0. A part that does not start a new
+// entry belongs to the previous value (e.g. Name=Smith, John):
 // - record fields are names; class fields are names too, Parent.field for an inherited field
 // - map keys can be any text, e.g. {first name=Bob} or {Account:{Name=Bob}=null}
 // kind: 'record', 'class' or 'map'
-function parseFields(body, kind, depth, ctx) {
-  const parts = body === '' ? [] : splitTopLevel(body, ', ');
+function parseFields({ parts, joiner }, kind, depth, ctx) {
   if (kind === 'map') dropCutMarker(parts, ctx);
-  // Salesforce prints class fields sorted by character code, so a name that does not sort after the previous
-  // one is text (e.g. note=a, b=c). The order decides only when it is clearly there: many names out of order
-  // mean another format, e.g. a toString() override that looks like a class.
-  let entries = collectFieldEntries(parts, kind, kind === 'class');
-  if (entries.outOfOrder * 4 > entries.length) entries = collectFieldEntries(parts, kind, false);
+  let entries = collectFieldEntries(parts, joiner, kind, kind === 'class');
+  if (entries.unsorted) entries = collectFieldEntries(parts, joiner, kind, false);
   const names = kind === 'class' ? inheritedFieldNames(entries.map(([key]) => key)) : entries.map(([key]) => key);
   const result = {};
   entries.forEach(([, rawValue], i) => {
-    result[names[i]] = rawValue === null ? null : parseValue(rawValue, depth + 1, ctx);
+    setEntry(result, names[i], rawValue === null ? null : parseValue(rawValue, depth + 1, ctx));
   });
   return result;
 }
 
-// Entries of a record, class or map; entries.outOfOrder counts class names left as text because of their order
-function collectFieldEntries(parts, kind, useOrder) {
+// Entries of a record, class or map. Salesforce prints class fields sorted by character code, so in a class a name
+// that does not sort after the previous one is text inside the previous value (e.g. note=a, b=c). That holds only
+// for a text value: after a number, null, true/false or a structure, or when many names are out of order, the
+// fields were not printed sorted (e.g. a toString() override that looks like a class) and entries.unsorted is set.
+function collectFieldEntries(parts, joiner, kind, useOrder) {
   let previousName = null;
   let outOfOrder = 0;
-  const entries = collectEntries(parts, ', ', (key) => {
+  let unsorted = false;
+  const entries = collectEntries(parts, joiner, (key, previousValue) => {
     if (kind === 'map') return true;
     if (!(kind === 'class' ? CLASS_FIELD_NAME : FIELD_NAME).test(key)) return false;
     if (!useOrder || key.includes('.')) return true;
     if (previousName !== null && key <= previousName) {
+      if (!isTextValue(previousValue)) {
+        unsorted = true;
+        return true;
+      }
       outOfOrder++;
       return false;
     }
     previousName = key;
     return true;
   });
-  entries.outOfOrder = outOfOrder;
+  entries.unsorted = unsorted || outOfOrder * 4 > entries.length;
   return entries;
 }
 
-// [[key, raw value]] from "key=value" parts; a part whose key is not accepted joins the previous value
+// True when a raw value reads as text: not null, true/false, a number, a list, set, map, record or class
+function isTextValue(rawValue) {
+  if (rawValue === null || rawValue === 'null' || rawValue === 'true' || rawValue === 'false') return false;
+  if (exactNumber(rawValue) !== undefined || /^[({[]/.test(rawValue)) return false;
+  return !/^\w+:[{[]/.test(rawValue) && !/^[A-Za-z]\w*(?:\.\w+)+\[/.test(rawValue);
+}
+
+// [[key, raw value]] from "key=value" parts; a part whose key is not accepted joins the previous value.
+// acceptKey(key, previous raw value) decides.
 function collectEntries(parts, joiner, acceptKey) {
   const entries = [];
   for (const part of parts) {
     const equalIndex = indexOfTopLevel(part, '=');
     const key = equalIndex > 0 ? part.slice(0, equalIndex).trim() : '';
-    if (key !== '' && acceptKey(key)) {
+    const previous = entries.length > 0 ? entries[entries.length - 1] : null;
+    if (key !== '' && acceptKey(key, previous ? previous[1] : null)) {
       entries.push([key, part.slice(equalIndex + 1)]);
-    } else if (entries.length > 0 && entries[entries.length - 1][1] !== null) {
-      entries[entries.length - 1][1] += joiner + part;
+    } else if (previous && previous[1] !== null) {
+      previous[1] += joiner + part;
     } else {
       entries.push([part.trim(), null]);
     }
   }
   return entries;
+}
+
+// Sets a key on a plain object, also "__proto__" (an assignment would set the object's prototype instead)
+function setEntry(object, key, value) {
+  if (key === '__proto__') {
+    Object.defineProperty(object, key, { value, enumerable: true, writable: true, configurable: true });
+  } else {
+    object[key] = value;
+  }
 }
 
 // Inherited fields (BaseItem.price) are shown by their own name (price) unless another field has that name
@@ -257,15 +299,16 @@ const SYSTEM_GETTER = /^(?:get|is)[A-Z]\w*$/;
 // Database.SaveResult[getErrors=(...);getId=null;isSuccess=false;] (getId is shown as id), or
 // "Name=value, " pairs, e.g. System.HttpRequest[Endpoint=https://x.com, Method=POST].
 // A part without a name belongs to the previous value (a message can contain ";").
-function parseSystemFields(body, depth, ctx) {
+function parseSystemFields({ body, partner }, depth, ctx) {
   const getters = /^(?:get|is)[A-Z]\w*=/.test(body);
-  const separator = getters ? ';' : ', ';
-  const parts = body === '' ? [] : splitTopLevel(getters && body.endsWith(';') ? body.slice(0, -1) : body, separator);
-  const entries = collectEntries(parts, separator, (key) => (getters ? SYSTEM_GETTER : FIELD_NAME).test(key));
+  const { parts, joiner } = getters
+    ? { parts: splitTopLevel(body.endsWith(';') ? body.slice(0, -1) : body, ';'), joiner: ';' }
+    : splitItems({ body, partner });
+  const entries = collectEntries(parts, joiner, (key) => (getters ? SYSTEM_GETTER : FIELD_NAME).test(key));
   const result = {};
   for (const [key, rawValue] of entries) {
     const name = getters && key.startsWith('get') ? key.charAt(3).toLowerCase() + key.slice(4) : key;
-    result[name] = rawValue === null ? null : parseValue(rawValue, depth + 1, ctx);
+    setEntry(result, name, rawValue === null ? null : parseValue(rawValue, depth + 1, ctx));
   }
   return result;
 }

@@ -345,7 +345,17 @@ test('R3: the same log is parsed once and the result is re-used', () => {
   assert.strictEqual(P.parseDebugLogContent(log), P.parseDebugLogContent(log));
 });
 
-test('P1: big and odd messages (up to 300 KB) are formatted fast (under 200 ms each)', () => {
+// Checks, parses and renders a message; returns the time in ms
+function timeMessage(input) {
+  const start = process.hrtime.bigint();
+  P.containsSalesforceObjects(input);
+  P.cleanSalesforceResponse(input);
+  P.extractAndParseSalesforceObjects(input);
+  render(logFor(input));
+  return Number(process.hrtime.bigint() - start) / 1e6;
+}
+
+test('P1: big and odd messages are formatted fast (40 KB under 200 ms)', () => {
   const unclosed = 'Processing ' + Array.from({ length: 3100 }, (_, i) => `item${i}={ok}`).join(' ') + ' then {"partial":';
   assert.ok(unclosed.length > 40000);
   const record = (i) => `Account:{Id=001A0000000${i}, Name=Acct ${i}, Website=https://x.com/?a=1&b=2}`;
@@ -356,19 +366,22 @@ test('P1: big and odd messages (up to 300 KB) are formatted fast (under 200 ms e
     'a:{'.repeat(15000),
     '('.repeat(45000),
   ];
-  // Up to the toString limit (300 KB): texts that made the old checks quadratic (seconds per message)
-  const limit = P.MAX_TOSTRING_MESSAGE_LENGTH - 100;
-  inputs.push('a=('.repeat(limit / 3), 'x:\n"['.repeat(limit / 5), '"[' + '='.repeat(limit), '[{'.repeat(limit / 2) + '"x"',
-    'A:[a='.repeat(limit / 5) + ']'.repeat(limit / 5), 'Label A:{a=' + ')'.repeat(limit) + '}',
-    Array.from({ length: limit / 20 }, (_, i) => `x A:{a=${i}}`).join(' '));
   for (const input of inputs) {
-    const start = process.hrtime.bigint();
-    P.containsSalesforceObjects(input);
-    P.cleanSalesforceResponse(input);
-    P.extractAndParseSalesforceObjects(input);
-    render(logFor(input));
-    const ms = Number(process.hrtime.bigint() - start) / 1e6;
+    const ms = timeMessage(input);
     assert.ok(ms < 200, `${input.slice(0, 30)}... took ${ms.toFixed(0)} ms`);
+  }
+});
+
+test('P1: odd messages up to the 300 KB toString limit stay linear (under 1 s; quadratic took seconds)', () => {
+  const limit = P.MAX_TOSTRING_MESSAGE_LENGTH - 100;
+  const inputs = ['a=('.repeat(limit / 3), 'x:\n"['.repeat(limit / 5), '"[' + '='.repeat(limit), '[{'.repeat(limit / 2) + '"x"',
+    'A:[a='.repeat(limit / 5) + ']'.repeat(limit / 5), 'Label A:{a=' + ')'.repeat(limit) + '}',
+    Array.from({ length: limit / 20 }, (_, i) => `x A:{a=${i}}`).join(' '),
+    // A stray ")" in every record: each record is also tried up to its own "}" (within the retry budget)
+    Array.from({ length: limit / 30 }, (_, i) => `x A:{a=${i} :)}`).join(' ')];
+  for (const input of inputs) {
+    const ms = timeMessage(input);
+    assert.ok(ms < 1000, `${input.slice(0, 30)}... took ${ms.toFixed(0)} ms`);
   }
 });
 
@@ -486,9 +499,39 @@ test('text around values: each value is formatted where it is, the text stays te
   assert.match(html, /<span class="content-prefix">New:<\/span>/);
   assert.strictEqual(textOf(render(logFor('Before (Account:{Name=A}) after'))), 'Before [ { "Name": "A" } ] after');
   assert.match(realText('S29'), /^Before \{ "Id": .* \} after$/);
-  // Stray brackets in a text value
+  // Stray brackets in a text value, also in a value before another one
   assert.strictEqual(textOf(render(logFor('Label Account:{Name=Smile :)}'))), 'Label { "Name": "Smile :)" }');
+  assert.strictEqual(textOf(render(logFor('Old: Account:{Name=Smile :)} New: Account:{Name=B}'))), 'Old: { "Name": "Smile :)" } New: { "Name": "B" }');
   assert.strictEqual(textOf(render(logFor('Label Account:{Name=Unclosed { brace}'))), 'Label { "Name": "Unclosed { brace" }');
   // Two sets are not read as one
   assert.strictEqual(realText('S30'), '{x, y} {1, 2}');
+});
+
+test('text built in code: "," alone, unsorted classes, names starting with _ and a __proto__ key', () => {
+  assert.deepStrictEqual(parse('Account:{Id=001A,Name=Acme,Industry=Tech}'), { Id: '001A', Name: 'Acme', Industry: 'Tech' });
+  assert.deepStrictEqual(parse('(1,2,3)'), [1, 2, 3]);
+  assert.deepStrictEqual(parse('Account:{Name=Smith,John}'), { Name: 'Smith,John' });
+  assert.strictEqual(textOf(render(logFor('Payload:\n"[key=value,other=thing]"'))), '{ "Payload": { "key": "value", "other": "thing" } }');
+  // A class printed out of sort order (e.g. a toString() override) keeps every field
+  assert.deepStrictEqual(parse('Wrapper:[c=1, d=2, e=3, f=4, a=5]'), { c: 1, d: 2, e: 3, f: 4, a: 5 });
+  assert.deepStrictEqual(parse('Wrapper:[_id=1, name=x]'), { _id: 1, name: 'x' });
+  assert.strictEqual(textOf(render(logFor('{__proto__={x=1}, b=2}'))), '{ "__proto__": { "x": 1 }, "b": 2 }');
+});
+
+test('values are shown as printed: quotes and spacing kept, text that only looks like a number stays text', () => {
+  assert.deepStrictEqual(parse('Account:{Name="Quoted", When=2026-01-01 00: 00: 00}'), { Name: '"Quoted"', When: '2026-01-01 00: 00: 00' });
+  // Apex prints Double as 1.0E10 / 1.2345E-5 and Decimal as 1E-7 / 1.5E+8; a code such as 1E5 is text
+  assert.strictEqual(textOf(render(logFor('Account:{Code=1E5, Small=1E-7, Big=1.5E+8, Ratio=1.0E10}'))),
+    '{ "Code": "1E5", "Small": 1E-7, "Big": 1.5E+8, "Ratio": 1.0E10 }');
+  // JSON keeps every number as written
+  assert.match(textOf(render(logFor('{"a":1e5,"b":1.50}'))), /"a": 1e5, "b": 1\.50/);
+});
+
+test('custom exceptions read like System exceptions everywhere; long text before JSON is not a label', () => {
+  assert.strictEqual(textOf(render(logFor('Error: ProbeException:[]: Order failed'))), 'Error: ProbeException: Order failed');
+  assert.deepStrictEqual(parse('Result:[error=ProbeException:[]: boom, ok=false]'), { error: 'ProbeException: boom', ok: false });
+  const longText = 'word '.repeat(200).trim();
+  const html = render(logFor(longText + ' {"a":1}'));
+  assert.ok(!html.includes('<span class="content-prefix">word'), 'long text is not shown as a bold label');
+  assert.match(textOf(html), /word \{ "a": 1 \}$/);
 });

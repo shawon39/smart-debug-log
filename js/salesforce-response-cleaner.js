@@ -63,11 +63,12 @@ function isRawJson(value) {
   return typeof JSON.isRawJSON === 'function' && JSON.isRawJSON(value);
 }
 
-// JSON.parse reviver that keeps numbers as written (10.50, 9007199254740993); see exactNumber in basic-parsing.js
+// JSON.parse reviver that keeps numbers as written (10.50, 9007199254740993, 1e-7) with JSON.rawJSON (Chrome 114+;
+// older versions do not pass the source text)
 function keepNumberText(key, value, context) {
-  if (typeof value === 'number' && context && typeof context.source === 'string') {
-    const number = exactNumber(context.source);
-    if (number !== undefined) return number;
+  if (typeof value === 'number' && context && typeof context.source === 'string' && String(value) !== context.source &&
+    typeof JSON.rawJSON === 'function') {
+    return JSON.rawJSON(context.source);
   }
   return value;
 }

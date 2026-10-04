@@ -161,8 +161,8 @@ function displayDebugContent(parsedContent) {
         }
       }
       if (formattedMessage === null) {
-        // Text (and anything that could not be formatted). A custom exception prints as "Name:[]: message".
-        formattedMessage = applyDebugLogHighlighting(message.replace(/^(\w+):\[\]: /, '$1: '));
+        // Text (and anything that could not be formatted)
+        formattedMessage = applyDebugLogHighlighting(tidyExceptionText(message));
       }
 
       // Add line numbers to the formatted message

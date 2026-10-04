@@ -538,7 +538,10 @@ inner classes, inheritance, properties, enums, a `toString()` override and a cus
 
 What the debug view does with it: no type names; inherited fields by their own name; `(already output)` as
 `"(same object as above)"`; the `...` cut as a note under the value; system classes as objects (`getErrors` → `errors`);
-addresses as objects without the nulls; numbers exactly as printed; text around values kept in place.
+addresses as objects without the nulls; numbers exactly as printed (Apex number forms only: `1.0E10`, `1E-7` are
+numbers, a code such as `1E5` stays text); `ProbeException:[]: message` as `ProbeException: message`; text around
+values kept in place. Text built in code with `,` alone (no space) is split on `,`. Class fields are read in sorted
+order only after a text value and when few names are out of order, so `toString()` overrides keep every field.
 
 Still ambiguous (no reliable fix):
 * SObject text with `, Name=value` in it (`Description=a=b, c=d`) shows an extra field `c`.

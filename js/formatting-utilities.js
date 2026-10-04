@@ -95,23 +95,6 @@ function formatGovernorLimits(limitsText) {
   }
 }
 
-// For each bracket, the index of the bracket that pairs with it, or -1 (same pairing as pairedBrackets)
-function bracketPartners(text) {
-  const partner = new Int32Array(text.length).fill(-1);
-  const openers = [];
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (char === '(' || char === '{' || char === '[') {
-      openers.push(i);
-    } else if ((char === ')' || char === '}' || char === ']') && openers.length > 0) {
-      const open = openers.pop();
-      partner[open] = i;
-      partner[i] = open;
-    }
-  }
-  return partner;
-}
-
 // Start of the type name when the bracket at i opens a record, class or system object
 // ("Account:{", "Wrapper:[", "Database.SaveResult["), else -1
 function typedValueStart(text, i) {
@@ -147,12 +130,22 @@ function splitValueSegments(text) {
     typedBefore[i + 1] = typedBefore[i] + (typedStart[i] >= 0 ? 1 : 0);
   }
 
+  // nextFreeCloser[close][i]: the first closer at or after i that pairs with nothing. A stray bracket in a text value
+  // (e.g. "Smile :)") pairs with the opener of its value, which then ends at such a closer.
+  const nextFreeCloser = {};
+  for (const close of [')', '}', ']']) {
+    const next = new Int32Array(text.length + 1).fill(-1);
+    for (let i = text.length - 1; i >= 0; i--) next[i] = text[i] === close && partner[i] < 0 ? i : next[i + 1];
+    nextFreeCloser[close] = next;
+  }
+
   const last = text.length - 1;
   const firstBracket = text.search(/[({[]/);
   const segments = [];
   let cut = false;
   let textStart = 0;
-  let triedToEnd = false;
+  // Ends other than the paired bracket are tried within this budget (characters parsed), so long texts stay fast
+  let budget = 2 * text.length;
   for (let i = 0; i < text.length; i++) {
     const char = text[i];
     if (char !== '(' && char !== '{' && char !== '[') continue;
@@ -167,13 +160,19 @@ function splitValueSegments(text) {
     }
     if (start < textStart) continue;
 
-    // The value ends at its closing bracket. A stray bracket in a text value (e.g. "Smile :)") can pair with the
-    // wrong one, so the value may also run to the end of the message (tried once, so long texts stay fast).
+    // The value ends at its paired bracket, else at the next closer of its kind that pairs with nothing, else at
+    // the end of the message
+    const close = BRACKET_CLOSERS[char];
+    const freeCloser = nextFreeCloser[close][i + 1];
     const ends = end > i ? [end] : [];
-    if (!triedToEnd && end !== last && BRACKET_CLOSERS[char] === text[last]) ends.push(last);
+    if (freeCloser > end) ends.push(freeCloser);
+    if (text[last] === close && last > end && last !== freeCloser) ends.push(last);
     let found = null;
     for (const valueEnd of ends) {
-      if (valueEnd === last && valueEnd !== end) triedToEnd = true;
+      if (valueEnd !== end) {
+        if (budget <= 0) break;
+        budget -= valueEnd - start + 1;
+      }
       const ctx = { cut: false };
       const value = parseStructure(text.slice(start, valueEnd + 1), 1, ctx);
       if (value !== undefined) {
@@ -196,10 +195,15 @@ function splitValueSegments(text) {
   return { segments, cut };
 }
 
-// Text around a value: one label line per line of text
+// Text longer than this around a value is not a label (e.g. a long log text before a JSON block)
+const MAX_LABEL_LENGTH = 500;
+
+// Text around a value: a short text as label lines, a long one as plain highlighted text
 function textLinesHtml(text) {
-  const trimmed = (text || '').trim();
-  return trimmed ? trimmed.split('\n').map(line => `<span class="content-prefix">${escapeHtml(line)}</span>`).join('\n') : '';
+  const trimmed = tidyExceptionText((text || '').trim());
+  if (!trimmed) return '';
+  if (trimmed.length > MAX_LABEL_LENGTH) return applyDebugLogHighlighting(trimmed);
+  return trimmed.split('\n').map(line => `<span class="content-prefix">${escapeHtml(line)}</span>`).join('\n');
 }
 
 // Formats a debug message that holds JSON or toString values: each value as highlighted JSON, the text around

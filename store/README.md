@@ -29,7 +29,7 @@ store/
 
    It checks the manifest (no `key`, name and summary lengths) and that every file the manifest and pages load is inside, then writes `store/package/salesforce-debug-log-beautifier-2.6.0.zip`.
 
-2. **Update the privacy policy gist** (https://gist.github.com/shawon39/6f6319f92c721b768b6a07cecf197269) with the text of [docs/PRIVACY.md](../docs/PRIVACY.md). The old text still lists permissions that 2.6.0 no longer uses.
+2. **Update the published privacy policy** with the text of [docs/PRIVACY.md](../docs/PRIVACY.md). For 2.6.0 that is the gist (https://gist.github.com/shawon39/6f6319f92c721b768b6a07cecf197269, done: it matches). Once the listing points to the website, it is the website's `/privacy` page instead.
 
 3. Open the [Developer Dashboard](https://chrome.google.com/webstore/devconsole), select the item.
 
@@ -44,6 +44,17 @@ store/
 8. **Distribution**: leave as it is (Public, all regions, free).
 
 9. **Submit for review.**
+
+## After 2.6.0 is published
+
+2.6.0 was submitted before the website existed. Don't cancel its review to change the listing; once it is published, make one listing update:
+
+1. **Store listing** tab, *Additional fields*: Homepage URL `https://sfdebuglog.netlify.app/`, and pick `https://sfdebuglog.netlify.app/` as Official URL (it is verified in Search Console; if it is not in the list, add the developer account as an Owner in Search Console > Settings > Users and permissions).
+2. **Store listing** tab, *Description*: paste [listing/description.txt](listing/description.txt) again (it now ends with the website link).
+3. **Privacy practices** tab: Privacy policy URL `https://sfdebuglog.netlify.app/privacy`.
+4. **Submit for review.** Keep the gist online, since older listing versions link to it.
+
+The website (<https://sfdebuglog.netlify.app>) is a separate private repository, `shawon39/sfdebuglog`. Pushing to its `main` branch deploys it on Netlify. Its `/privacy` page is a copy of [docs/PRIVACY.md](../docs/PRIVACY.md), so update both when the policy changes.
 
 ## Checks done for this release
 

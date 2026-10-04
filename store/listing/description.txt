@@ -68,4 +68,5 @@ Why it asks for these permissions:
 
 
 Questions or ideas? Email shshawon416@gmail.com
+Website: https://sfdebuglog.netlify.app
 Source code: https://github.com/shawon39/smart-debug-log

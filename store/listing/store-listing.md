@@ -36,7 +36,9 @@ Every screenshot shows the real extension running on a made-up org ("Acme", `acm
 
 | Field | Value |
 |---|---|
-| Official URL | None |
-| Homepage URL | `https://github.com/shawon39/smart-debug-log` |
+| Official URL | `https://sfdebuglog.netlify.app/` (pick it from the list; it is verified in Google Search Console) |
+| Homepage URL | `https://sfdebuglog.netlify.app/` |
 | Support URL | `https://github.com/shawon39/smart-debug-log/issues` |
 | Mature content | No |
+
+Version 2.6.0 went into review with Official URL "None" and the GitHub repository as Homepage URL. Switch to the values above in the first listing update after 2.6.0 is published (see [After 2.6.0 is published](../README.md#after-260-is-published)).

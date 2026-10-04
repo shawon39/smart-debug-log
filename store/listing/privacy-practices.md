@@ -98,10 +98,8 @@ The Web Store counts data that is only handled on the device, so tick these thre
 
 ## Privacy policy URL
 
-Keep the current URL:
-
 ```text
-https://gist.github.com/shawon39/6f6319f92c721b768b6a07cecf197269
+https://sfdebuglog.netlify.app/privacy
 ```
 
-Before you submit, replace the gist's text with [docs/PRIVACY.md](../../docs/PRIVACY.md) (it describes version 2.6.0: the `activeTab`, `notifications` and `windows` permissions are gone and `unlimitedStorage` is new). The policy must match what this page declares.
+Version 2.6.0 went into review with the gist URL (`https://gist.github.com/shawon39/6f6319f92c721b768b6a07cecf197269`), whose text matches [docs/PRIVACY.md](../../docs/PRIVACY.md). Switch to the website URL above in the first listing update after 2.6.0 is published. From then on the website is the published copy: when the policy changes, update `docs/PRIVACY.md` and the website's `public/privacy.html` (repository `shawon39/sfdebuglog`) together. The policy must match what this page declares.

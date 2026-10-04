@@ -2,6 +2,8 @@
 
 A Chrome extension (Manifest V3) that transforms and manages Salesforce debug logs — syntax highlighting, JSON formatting, error analysis, governor‑limit views, trace‑flag management, and anonymous Apex execution. Built with vanilla JavaScript, no build tools, no external runtime dependencies.
 
+**Website:** <https://sfdebuglog.netlify.app> · **Install:** [Chrome Web Store](https://chromewebstore.google.com/detail/salesforce-debug-log-beau/nhjppmlfmlhfmgfhoopllbhapfjajpnj) · **Privacy policy:** <https://sfdebuglog.netlify.app/privacy>
+
 > Press **Alt+Shift+D** (**Option+Shift+D** on macOS) on any Salesforce tab to open the dashboard.
 
 ## Features
@@ -35,7 +37,7 @@ Console.log('My Accounts', accounts);
 
 ### From the Chrome Web Store
 
-Search for **“Salesforce Debug Log Beautifier”** in the Chrome Web Store and click **Add to Chrome**.
+Open [Salesforce Debug Log Beautifier](https://chromewebstore.google.com/detail/salesforce-debug-log-beau/nhjppmlfmlhfmgfhoopllbhapfjajpnj) in the Chrome Web Store and click **Add to Chrome**.
 
 ## Permissions
 

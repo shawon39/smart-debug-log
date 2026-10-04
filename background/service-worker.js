@@ -474,7 +474,7 @@ async function handleGetLogStorage(request) {
   return { success: true, data };
 }
 
-// One-time login link for Copy Session URL / Incognito Login (needs the "web" scope)
+// One-time login link for Incognito Login (needs the "web" scope)
 async function handleGetSingleAccessUrl(request) {
   const url = await directGetSingleAccessUrl(request.sfHost);
   if (!url) return { success: false, error: 'The access token has no web scope' };

@@ -97,6 +97,10 @@ test('M1 token exchange errors and a closed login window get clear messages', as
   chrome.identity.launchWebAuthFlow = async () => { throw new Error('The user did not approve access.'); };
   await assert.rejects(performOAuthLogin(HOST), /The login window was closed before login finished\./);
 
+  // Salesforce shows an error page (no redirect) for a callback URL it does not know
+  chrome.identity.launchWebAuthFlow = async () => { throw new Error('Authorization page could not be loaded.'); };
+  await assert.rejects(performOAuthLogin(HOST), /https:\/\/extid\.chromiumapp\.org\/salesforce/);
+
   chrome.identity.launchWebAuthFlow = async ({ url }) => {
     const state = new URL(url).searchParams.get('state');
     return `https://extid.chromiumapp.org/salesforce?code=abc&state=${state}`;

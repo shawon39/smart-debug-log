@@ -119,7 +119,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
 }
 
 
@@ -131,36 +130,32 @@
   gap: 4px;
 }
 
+/* Icon button, shown when the row is hovered, selected or the button has focus */
 .apex-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   background: none;
   border: 1px solid transparent;
-  padding: 4px 8px;
   cursor: pointer;
-  border-radius: 3px;
-  opacity: 0.8;
+  border-radius: 4px;
+  opacity: 0;
   transition: all 0.2s ease;
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  color: var(--text-muted);
+}
+
+.apex-code-item:hover .apex-action-btn,
+.apex-code-item.selected .apex-action-btn,
+.apex-action-btn:focus-visible {
+  opacity: 1;
 }
 
 .apex-action-btn:hover {
-  opacity: 1;
-  background: var(--bg-secondary);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
-}
-
-.apex-code-item.selected .apex-action-btn {
-  color: var(--text-primary);
-  opacity: 0.8;
-}
-
-.apex-code-item.selected .apex-action-btn:hover {
-  background: var(--bg-secondary);
-  border-color: var(--border-secondary);
-  color: var(--text-primary);
-  opacity: 1;
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .apex-code-meta {
@@ -172,28 +167,29 @@
 }
 
 /* Empty Apex State */
+/* Same type scale as the dashboard empty states */
 .empty-apex-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   height: 200px;
+  padding: 0 24px;
   text-align: center;
-  color: var(--text-secondary);
-}
-
-.empty-apex-state .empty-icon {
-  margin-bottom: 12px;
+  color: var(--text-empty-state);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .empty-apex-state h4 {
-  margin: 0 0 8px 0;
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
 .empty-apex-state p {
   margin: 0;
-  font-size: 14px;
 }
 
 /* Right Panel - Code Editor (70%) */
@@ -874,22 +870,16 @@
   color: var(--text-secondary);
 }
 
-.apex-manager-modal .welcome-state .welcome-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  margin-bottom: 8px;
-}
 
 .apex-manager-modal .welcome-state h4 {
-  margin: 0 0 2px 0;
+  margin: 0 0 4px 0;
   color: var(--text-primary);
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .apex-manager-modal .welcome-state p {
   margin: 0;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 /* Responsive Design */

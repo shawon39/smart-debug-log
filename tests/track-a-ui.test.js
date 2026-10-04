@@ -90,7 +90,7 @@ test('L15 on the dashboard tab the popup uses the dashboard org for status and e
   assert.match(elements.popupError.textContent, /did not confirm the revoke/);
 });
 
-test('F2 popup shows a scheduled trace flag instead of "Logging off"', async () => {
+test('F2 popup shows a scheduled trace flag instead of "Not recording"', async () => {
   const startTime = '2026-10-03T15:30:00.000Z';
   const { elements } = loadPopup({
     activeTab: { id: 2, url: 'https://acme.my.salesforce.com/lightning/page/home' },
@@ -104,7 +104,7 @@ test('F2 popup shows a scheduled trace flag instead of "Logging off"', async () 
     })[m.type]
   });
   await tick();
-  assert.match(elements.loggingStatusText.textContent, /^Logging starts at /);
+  assert.match(elements.loggingStatusText.textContent, /^Recording starts at /);
 });
 
 function loadDashboardConnection({ dismissed, reply }) {

@@ -76,8 +76,9 @@ test('L3: Extend uses the selected duration and sends a valid update', async () 
   const { env, ui } = setup({ flags: [flag('7tf1', { StartDate: iso(NOW - 20 * HOUR), ExpirationDate: iso(NOW + 3 * HOUR) })] });
   env.document.getElementById('debugDurationSelect').value = '240';
   ui.renderTraceFlags();
-  const extend = [...env.document.querySelectorAll('#traceFlagsList button')].find(b => b.textContent.startsWith('Extend'));
-  assert.strictEqual(extend.textContent, 'Extend +4hr');
+  const extend = [...env.document.querySelectorAll('#traceFlagsList button')].find(b => b.title.startsWith('Extend'));
+  assert.strictEqual(extend.title, 'Extend by 4hr');
+  assert.strictEqual(extend.textContent, '+4hr');
   extend.click();
   await flush();
 
@@ -208,12 +209,12 @@ test('F2: all log types are listed with their creator; conflicts and the header 
   ui.renderTraceFlags();
   const rows = env.document.querySelectorAll('#traceFlagsList .trace-flag-item');
   const row = id => rows.find(r => r.dataset.id === id);
-  const buttons = r => r.querySelectorAll('button').map(b => b.textContent);
+  const buttons = r => r.querySelectorAll('button').map(b => b.title);
   assert.strictEqual(row('7tfDEV').querySelector('.trace-flag-type').textContent, 'Dev Console');
   assert.strictEqual(row('7tfDEV').querySelector('.trace-flag-creator').textContent, 'by Sam Gillingham');
   assert.deepStrictEqual(buttons(row('7tfDEV')), ['Delete']);
   assert.strictEqual(row('7tfCLS').querySelector('.trace-flag-type').textContent, 'Class/Trigger');
-  assert.deepStrictEqual(buttons(row('7tfCLS')), ['Extend +45min', 'Reduce -45min', 'Delete']);
+  assert.deepStrictEqual(buttons(row('7tfCLS')), ['Extend by 45min', 'Reduce by 45min', 'Delete']);
 });
 
 test('M6: a trace flag refused for the log storage limit is explained in plain words', async () => {

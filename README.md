@@ -62,7 +62,7 @@ The extension logs in with its own connected app. Since September 2025 Salesforc
 1. **Ask your Salesforce admin to install the app:** Setup > Connected Apps OAuth Usage > find the app > Install, then set who can use it.
 2. **Or use your own app:** create an External Client App in your org, then open **OAuth setup** in the dashboard's token banner and paste its consumer key. The app needs the callback URL shown there, the `api` and `refresh_token` scopes, PKCE, and no client secret for the web server flow or for refresh.
 
-**One‑time login links (optional):** **Copy Session URL** and **Incognito Login** use a one‑time link (`/services/oauth2/singleaccess`) when the token has the `web` scope. Otherwise they use a link with your session ID, so never share it. To enable the `web` scope, first allow it in the connected app, then add `web` to `OAUTH_SCOPES` in `background/oauth-manager.js` and generate a new token. Do not add it before the app allows it: login fails when the app does not allow every requested scope.
+**One‑time login links (optional):** **Incognito Login** uses a one‑time link (`/services/oauth2/singleaccess`) when the token has the `web` scope. Otherwise it uses a link with your session ID, so never share it. To enable the `web` scope, first allow it in the connected app, then add `web` to `OAUTH_SCOPES` in `background/oauth-manager.js` and generate a new token. Do not add it before the app allows it: login fails when the app does not allow every requested scope.
 
 ## Development
 

@@ -191,7 +191,7 @@ test('regression corpus: full log views (raw highlighting, messages, errors, lim
     'limits:stub-log': P.elements.limitsContent.innerHTML,
   };
   for (const [id, expectedSha] of [["raw:debug-log", 'f54fa815f7c5fda6'], ["debug-view:stub-log", '30b416472aad7b65'],
-    ["errors:stub-log", 'b8d7b854da293634'], ["limits:stub-log", '257d0dde0ec58ec3']]) {
+    ["errors:stub-log", 'b8d7b854da293634'], ["limits:stub-log", 'c636e40d96d33a09']]) {
     assert.strictEqual(sha(views[id]), expectedSha, `${id} changed`);
   }
 });
@@ -306,6 +306,16 @@ test('F6: governor limits show every namespace, (default) first', () => {
   const namespaces = [...html.matchAll(/<div class="limits-ns">Governor limits <span>([^<]+)<\/span>/g)].map(m => m[1]);
   assert.deepStrictEqual(namespaces, ['(default)', 'acmepkg']);
   assert.match(html.slice(html.indexOf('acmepkg')), /limit-row level-danger/);
+});
+
+test('governor limits at 0 fold under a "Show N unused limits" toggle', () => {
+  const html = P.formatGovernorLimits(['LIMIT_USAGE_FOR_NS|(default)|', '  Number of SOQL queries: 2 out of 100',
+    '  Number of DML rows: 0 out of 10000', '  Number of callouts: 0 out of 100'].join('\n'));
+  const [used, unused] = html.split('<details class="limits-unused">');
+  assert.match(used, /SOQL queries/);
+  assert.doesNotMatch(used, /DML rows|Callouts/);
+  assert.match(unused, /^<summary>Show 2 unused limits<\/summary>.*DML rows.*Callouts/s);
+  assert.match(P.formatGovernorLimits('  Number of callouts: 0 out of 100'), /No limits used.*Show 1 unused limit</s);
 });
 
 test('F7: logs cut by Salesforce show a banner, and the markers stay out of messages and errors', () => {

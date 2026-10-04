@@ -70,10 +70,7 @@
 
 /* User Selection Section */
 .user-selection-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .user-selection-section .section-header {
@@ -244,10 +241,7 @@
 
 /* Debug Level Section */
 .debug-level-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0;
 }
 
 .debug-level-section .section-header {
@@ -318,10 +312,8 @@
 
 /* Create Debug Log Section */
 .debug-create-section {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
-  padding: 10px 12px;
+  padding: 0 0 14px;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .debug-create-section .debug-create-controls {
@@ -777,12 +769,6 @@
   font-size: 12px;
 }
 
-.empty-state .empty-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  margin-bottom: 8px;
-}
 
 /* Trace Flag Item */
 .trace-flag-item {
@@ -902,10 +888,8 @@
 }
 
 .trace-flag-expires.scheduled .schedule-range {
-  color: var(--text-secondary);
+  color: var(--text-muted);
   font-weight: 400;
-  font-size: 0.9em;
-  opacity: 0.8;
 }
 
 .trace-flag-expires.expired {
@@ -922,15 +906,33 @@
 }
 
 .trace-flag-actions .button {
-  font-size: 9px;
-  padding: 3px 6px;
-  min-height: auto;
+  font-size: 10px;
+  padding: 3px 7px;
+  min-height: 24px;
+  font-variant-numeric: tabular-nums;
+}
+
+.trace-flag-actions .button.delete-btn {
+  width: 24px;
+  padding: 0;
+  justify-content: center;
+}
+
+.trace-flag-actions .button.delete-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .trace-flag-actions .button.secondary {
   background: transparent;
-  border: 1px solid var(--border-secondary);
+  /* Visible on both themes (--border-secondary nearly matches the dark background) */
+  border: 1px solid color-mix(in srgb, var(--text-muted) 35%, transparent);
   color: var(--text-primary);
+}
+
+.trace-flag-actions .button.secondary:not(.delete-btn):hover {
+  border-color: var(--accent);
 }
 
 .trace-flag-actions .button.danger {
@@ -949,10 +951,8 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
-  border-radius: 6px;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border-primary);
   margin-bottom: 4px;
   /* Ensure space at the very bottom */
 }

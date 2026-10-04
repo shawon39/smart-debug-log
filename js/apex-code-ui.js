@@ -58,17 +58,17 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
     listContainer.innerHTML = '';
 
     if (!this.currentOrgId) {
-        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 28)}</div><h4>Org not found</h4><p>Open the dashboard from a Salesforce tab to see your saved snippets</p></div>`;
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 20)}</div><h4>Org not found</h4><p>Open the dashboard from a Salesforce tab</p></div>`;
         return;
     }
 
     if (this.apexCodes.length === 0) {
-        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 28)}</div><h4>No saved snippets</h4><p>Click "New" to create your first code snippet</p></div>`;
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('fileCode', 20)}</div><h4>No saved snippets</h4><p>Click New to add one</p></div>`;
         return;
     }
 
     if (this.filteredCodes.length === 0 && this.searchTerm.trim()) {
-        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('search', 28)}</div><h4>No results</h4><p>No snippets match your search</p></div>`;
+        listContainer.innerHTML = `<div class="empty-apex-state"><div class="empty-icon">${Icons.svg('search', 20)}</div><h4>No results</h4><p>No snippets match your search</p></div>`;
         return;
     }
 
@@ -82,16 +82,16 @@ ApexCodeManager.prototype.renderApexCodeList = function () {
         item.innerHTML = `
       <div class="apex-code-header">
         <div class="apex-code-name"></div>
-        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" title="Delete">Delete</button></div>
+        <div class="apex-code-actions"><button class="apex-action-btn delete-btn" title="Delete snippet" aria-label="Delete snippet">${Icons.svg('trash', 13)}</button></div>
       </div>
       <div class="apex-code-meta">
-        <span class="apex-code-date">${date.toLocaleDateString()} ${date.toLocaleTimeString()}</span>
+        <span class="apex-code-date">${formatDateTimeNice(date)}</span>
         <span class="apex-code-size">${apexCode.code.split('\n').length} lines</span>
       </div>`;
         item.querySelector('.apex-code-name').textContent = apexCode.name;
 
         item.addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-btn')) {
+            if (e.target.closest('.delete-btn')) {
                 this.handleDeleteClick(apexCode.id);
             } else if (this.confirmDiscardChanges()) {
                 this.selectApexCode(apexCode);

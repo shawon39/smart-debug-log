@@ -58,14 +58,14 @@
           <span data-icon="terminal"></span>Execute Apex
         </button>
         <span class="toolbar-divider" aria-hidden="true"></span>
+        <button class="button ghost" id="backToSalesforceBtn" title="Go back to your Salesforce tab">
+          <span data-icon="arrowLeft"></span>Back to Salesforce
+        </button>
         <button class="button ghost" id="openDebugLogsBtn" title="Open Setup &gt; Debug Logs in Salesforce">
           <span data-icon="externalLink"></span>Setup Logs
         </button>
-        <button class="button ghost" id="copySessionBtn" title="Copy a login URL for this session">
-          <span data-icon="link"></span>Copy Session URL
-        </button>
         <button class="button ghost" id="openIncognitoBtn" title="Open this org in an incognito window">
-          <span data-icon="eyeOff"></span>Incognito Login
+          <span data-icon="incognito"></span>Incognito Login
         </button>
         <button class="button ghost" id="deployPrettierBtn" title="Deploy the Console helper class (wraps JSON.serializePretty)">
           <span data-icon="cloudUpload"></span>Deploy Console Class
@@ -148,7 +148,7 @@
           <span>Loading logs...</span>
         </div>
         <div class="empty-state hidden" id="emptyState">
-          <div class="empty-icon" data-icon="inbox" data-size="28"></div>
+          <div class="empty-icon" data-icon="inbox" data-size="20"></div>
           <h4>No debug logs yet</h4>
           <p>Turn on a trace flag, then run your code</p>
         </div>
@@ -160,12 +160,12 @@
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">
-          <span data-icon="message"></span>Debug Messages
+          <span data-icon="messageCode"></span>Debug Messages
         </div>
         <div class="panel-actions">
           <div id="selectedLogId" class="selected-log-id"></div>
           <button class="button primary hidden" id="toggleViewBtn"
-            title="Toggle between debug messages and raw response">Show Raw Response</button>
+            title="Toggle between debug messages and raw response">Raw Log</button>
           <button class="icon-btn hidden" id="copyRawBtn"
             aria-label="Copy raw response" title="Copy raw response"><span data-icon="copy"></span></button>
         </div>
@@ -185,7 +185,7 @@
       <div class="panel-content">
         <div class="welcome-state" id="welcomeState">
 
-          <div class="welcome-icon" data-icon="pointer" data-size="28"></div>
+          <div class="welcome-icon" data-icon="messageCode" data-size="20"></div>
           <h4>Select a log</h4>
           <p>Pick a log on the left to see its debug messages</p>
 
@@ -193,21 +193,21 @@
           <div class="icon-legend">
             <div class="icon-legend-header">Log status icons</div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon has-error-indicator" data-icon="octagonAlert" data-size="14"></span>
+              <span class="icon-legend-icon has-error-indicator" data-icon="octagonX" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Fatal Error</span>
                 <span class="icon-legend-description">Log contains fatal errors that stopped execution</span>
               </div>
             </div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon has-exception-indicator" data-icon="triangleAlert" data-size="14"></span>
+              <span class="icon-legend-icon has-exception-indicator" data-icon="zap" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Exception Thrown</span>
                 <span class="icon-legend-description">Log contains exception events (not necessarily errors)</span>
               </div>
             </div>
             <div class="icon-legend-item">
-              <span class="icon-legend-icon has-debug-indicator" data-icon="message" data-size="14"></span>
+              <span class="icon-legend-icon has-debug-indicator" data-icon="messageCode" data-size="14"></span>
               <div class="icon-legend-content">
                 <span class="icon-legend-label">Debug Messages</span>
                 <span class="icon-legend-description">Log contains System.debug() statements</span>
@@ -230,7 +230,7 @@
       </div>
       <div class="panel-content">
         <div class="welcome-state" id="limitsWelcomeState">
-          <div class="welcome-icon" data-icon="gauge" data-size="28"></div>
+          <div class="welcome-icon" data-icon="gauge" data-size="20"></div>
           <h4>No log selected</h4>
           <p>Errors, stack traces and governor limits will appear here</p>
         </div>
@@ -345,9 +345,9 @@
               </div>
               <div class="results-content" id="resultsContent">
                 <div class="welcome-state">
-                  <div class="welcome-icon" data-icon="play" data-size="24"></div>
+                  <div class="welcome-icon" data-icon="play" data-size="20"></div>
                   <h4>Ready to execute</h4>
-                  <p>Select Apex code and click Execute to see results</p>
+                  <p>Pick a snippet, then click Execute</p>
                 </div>
               </div>
             </div>

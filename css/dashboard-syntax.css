@@ -182,10 +182,35 @@
 }
 
 /* Each namespace (managed package) has its own group */
-.limits-list + .limits-ns {
+.limits-group + .limits-group {
   margin-top: 14px;
   padding-top: 12px;
   border-top: 1px solid var(--border-primary);
+}
+
+.limits-none {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* Limits at 0, folded under a toggle */
+.limits-unused {
+  margin-top: 10px;
+}
+
+.limits-unused summary {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.limits-unused summary:hover {
+  color: var(--accent);
+}
+
+.limits-unused[open] summary {
+  margin-bottom: 9px;
 }
 
 .limit-row-head {
@@ -283,13 +308,21 @@
 }
 
 /* Error Extraction Display Styles */
+/* Icon and text on one centered line */
+.error-status-success,
+.error-status-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
 .error-status-success {
   text-align: center;
   padding: 12px 16px;
   color: var(--text-limits-percentage);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg-limits-content);
   border-radius: 6px;
   margin: 8px;
@@ -301,13 +334,12 @@
   text-align: center;
   padding: 12px 16px;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 500;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   background: var(--bg-secondary);
   border-radius: 6px;
   margin: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 /* Error filter checkboxes */
@@ -319,7 +351,7 @@
   background: var(--bg-secondary);
   border-radius: 6px;
   align-items: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-primary);
 }
 
 .filter-checkbox {
@@ -342,7 +374,7 @@
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: var(--bg-accent);
+  accent-color: var(--accent);
   flex-shrink: 0;
 }
 
@@ -441,7 +473,7 @@
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   color: var(--text-debug-message);
   margin-bottom: 6px;
-  word-wrap: break-word;
+  overflow-wrap: anywhere;
   font-weight: 500;
   line-height: 1.4;
   font-size: 10px;
@@ -454,6 +486,7 @@
   margin: 8px 0 0 0;
   font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Roboto Mono', 'Fira Code', 'Consolas', 'Courier New', monospace;
   opacity: 0.8;
+  overflow-wrap: anywhere;
 }
 
 /* New error formatting styles */
@@ -468,14 +501,13 @@
 
 .code-unit-context {
   font-weight: normal;
-  font-size: 9px;
-  color: var(--text-debug-status);
-  opacity: 0.8;
+  font-size: 10px;
+  color: var(--text-muted);
 }
 
 .error-timestamp {
   font-size: 10px;
-  color: var(--text-debug-status);
+  color: var(--text-muted);
   font-weight: normal;
 }
 
@@ -490,7 +522,7 @@
 .stack-trace-header {
   font-size: 10px;
   font-weight: bold;
-  color: var(--text-debug-status);
+  color: var(--text-muted);
   margin-bottom: 6px;
 }
 
@@ -500,6 +532,7 @@
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   margin: 2px 0;
   padding-left: 12px;
+  overflow-wrap: anywhere;
 }
 
 .stack-trace-line::before {
@@ -513,7 +546,6 @@
 [data-theme="dark"] .error-status-success {
   color: var(--text-limits-percentage);
   background: var(--bg-limits-content);
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
@@ -562,7 +594,7 @@
 }
 
 [data-theme="dark"] .error-timestamp {
-  color: var(--text-debug-status);
+  color: var(--text-muted);
 }
 
 [data-theme="dark"] .error-stack-trace {
@@ -571,7 +603,7 @@
 }
 
 [data-theme="dark"] .stack-trace-header {
-  color: var(--text-debug-status);
+  color: var(--text-muted);
 }
 
 [data-theme="dark"] .stack-trace-line {

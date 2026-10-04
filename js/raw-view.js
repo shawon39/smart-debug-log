@@ -24,12 +24,12 @@ async function initializeViewPreference() {
     const { toggleViewBtn } = elements;
     if (toggleViewBtn) {
       if (isRawView) {
-        toggleViewBtn.textContent = 'Show Debug Messages';
+        toggleViewBtn.textContent = 'Messages';
         toggleViewBtn.classList.remove('primary');
         toggleViewBtn.classList.add('secondary');
         toggleViewBtn.title = 'Switch back to debug messages view';
       } else {
-        toggleViewBtn.textContent = 'Show Raw Response';
+        toggleViewBtn.textContent = 'Raw Log';
         toggleViewBtn.classList.remove('secondary');
         toggleViewBtn.classList.add('primary');
         toggleViewBtn.title = 'Switch to raw response view';
@@ -97,7 +97,7 @@ function showRawResponse() {
   const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer, errorContent, limitsContent } = elements;
 
   // Update button state and text
-  toggleViewBtn.textContent = 'Show Debug Messages';
+  toggleViewBtn.textContent = 'Messages';
   toggleViewBtn.classList.remove('primary');
   toggleViewBtn.classList.add('secondary');
   toggleViewBtn.title = 'Switch back to debug messages view';
@@ -155,7 +155,7 @@ function showDebugMessages() {
   const { debugContent, toggleViewBtn, copyRawBtn, rawSearchContainer, errorContent, limitsContent } = elements;
 
   // Update button state and text
-  toggleViewBtn.textContent = 'Show Raw Response';
+  toggleViewBtn.textContent = 'Raw Log';
   toggleViewBtn.classList.remove('secondary');
   toggleViewBtn.classList.add('primary');
   toggleViewBtn.title = 'Switch to raw response view';

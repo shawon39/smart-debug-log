@@ -58,12 +58,6 @@ class SmartDebugLogPopup {
     // Event listener for revoke token button
     document.getElementById('revokeTokenBtn').addEventListener('click', () => this.revokeAccessToken());
 
-    // Event listener for Go to Setup button
-    const goToSetupBtn = document.getElementById('goToSetupBtn');
-    if (goToSetupBtn) {
-      goToSetupBtn.addEventListener('click', () => this.goToSetup());
-    }
-
     // Event listener for Enable/Extend debug logging
     const enableBtn = document.getElementById('enableLoggingBtn');
     if (enableBtn) {
@@ -147,8 +141,6 @@ class SmartDebugLogPopup {
         await this.showDashboardNavigationButtons(sfHost);
       } else {
         this.showButton();
-        const setupBtn = document.getElementById('goToSetupBtn');
-        if (setupBtn) setupBtn.style.display = 'none';
       }
 
     } catch (error) {
@@ -198,9 +190,9 @@ class SmartDebugLogPopup {
   async openDashboard() {
     const btn = document.getElementById('openDashboardBtn');
 
-    // Check if we are in "Go Back" mode
+    // Check if we are in "Back to Salesforce" mode
     const label = btn?.querySelector('span') || btn;
-    if (btn && label.textContent === 'Go Back Salesforce') {
+    if (btn && label.textContent === 'Back to Salesforce') {
       const sfHost = btn.dataset.sfHost;
       if (sfHost) {
         return this.goBackToSalesforce(sfHost);
@@ -300,6 +292,7 @@ class SmartDebugLogPopup {
           tokenBtn.classList.remove('is-success');
           tokenBtn.disabled = false;
           this.renderTokenRow(true);
+          this.refreshLoggingStatus();
         }, 1400);
       } else {
         throw new Error(response?.error || 'Failed to generate token');
@@ -403,6 +396,24 @@ class SmartDebugLogPopup {
     // Show exactly one action: Generate when no token, Revoke when present
     if (genBtn) genBtn.style.display = hasToken ? 'none' : 'block';
     if (revokeBtn) revokeBtn.style.display = hasToken ? 'block' : 'none';
+    const hint = document.getElementById('tokenHint');
+    if (hint) hint.hidden = hasToken;
+    this.setLoggingLocked(!hasToken);
+  }
+
+  // Debug logging needs the token: until there is one the logging controls are off and say why
+  setLoggingLocked(locked) {
+    const row = document.getElementById('loggingRow');
+    const select = document.getElementById('durationSelect');
+    const enableBtn = document.getElementById('enableLoggingBtn');
+    if (row) row.classList.toggle('is-locked', locked);
+    if (select) select.disabled = locked;
+    if (enableBtn) enableBtn.disabled = locked;
+    if (locked) {
+      this.renderLoggingStatus({ active: false });
+      const label = document.getElementById('loggingStatusText');
+      if (label) label.textContent = 'Generate a token to record debug logs';
+    }
   }
 
   // Errors go to a visible line in the popup (not only to the console)
@@ -469,7 +480,7 @@ class SmartDebugLogPopup {
 
     if (data && data.active && data.expirationDate) {
       if (dot) { dot.classList.add('active'); dot.classList.remove('warning'); }
-      if (label) label.textContent = 'Logging active';
+      if (label) label.textContent = 'Recording your debug logs';
       if (enableBtn) enableBtn.textContent = 'Extend';
       this.startCountdown(new Date(data.expirationDate).getTime());
     } else {
@@ -477,10 +488,10 @@ class SmartDebugLogPopup {
       if (label) {
         // A trace flag can also be scheduled to start later
         label.textContent = data && data.scheduled && data.startTime
-          ? `Logging starts at ${new Date(data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
-          : 'Logging off';
+          ? `Recording starts at ${new Date(data.startTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`
+          : 'Not recording your debug logs';
       }
-      if (enableBtn) enableBtn.textContent = 'Enable';
+      if (enableBtn) enableBtn.textContent = 'Start';
       if (countdown) { countdown.textContent = ''; countdown.classList.remove('warning'); }
     }
   }
@@ -565,7 +576,7 @@ class SmartDebugLogPopup {
   nudgeGenerateToken() {
     const genBtn = document.getElementById('generateTokenBtn');
     const label = document.getElementById('loggingStatusText');
-    if (label) label.textContent = 'Generate a token first';
+    if (label) label.textContent = 'Generate a token to record debug logs';
     if (genBtn) {
       genBtn.classList.add('nudge');
       setTimeout(() => genBtn.classList.remove('nudge'), 1600);
@@ -574,30 +585,11 @@ class SmartDebugLogPopup {
 
   async showDashboardNavigationButtons(sfHost) {
     const mainBtn = document.getElementById('openDashboardBtn');
-    const setupBtn = document.getElementById('goToSetupBtn');
 
     if (mainBtn) {
-      (mainBtn.querySelector('span') || mainBtn).textContent = 'Go Back Salesforce';
+      (mainBtn.querySelector('span') || mainBtn).textContent = 'Back to Salesforce';
       // Store the host in the button for the click handler
       mainBtn.dataset.sfHost = sfHost;
-    }
-
-    if (setupBtn) {
-      setupBtn.style.display = 'block';
-    }
-  }
-
-  async goToSetup() {
-    try {
-      const sfHost = this.sfHost;
-
-      if (sfHost) {
-        const setupUrl = `https://${sfHost}/lightning/setup/SetupOneHome/home`;
-        await chrome.tabs.create({ url: setupUrl });
-        window.close();
-      }
-    } catch (error) {
-      console.error('Failed to navigate to setup:', error);
     }
   }
 

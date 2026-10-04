@@ -8,7 +8,7 @@
 // Salesforce production edition
 const OAUTH_CLIENT_ID = '3MVG95mg0lk4batiOPo696IEH2HgoU2UEozJEuCiCQBK_UmFAC0G.w2gvRdkxnG9exLIMvUqe6BNJKlr4vIYM';
 
-// Scopes requested at login. To let "Copy Session URL" and "Incognito Login" use a one-time
+// Scopes requested at login. To let "Incognito Login" use a one-time
 // login link (/services/oauth2/singleaccess) instead of a link with the session ID, add 'web'
 // here, but only after the connected app allows the web scope: login fails when the app does
 // not allow every requested scope.
@@ -121,10 +121,14 @@ function describeOAuthError(code, description) {
     return `Salesforce login failed: ${description || code}`;
 }
 
-function describeAuthFlowFailure(error) {
+function describeAuthFlowFailure(error, redirectUri) {
     const message = (error && error.message) || String(error);
     if (/did not approve|closed|cancel/i.test(message)) {
         return 'The login window was closed before login finished.';
+    }
+    // Salesforce shows an error page instead of redirecting back, mostly for an unknown callback URL
+    if (/Authorization page could not be loaded/i.test(message)) {
+        return `Salesforce rejected the login request. Add this callback URL to the app (or check the consumer key in OAuth setup): ${redirectUri}`;
     }
     return `Could not open the Salesforce login page: ${message}`;
 }
@@ -176,7 +180,7 @@ export async function performOAuthLogin(orgUrl) {
             interactive: true
         });
     } catch (error) {
-        throw new Error(describeAuthFlowFailure(error));
+        throw new Error(describeAuthFlowFailure(error, redirectUri));
     }
 
     if (!redirectResponse) {

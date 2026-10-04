@@ -174,7 +174,8 @@ class LogRenderer {
       debugContent, limitsContent, errorAndLimitsContent, errorContent } = elements;
 
     if (selectedLogIdElement) {
-      selectedLogIdElement.textContent = `Loading user info...`;
+      selectedLogIdElement.textContent = 'Loading...';
+      selectedLogIdElement.title = '';
     }
 
     welcomeState.classList.add('hidden');
@@ -205,8 +206,10 @@ class LogRenderer {
 
       // Extract and display user email
       if (selectedLogIdElement) {
+        // Only the value is shown (the header is narrow); the tooltip says what it is
         const userEmail = extractUserEmailFromLog(content);
-        selectedLogIdElement.textContent = userEmail ? `Log User: ${userEmail}` : `Log ID: ${logId}`;
+        selectedLogIdElement.textContent = userEmail || logId;
+        selectedLogIdElement.title = userEmail ? `Log user: ${userEmail}` : `Log ID: ${logId}`;
       }
 
       if (!content) {
@@ -249,7 +252,8 @@ class LogRenderer {
 
       // Fallback to Log ID on error
       if (selectedLogIdElement) {
-        selectedLogIdElement.textContent = `Log ID: ${logId}`;
+        selectedLogIdElement.textContent = logId;
+        selectedLogIdElement.title = `Log ID: ${logId}`;
       }
       this._handleLogDetailsError(error);
     }
@@ -291,13 +295,13 @@ class LogRenderer {
     // Build indicators HTML (order: error, exception, debug)
     let indicatorsHtml = '';
     if (errorStatus) {
-      indicatorsHtml += `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonAlert', 13)}</span>`;
+      indicatorsHtml += `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonX', 13)}</span>`;
     }
     if (exceptionStatus) {
-      indicatorsHtml += `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('triangleAlert', 13)}</span>`;
+      indicatorsHtml += `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('zap', 13)}</span>`;
     }
     if (debugStatus) {
-      indicatorsHtml += `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('message', 13)}</span>`;
+      indicatorsHtml += `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('messageCode', 13)}</span>`;
     }
 
     // Add indicators if any exist
@@ -528,13 +532,13 @@ class LogRenderer {
 
     // Check cache for indicators
     const debugStatus = logCache.getDebugStatus(log.Id);
-    const hasDebugIndicator = (debugStatus === true) ? `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('message', 13)}</span>` : '';
+    const hasDebugIndicator = (debugStatus === true) ? `<span class="has-debug-indicator" title="Contains debug messages">${Icons.svg('messageCode', 13)}</span>` : '';
 
     const errorStatus = logCache.getErrorStatus(log.Id);
-    const hasErrorIndicator = (errorStatus === true) ? `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonAlert', 13)}</span>` : '';
+    const hasErrorIndicator = (errorStatus === true) ? `<span class="has-error-indicator" title="Contains fatal errors">${Icons.svg('octagonX', 13)}</span>` : '';
 
     const exceptionStatus = logCache.getExceptionStatus(log.Id);
-    const hasExceptionIndicator = (exceptionStatus === true) ? `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('triangleAlert', 13)}</span>` : '';
+    const hasExceptionIndicator = (exceptionStatus === true) ? `<span class="has-exception-indicator" title="Contains exceptions">${Icons.svg('zap', 13)}</span>` : '';
 
     return `
     <div class="log-item ${this.selectedLogId === log.Id ? 'selected' : ''} ${expiredClass}" data-log-id="${log.Id}">
@@ -546,7 +550,7 @@ class LogRenderer {
         </div>
       </div>
       <div class="log-details">
-        <span class="log-id">${escapeHtml(log.Id)}${unreadIndicator}</span>
+        <span class="log-id"><span class="log-id-text">${escapeHtml(log.Id)}</span>${unreadIndicator}</span>
         <span class="log-duration">${log.DurationMilliseconds || 0} ms</span>
         <span class="log-size">${formatFileSize(log.LogLength || 0)}</span>
       </div>

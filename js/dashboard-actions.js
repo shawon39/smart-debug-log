@@ -23,36 +23,6 @@ async function getSessionLoginUrl() {
   return { url: `https://${sfHost}/secur/frontdoor.jsp?sid=${sessionId}`, oneTime: false };
 }
 
-async function copySessionUrl() {
-  if (!currentSession || !sfHost) return;
-
-  const confirmed = await showConfirmDialog({
-    title: 'Copy session link?',
-    message: 'Anyone who opens this link is logged in to Salesforce as you, with full access. Do not share it or paste it into chats, tickets or emails.',
-    confirmLabel: 'Copy link'
-  });
-  if (!confirmed) return;
-
-  try {
-    const { url, oneTime } = await getSessionLoginUrl();
-    await navigator.clipboard.writeText(url);
-
-    const { copySessionBtn } = elements;
-    const originalText = copySessionBtn.innerHTML;
-    copySessionBtn.innerHTML = `${Icons.svg('check')}Copied`;
-    copySessionBtn.disabled = true;
-
-    setTimeout(() => {
-      copySessionBtn.innerHTML = originalText;
-      copySessionBtn.disabled = false;
-    }, 2000);
-
-    if (oneTime) showToast('One-time link copied. It works once, within about a minute.', 4000);
-  } catch (error) {
-    showToast(`Could not copy the link: ${error.message}`, 5000);
-  }
-}
-
 async function openInIncognito() {
   if (!currentSession || !sfHost) return;
 
@@ -67,64 +37,6 @@ async function openInIncognito() {
     // Never fall back to a normal tab: the session link would end up in history and sync
     showToast(`Could not open an incognito window: ${error.message}`, 6000);
   }
-}
-
-// Small in-page confirm dialog (built like the deploy dialog below)
-function showConfirmDialog({ title, message, confirmLabel }) {
-  return new Promise((resolve) => {
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-
-    const modal = document.createElement('div');
-    modal.className = 'modal-content confirm-dialog';
-    modal.setAttribute('role', 'alertdialog');
-    modal.setAttribute('aria-modal', 'true');
-
-    const heading = document.createElement('h3');
-    heading.className = 'confirm-dialog-title';
-    heading.innerHTML = Icons.svg('triangleAlert', 18);
-    heading.append(title);
-
-    const text = document.createElement('p');
-    text.className = 'confirm-dialog-message';
-    text.textContent = message;
-
-    const cancelBtn = document.createElement('button');
-    cancelBtn.className = 'button secondary';
-    cancelBtn.textContent = 'Cancel';
-
-    const confirmBtn = document.createElement('button');
-    confirmBtn.className = 'button danger';
-    confirmBtn.textContent = confirmLabel;
-
-    const actions = document.createElement('div');
-    actions.className = 'confirm-dialog-actions';
-    actions.append(cancelBtn, confirmBtn);
-
-    modal.append(heading, text, actions);
-    overlay.appendChild(modal);
-    document.body.appendChild(overlay);
-    cancelBtn.focus();
-
-    const close = (result) => {
-      document.removeEventListener('keydown', onKeydown, true);
-      overlay.remove();
-      resolve(result);
-    };
-    const onKeydown = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close(false);
-      }
-    };
-
-    document.addEventListener('keydown', onKeydown, true);
-    confirmBtn.addEventListener('click', () => close(true));
-    cancelBtn.addEventListener('click', () => close(false));
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) close(false);
-    });
-  });
 }
 
 // Custom modal dialog for code deployment
@@ -311,6 +223,30 @@ function clearRawResponse() {
 // Note: copyRawResponse() is defined in raw-view.js
 
 // Open Debug Logs Setup page navigation
+// Switches to the Salesforce tab the dashboard was opened from, else to any open tab of this
+// org, else opens the org in a new tab
+async function goBackToSalesforce() {
+  const host = getHostFromUrl() || sfHost;
+  if (!host) return;
+
+  try {
+    const storageKey = `lastSfUrl_${host}`;
+    const { [storageKey]: lastUrl } = await chrome.storage.local.get(storageKey);
+    const tabs = await chrome.tabs.query({});
+    const tab = tabs.find(t => lastUrl && t.url === lastUrl)
+      || tabs.find(t => t.url && isSalesforceUrl(t.url) && isSameOrgHost(new URL(t.url).hostname, host));
+
+    if (tab) {
+      await chrome.tabs.update(tab.id, { active: true });
+      await chrome.windows.update(tab.windowId, { focused: true });
+    } else {
+      await chrome.tabs.create({ url: lastUrl || `https://${host}` });
+    }
+  } catch (error) {
+    showToast(`Could not open Salesforce: ${error.message}`, 5000);
+  }
+}
+
 async function openDebugLogsSetup() {
   if (!currentSession || !sfHost) {
     alert('No active Salesforce session found. Please ensure you are logged into Salesforce.');

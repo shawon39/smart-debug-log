@@ -107,7 +107,7 @@ async function connectToHost(targetHost) {
     try {
       const response = await chrome.runtime.sendMessage({ type: 'GET_USER_INFO', sfHost: targetHost });
       if (response && response.success && response.data && response.data.orgId) {
-        // Token only: no session cookie (Copy Session URL and Incognito Login need one)
+        // Token only: no session cookie (Incognito Login needs one)
         session = { hostname: targetHost, orgId: response.data.orgId.substring(0, 15), tokenOnly: true };
       }
     } catch (error) {
@@ -340,7 +340,11 @@ async function generateAccessToken() {
         // Continue even if trace flag creation fails - user can enable manually
         console.warn('Could not auto-enable debug:', traceFlagError);
       }
-      
+
+      // Same steps as a page load with a token: Revoke button, current user and trace flag status
+      await checkOAuthTokenStatus();
+      await initializeDebugLogManager().catch(e => console.warn('Could not refresh debug log status:', e));
+
       // Refresh the dashboard to use the new token
       setTimeout(async () => {
         await loadDebugLogs();

@@ -274,13 +274,10 @@ body {
 
 .welcome-icon,
 .empty-icon {
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-primary);
+  display: flex;
+  justify-content: center;
   color: var(--text-muted);
-  margin: 0 auto 12px;
+  margin: 0 auto 8px;
 }
 
 /* Icon Legend */
@@ -394,6 +391,11 @@ body {
   color: var(--text-empty-state);
   font-size: 12px;
   transition: color 0.3s ease;
+}
+
+/* Lines up with the welcome states in the other two panels (minus the 53px search bar above) */
+.panel-content > .empty-state {
+  padding: calc(18vh - 53px) 24px 40px;
 }
 
 .empty-state h4 {

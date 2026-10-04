@@ -561,9 +561,16 @@ input:checked + .toggle-slider:before {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
   font-family: var(--font-mono);
   font-size: 10.5px;
   color: var(--text-secondary);
+}
+
+.log-id-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .log-item.selected .log-id {
@@ -572,6 +579,8 @@ input:checked + .toggle-slider:before {
 
 .log-duration,
 .log-size {
+  flex-shrink: 0;
+  white-space: nowrap;
   color: var(--text-log-duration);
 }
 

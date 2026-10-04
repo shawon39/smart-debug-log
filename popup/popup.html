@@ -46,7 +46,7 @@
 
   <div class="popup-body">
 
-    <!-- Status card: org connection + debug-logging + access token -->
+    <!-- Status card: org connection + access token + debug-logging (needs the token) -->
     <section class="status-card" id="statusCard" style="display: none;">
       <!-- Org row -->
       <div class="card-row org-row">
@@ -57,24 +57,7 @@
           </svg>
         </span>
         <span class="org-name mono" id="orgName">--</span>
-        <span class="conn-state"><span class="dot dot-success"></span>connected</span>
-      </div>
-
-      <!-- Logging row -->
-      <div class="card-row logging-row">
-        <div class="logging-head">
-          <span class="dot logging-dot" id="loggingDot"></span>
-          <span class="logging-label" id="loggingStatusText">Logging off</span>
-          <span class="logging-countdown mono" id="loggingCountdown"></span>
-        </div>
-        <div class="logging-controls">
-          <select class="duration-select" id="durationSelect" aria-label="Logging duration">
-            <option value="15">15m</option>
-            <option value="30">30m</option>
-            <option value="60">1h</option>
-          </select>
-          <button class="logging-action" id="enableLoggingBtn">Enable</button>
-        </div>
+        <span class="conn-state"><span class="dot dot-success"></span>logged in</span>
       </div>
 
       <!-- Token row -->
@@ -86,10 +69,30 @@
               fill="currentColor" />
           </svg>
         </span>
-        <span class="row-label">Access token</span>
+        <div class="row-text">
+          <span class="row-label">Access token</span>
+          <span class="row-hint" id="tokenHint">Needed to read your logs</span>
+        </div>
         <span class="token-pill" id="tokenPill">None</span>
         <button class="inline-action" id="generateTokenBtn">Generate</button>
         <button class="inline-action danger" id="revokeTokenBtn" style="display: none;">Revoke</button>
+      </div>
+
+      <!-- Logging row -->
+      <div class="card-row logging-row" id="loggingRow">
+        <div class="logging-head">
+          <span class="dot logging-dot" id="loggingDot"></span>
+          <span class="logging-label" id="loggingStatusText">Not recording your debug logs</span>
+          <span class="logging-countdown mono" id="loggingCountdown"></span>
+        </div>
+        <div class="logging-controls">
+          <select class="duration-select" id="durationSelect" aria-label="Logging duration">
+            <option value="15">15m</option>
+            <option value="30">30m</option>
+            <option value="60">1h</option>
+          </select>
+          <button class="logging-action" id="enableLoggingBtn">Start</button>
+        </div>
       </div>
     </section>
 
@@ -122,8 +125,6 @@
       </svg>
       <span>View Debug Logs</span>
     </button>
-
-    <button class="btn-ghost" id="goToSetupBtn" style="display: none;">Go to Setup page</button>
 
     <div class="popup-footer">
       <kbd class="kbd">Option/Alt</kbd>

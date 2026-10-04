@@ -293,6 +293,23 @@ body {
   border-color: var(--accent);
 }
 
+.duration-select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  border-color: var(--border-strong);
+}
+
+/* No token yet: logging cannot start, the label says why */
+.logging-row.is-locked .logging-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.logging-row.is-locked .logging-action:hover {
+  background: transparent;
+  color: var(--accent);
+}
+
 .logging-action {
   flex: 1;
   padding: 7px 12px;
@@ -328,10 +345,26 @@ body {
   gap: 9px;
 }
 
+.row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .row-label {
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-secondary);
+}
+
+.row-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.row-hint[hidden] {
+  display: none;
 }
 
 .token-pill {
@@ -444,27 +477,6 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
   transform: none;
-}
-
-/* ---------- Ghost button (Setup) ---------- */
-.btn-ghost {
-  width: 100%;
-  margin-top: 10px;
-  padding: 10px 16px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  background: var(--bg-surface);
-  color: var(--text-secondary);
-  font-size: 12.5px;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn-ghost:hover {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 
 /* ---------- Not-on-Salesforce notification ---------- */

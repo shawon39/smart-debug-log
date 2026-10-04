@@ -89,7 +89,6 @@ function cacheElements() {
   elements = {
     connectionStatusText: document.getElementById('connectionStatusText'),
     orgActions: document.getElementById('orgActions'),
-    copySessionBtn: document.getElementById('copySessionBtn'),
     openIncognitoBtn: document.getElementById('openIncognitoBtn'),
     deployPrettierBtn: document.getElementById('deployPrettierBtn'),
     autoRefreshToggle: document.getElementById('autoRefreshToggle'),
@@ -121,6 +120,7 @@ function cacheElements() {
     errorAndLimitsContent: document.getElementById('errorAndLimitsContent'),
     errorContent: document.getElementById('errorContent'),
     openDebugLogsBtn: document.getElementById('openDebugLogsBtn'),
+    backToSalesforceBtn: document.getElementById('backToSalesforceBtn'),
     debugLogManagerBtn: document.getElementById('debugLogManagerBtn'),
     logTypeFilter: document.getElementById('logTypeFilter'),
     openApexManagerBtn: document.getElementById('openApexManagerBtn'),
@@ -135,9 +135,9 @@ function cacheElements() {
 
 // Setup event listeners
 function setupEventListeners() {
-  const { refreshLogsBtn, clearLogsBtn, markAllReadBtn, copySessionBtn,
+  const { refreshLogsBtn, clearLogsBtn, markAllReadBtn,
     openIncognitoBtn, openDevConsoleBtn, dismissWarningBtn, revokeTokenDashboardBtn, logLimit, toggleViewBtn, copyRawBtn,
-    openDebugLogsBtn, debugLogManagerBtn, openApexManagerBtn, logTypeFilter } = elements;
+    openDebugLogsBtn, backToSalesforceBtn, debugLogManagerBtn, openApexManagerBtn, logTypeFilter } = elements;
 
   // Setup theme toggle
   const themeToggle = document.getElementById('themeToggleDashboard');
@@ -151,7 +151,6 @@ function setupEventListeners() {
 
   document.getElementById('closeDashboardBtn')?.addEventListener('click', () => window.close());
 
-  copySessionBtn?.addEventListener('click', copySessionUrl);
   openIncognitoBtn?.addEventListener('click', openInIncognito);
   deployPrettierBtn?.addEventListener('click', deployPrettierClass);
   openDevConsoleBtn?.addEventListener('click', openDeveloperConsole);
@@ -162,6 +161,7 @@ function setupEventListeners() {
 
   // Debug logs buttons event listeners
   openDebugLogsBtn?.addEventListener('click', openDebugLogsSetup);
+  backToSalesforceBtn?.addEventListener('click', goBackToSalesforce);
   openApexManagerBtn?.addEventListener('click', () => {
     if (window.apexCodeManager) {
       window.apexCodeManager.openModal();

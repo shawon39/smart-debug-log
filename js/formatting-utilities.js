@@ -59,7 +59,7 @@ function formatGovernorLimits(limitsText) {
     }
 
     return groups.filter(group => group.rows.length > 0).map(({ namespace, rows }) => {
-      const rowsHtml = rows.map(({ label, used, max }) => {
+      const rowHtml = ({ label, used, max }) => {
         const pct = max > 0 ? Math.min(100, (used / max) * 100) : 0;
         const level = pct >= 80 ? 'danger' : pct >= 50 ? 'warn' : 'ok';
         return `
@@ -70,10 +70,20 @@ function formatGovernorLimits(limitsText) {
           </div>
           <div class="limit-bar"><span style="width: ${pct.toFixed(1)}%"></span></div>
         </div>`;
-      }).join('');
+      };
+
+      // Used limits stay in view; the ones at 0 fold away under a toggle
+      const usedRows = rows.filter(row => row.used > 0);
+      const unusedRows = rows.filter(row => row.used === 0);
+      const usedHtml = usedRows.length
+        ? `<div class="limits-list">${usedRows.map(rowHtml).join('')}</div>`
+        : '<div class="limits-none">No limits used</div>';
+      const unusedHtml = unusedRows.length
+        ? `<details class="limits-unused"><summary>Show ${unusedRows.length} unused limit${unusedRows.length === 1 ? '' : 's'}</summary><div class="limits-list">${unusedRows.map(rowHtml).join('')}</div></details>`
+        : '';
 
       const nsHtml = namespace ? `<div class="limits-ns">Governor limits <span>${escapeHtml(namespace)}</span></div>` : '';
-      return `${nsHtml}<div class="limits-list">${rowsHtml}</div>`;
+      return `<div class="limits-group">${nsHtml}${usedHtml}${unusedHtml}</div>`;
     }).join('');
   } catch (error) {
     return `<pre class="limits-raw">${escapeHtml(limitsText)}</pre>`;

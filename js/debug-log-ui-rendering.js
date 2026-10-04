@@ -269,7 +269,7 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
     if (!container) return;
 
     if (this.traceFlags.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">${Icons.svg('flag', 24)}</div><div>No trace flags found</div></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon">${Icons.svg('flag', 20)}</div><div>No trace flags found</div></div>`;
         return;
     }
 
@@ -329,8 +329,13 @@ DebugLogManagerUI.prototype.renderTraceFlags = function () {
         info.append(user, meta);
 
         const actions = this.createElement('div', 'trace-flag-actions');
-        this.getTraceFlagActions(tf, state).forEach(([label, className, handler]) => {
-            const button = this.createElement('button', `button ${className}`, label);
+        this.getTraceFlagActions(tf, state).forEach(([label, className, handler, content]) => {
+            // Compact button: short text or an icon, the full action as tooltip and accessible name
+            const button = this.createElement('button', `button ${className}`);
+            button.title = label;
+            button.setAttribute('aria-label', label);
+            if (content.icon) button.innerHTML = Icons.svg(content.icon, 13);
+            else button.textContent = content.text;
             button.addEventListener('click', () => handler(tf.Id));
             actions.append(button);
         });
@@ -376,16 +381,20 @@ DebugLogManagerUI.prototype.getSelectedDurationMinutes = function () {
     return minutes > 0 ? minutes : this.DEFAULT_DURATION_MINUTES;
 };
 
-// [label, button classes, handler] for each button of a row. Developer Console flags are
-// kept up by the Developer Console itself, so they only get Delete.
+// [label, button classes, handler, { text } or { icon }] for each button of a row. The label is the
+// tooltip. Developer Console flags are kept up by the Developer Console itself, so they only get Delete.
 DebugLogManagerUI.prototype.getTraceFlagActions = function (tf, state) {
     const duration = formatDuration(this.getSelectedDurationMinutes());
-    const remove = [state === 'scheduled' ? 'Cancel' : 'Delete', 'secondary delete-btn', id => this.handleDeleteTraceFlag(id)];
+    const remove = state === 'scheduled'
+        ? ['Cancel', 'secondary delete-btn', id => this.handleDeleteTraceFlag(id), { icon: 'x' }]
+        : ['Delete', 'secondary delete-btn', id => this.handleDeleteTraceFlag(id), { icon: 'trash' }];
     if (tf.LogType === 'DEVELOPER_LOG' || state === 'scheduled') return [remove];
-    if (state === 'expired') return [[`Reactivate ${duration}`, 'primary reactivate-btn', id => this.handleReactivateTraceFlag(id)], remove];
+    if (state === 'expired') {
+        return [[`Reactivate for ${duration}`, 'primary reactivate-btn', id => this.handleReactivateTraceFlag(id), { text: `Reactivate ${duration}` }], remove];
+    }
     return [
-        [`Extend +${duration}`, 'secondary extend-btn', id => this.handleExtendTraceFlag(id)],
-        [`Reduce -${duration}`, 'secondary reduce-btn', id => this.handleReduceTraceFlag(id)],
+        [`Extend by ${duration}`, 'secondary extend-btn', id => this.handleExtendTraceFlag(id), { text: `+${duration}` }],
+        [`Reduce by ${duration}`, 'secondary reduce-btn', id => this.handleReduceTraceFlag(id), { text: `\u2212${duration}` }],
         remove
     ];
 };
@@ -777,7 +786,7 @@ DebugLogManagerUI.prototype.setupModalEventListeners = function () {
     this.initializeCustomDateTime();
     document.getElementById('deleteAllLogsBtn')?.addEventListener('click', () => this.handleDeleteAllLogs());
     document.getElementById('autoCleanupToggle')?.addEventListener('change', (e) => this.saveAutoCleanupSetting(e.target.checked));
-    // Button labels (Extend +45min, ...) follow the selected duration
+    // Button labels (+45min, ...) follow the selected duration
     document.getElementById('debugDurationSelect')?.addEventListener('change', () => this.renderTraceFlags());
 
     const curR = document.getElementById('currentUserRadio'), othR = document.getElementById('otherUserRadio');

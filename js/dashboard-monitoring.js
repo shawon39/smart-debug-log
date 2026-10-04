@@ -114,6 +114,7 @@ function clearAllLogs() {
   // Clear selected log ID display
   if (selectedLogIdElement) {
     selectedLogIdElement.textContent = '';
+    selectedLogIdElement.title = '';
   }
   
   // Clear raw response

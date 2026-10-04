@@ -69,7 +69,7 @@ test('L6: the list countdown updates and an expired row gets its new buttons', (
   ui.updateTraceFlagTimers();
   row = doc.querySelector('#traceFlagsList .trace-flag-item');
   assert.strictEqual(row.dataset.state, 'expired');
-  assert.deepStrictEqual(row.querySelectorAll('button').map(b => b.textContent), ['Reactivate 45min', 'Delete']);
+  assert.deepStrictEqual(row.querySelectorAll('button').map(b => b.title), ['Reactivate for 45min', 'Delete']);
 });
 
 test('L6: closing the modal closes the replace dialog; a later confirm runs only once', async () => {

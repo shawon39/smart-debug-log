@@ -1,0 +1,4 @@
+.DS_Store
+
+# Built by store/build-package.mjs
+store/package/

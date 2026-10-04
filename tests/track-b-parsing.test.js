@@ -27,8 +27,8 @@ function loadPipeline() {
   const ctx = { document, console, setTimeout, clearTimeout, URLSearchParams, localStorage: { getItem() { return null; }, setItem() {}, removeItem() {}, length: 0, key() { return null; } }, chrome: { runtime: { onMessage: { addListener() {} } } } };
   ctx.window = ctx;
   vm.createContext(ctx);
-  for (const f of ['icons.js', 'basic-utilities.js', 'basic-parsing.js', 'complex-parsing.js', 'salesforce-response-cleaner.js',
-    'formatting-utilities.js', 'error-extraction.js', 'syntax-highlighting.js', 'log-parsing.js']) {
+  for (const f of ['core/icons.js', 'core/basic-utilities.js', 'logs/basic-parsing.js', 'logs/complex-parsing.js', 'logs/salesforce-response-cleaner.js',
+    'logs/formatting-utilities.js', 'logs/error-extraction.js', 'logs/syntax-highlighting.js', 'logs/log-parsing.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: f });
   }
   vm.runInContext('var toasts = []; var showToast = (m) => toasts.push(m); var elements = { debugContent: { innerHTML: "" }, errorContent: { innerHTML: "" }, limitsContent: { innerHTML: "" } };', ctx);
@@ -49,7 +49,7 @@ const textOf = (html) => html.replace(/<span class="line-number">[^<]*<\/span>/g
   .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
 const parse = (s) => JSON.parse(JSON.stringify(P.parseSalesforceObjectNotation(s)));
 
-// Regression corpus: System.debug.md examples and common messages whose output was already right.
+// Regression corpus: docs/System.debug.md examples and common messages whose output was already right.
 // [id, message, sha256 prefix of the HTML rendered by the code before the fix, readable text]
 const GOOD_CASES = [
   ["prim-int", "123", '5a1048fefc0433a7', "123"],
@@ -416,7 +416,7 @@ test('Console.log(label, value) is one debug message: the label above the format
 
 // Real System.debug and Console.log output, captured on 2026-10-04 in a Developer Edition org (API 67) with anonymous
 // Apex and a test class (wrappers, inner classes, inheritance, enums, a toString override). Record Ids are
-// anonymised; the [line] field of each USER_DEBUG line holds the scenario name (see System.debug.md, section 7).
+// anonymised; the [line] field of each USER_DEBUG line holds the scenario name (see docs/System.debug.md, section 7).
 const REAL_LOG = fs.readFileSync(path.join(__dirname, 'fixtures', 'real-org-debug.log'), 'utf8');
 const REAL = (() => {
   const names = [...REAL_LOG.matchAll(/\|USER_DEBUG\|\[([^\]]+)\]\|/g)].map(m => m[1]);

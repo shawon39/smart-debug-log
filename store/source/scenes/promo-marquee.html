@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Marquee promo tile</title>
+<link rel="stylesheet" href="scene.css">
+<style>
+  .tile {
+    position: relative; width: 1400px; height: 560px; overflow: hidden;
+    background:
+      radial-gradient(700px 420px at 14% 20%, rgba(27, 150, 255, 0.55), transparent 70%),
+      radial-gradient(700px 500px at 100% 110%, rgba(144, 208, 254, 0.40), transparent 70%),
+      linear-gradient(155deg, #032D60 0%, #0A4C98 52%, #1580E6 100%);
+  }
+  .tile .bg-grid { mask-image: linear-gradient(90deg, rgba(0,0,0,0.85), transparent 60%); }
+  .brand { position: absolute; left: 84px; top: 50%; transform: translateY(-50%); width: 520px; color: #fff; }
+  .brand img { width: 108px; height: 108px; filter: drop-shadow(0 14px 28px rgba(0, 10, 40, 0.45)); }
+  .brand h1 { margin: 22px 0 0; font-size: 54px; line-height: 1.04; font-weight: 790; letter-spacing: -0.03em; }
+  .brand h2 { margin: 8px 0 0; font-size: 22px; font-weight: 650; color: var(--sky); }
+  .brand p { margin: 18px 0 0; font-size: 18px; line-height: 1.5; color: rgba(235, 245, 255, 0.88); max-width: 470px; }
+  .stage { position: absolute; left: 650px; top: 70px; perspective: 1800px; }
+  .shot {
+    width: 1000px; height: 560px; border-radius: 14px; overflow: hidden; background: #fff;
+    transform: rotateY(-14deg) rotateX(4deg) rotateZ(1deg); transform-origin: 0 50%;
+    box-shadow: -30px 40px 90px rgba(0, 12, 40, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.2);
+  }
+  .shot .bar { height: 34px; background: #E9EDF3; display: flex; align-items: center; gap: 8px; padding: 0 14px; border-bottom: 1px solid #D5DBE5; }
+  .shot .bar i { width: 11px; height: 11px; border-radius: 50%; background: #FF5F57; display: block; }
+  .shot .bar i:nth-child(2) { background: #FEBC2E; } .shot .bar i:nth-child(3) { background: #28C840; }
+  .shot .body { position: relative; height: 526px; overflow: hidden; }
+  .shot iframe { width: 1280px; height: 673px; border: 0; transform: scale(0.78125); transform-origin: 0 0; }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <div class="bg-grid"></div>
+    <div class="brand">
+      <img src="../icon/icon.svg" alt="">
+      <h1>Debug Log Beautifier</h1>
+      <h2>for Salesforce</h2>
+      <p>Readable debug logs, errors first, governor limits, trace flags and anonymous Apex in one place.</p>
+    </div>
+    <div class="stage">
+      <div class="shot">
+        <div class="bar"><i></i><i></i><i></i></div>
+        <div class="body"><iframe id="frame" scrolling="no" src="/mock/dashboard.html?host=acme--uat.sandbox.my.salesforce.com&log=07L8a00000Zx1AAAA1"></iframe></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (async () => {
+      const frame = document.getElementById('frame');
+      for (let i = 0; i < 200; i++) {
+        const state = frame.contentDocument?.documentElement?.dataset.sceneReady;
+        if (state === 'error') { document.documentElement.dataset.ready = 'error'; return; }
+        if (state === '1') break;
+        await new Promise(r => setTimeout(r, 100));
+      }
+      document.documentElement.dataset.ready = '1';
+    })();
+  </script>
+</body>
+</html>

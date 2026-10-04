@@ -51,8 +51,8 @@ function loadRawView() {
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  for (const f of ['icons.js', 'basic-utilities.js', 'basic-parsing.js', 'complex-parsing.js', 'salesforce-response-cleaner.js',
-    'formatting-utilities.js', 'error-extraction.js', 'syntax-highlighting.js', 'log-parsing.js', 'raw-view.js']) {
+  for (const f of ['core/icons.js', 'core/basic-utilities.js', 'logs/basic-parsing.js', 'logs/complex-parsing.js', 'logs/salesforce-response-cleaner.js',
+    'logs/formatting-utilities.js', 'logs/error-extraction.js', 'logs/syntax-highlighting.js', 'logs/log-parsing.js', 'logs/raw-view.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: f });
   }
   const container = fakeContainer();

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" shape-rendering="crispEdges">
+  <!-- Hand-placed on the 16px grid so the toolbar icon stays sharp -->
+  <path d="M1 1h14v1h1v12h-1v1H1v-1H0V2h1z" fill="#3A4862"/>
+  <rect x="1" y="2" width="14" height="2" fill="#B9C2D2"/>
+  <rect x="2" y="2" width="1" height="1" fill="#6A7690"/>
+  <rect x="4" y="2" width="1" height="1" fill="#6A7690"/>
+  <rect x="6" y="2" width="1" height="1" fill="#6A7690"/>
+  <rect x="2" y="5" width="12" height="9" fill="#FFFFFF"/>
+  <!-- antennae and legs -->
+  <rect x="6" y="5" width="1" height="1" fill="#55627C"/>
+  <rect x="9" y="5" width="1" height="1" fill="#55627C"/>
+  <rect x="4" y="8" width="1" height="1" fill="#55627C"/>
+  <rect x="11" y="8" width="1" height="1" fill="#55627C"/>
+  <rect x="3" y="10" width="2" height="1" fill="#55627C"/>
+  <rect x="11" y="10" width="2" height="1" fill="#55627C"/>
+  <rect x="4" y="12" width="1" height="1" fill="#55627C"/>
+  <rect x="11" y="12" width="1" height="1" fill="#55627C"/>
+  <!-- head -->
+  <rect x="7" y="6" width="2" height="1" fill="#2B364C"/>
+  <!-- shell, lit from the left -->
+  <rect x="6" y="7" width="2" height="1" fill="#FFB02E"/>
+  <rect x="8" y="7" width="2" height="1" fill="#EE8410"/>
+  <rect x="5" y="8" width="2" height="4" fill="#FFB02E"/>
+  <rect x="7" y="8" width="1" height="4" fill="#F7931A"/>
+  <rect x="8" y="8" width="1" height="4" fill="#EE8410"/>
+  <rect x="9" y="8" width="2" height="4" fill="#DD6500"/>
+  <rect x="6" y="12" width="2" height="1" fill="#F7931A"/>
+  <rect x="8" y="12" width="2" height="1" fill="#DD6500"/>
+</svg>

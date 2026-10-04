@@ -171,7 +171,7 @@ function loadDashboardConnection({ dismissed, reply }) {
     Icons: { svg: () => '' },
     showToast: () => { }
   });
-  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/dashboard-connection.js'), 'utf8'), context, { filename: 'dashboard-connection.js' });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/dashboard/dashboard-connection.js'), 'utf8'), context, { filename: 'dashboard-connection.js' });
   return { context, revokeBtn, banner: warningClasses, subtitle };
 }
 
@@ -232,7 +232,7 @@ function loadDeployConsole({ existingBody = null, confirmAnswer = true }) {
     confirm: () => confirmAnswer,
     alert: (m) => alerts.push(m)
   });
-  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/dashboard-actions.js'), 'utf8'), context, { filename: 'dashboard-actions.js' });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js/dashboard/dashboard-actions.js'), 'utf8'), context, { filename: 'dashboard-actions.js' });
   context.showCodeDeployDialog = async () => true;
   return { context, messages, toasts, alerts };
 }

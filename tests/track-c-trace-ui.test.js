@@ -5,8 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { loadScripts, dashboardBody, flush } = require('./track-c-dom');
 
-const MANAGER_FILES = ['js/icons.js', 'js/basic-utilities.js', 'js/debug-level-creator.js', 'js/debug-log-manager-ui.js',
-  'js/debug-log-ui-api.js', 'js/debug-log-ui-traceflags.js', 'js/debug-log-ui-rendering.js'];
+const MANAGER_FILES = ['js/core/icons.js', 'js/core/basic-utilities.js', 'js/debug-manager/debug-level-creator.js', 'js/debug-manager/debug-log-manager-ui.js',
+  'js/debug-manager/debug-log-ui-api.js', 'js/debug-manager/debug-log-ui-traceflags.js', 'js/debug-manager/debug-log-ui-rendering.js'];
 const NOW = Date.UTC(2026, 9, 3, 10, 0, 0);
 const MIN = 60 * 1000, HOUR = 60 * MIN, MB = 1024 * 1024;
 const ME = '005Hn00000AbCdE';

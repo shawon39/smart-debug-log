@@ -101,9 +101,9 @@ function makeDashboard({ respond = () => ({ success: true, data: { records: [] }
   };
   ctx.window = ctx;
   vm.createContext(ctx);
-  for (const f of ['icons.js', 'basic-utilities.js', 'basic-parsing.js', 'complex-parsing.js', 'salesforce-response-cleaner.js',
-    'formatting-utilities.js', 'error-extraction.js', 'syntax-highlighting.js', 'log-parsing.js', 'error-handler.js', 'log-cache.js',
-    'tab-manager.js', 'log-loader.js', 'log-renderer.js', 'log-display.js', 'raw-view.js', 'dashboard-connection.js', 'dashboard-init.js']) {
+  for (const f of ['core/icons.js', 'core/basic-utilities.js', 'logs/basic-parsing.js', 'logs/complex-parsing.js', 'logs/salesforce-response-cleaner.js',
+    'logs/formatting-utilities.js', 'logs/error-extraction.js', 'logs/syntax-highlighting.js', 'logs/log-parsing.js', 'core/error-handler.js', 'logs/log-cache.js',
+    'core/tab-manager.js', 'logs/log-loader.js', 'logs/log-renderer.js', 'logs/log-display.js', 'logs/raw-view.js', 'dashboard/dashboard-connection.js', 'dashboard/dashboard-init.js']) {
     vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', f), 'utf8'), ctx, { filename: f });
   }
   // What dashboard-init does on DOMContentLoaded, plus functions from files not loaded here
@@ -484,7 +484,7 @@ function filterDashboard({ logs, bodies = {}, filter = 'useful' }) {
     },
   });
   d.ctx.__logs = logs;
-  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', 'dashboard-monitoring.js'), 'utf8'), d.ctx, { filename: 'dashboard-monitoring.js' });
+  vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', 'dashboard/dashboard-monitoring.js'), 'utf8'), d.ctx, { filename: 'dashboard-monitoring.js' });
   d.run(`
     var savePreferences = async () => {};
     var confirmAnswer = true; var confirm = () => confirmAnswer;

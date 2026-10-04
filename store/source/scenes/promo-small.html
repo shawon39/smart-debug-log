@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Small promo tile</title>
+<link rel="stylesheet" href="scene.css">
+<style>
+  .tile {
+    position: relative; width: 440px; height: 280px; overflow: hidden;
+    background:
+      radial-gradient(320px 220px at 18% 30%, rgba(27, 150, 255, 0.55), transparent 70%),
+      radial-gradient(300px 240px at 110% 120%, rgba(144, 208, 254, 0.40), transparent 70%),
+      linear-gradient(150deg, #032D60 0%, #0A4C98 55%, #1580E6 100%);
+  }
+  .tile .bg-grid { mask-image: linear-gradient(90deg, rgba(0,0,0,0.8), transparent 80%); }
+  .code { position: absolute; right: -18px; bottom: 18px; width: 210px; padding: 12px 14px; border-radius: 10px;
+    background: rgba(3, 20, 48, 0.55); border: 1px solid rgba(255, 255, 255, 0.14);
+    font: 10.5px/1.6 ui-monospace, "SF Mono", Menlo, monospace; color: #CFE6FF; transform: rotate(-4deg); opacity: 0.9; }
+  .code .k { color: #FF8FA3; } .code .s { color: #9BE3B4; } .code .n { color: #FFC77A; }
+  .brand { position: absolute; left: 30px; top: 50%; transform: translateY(-58%); display: flex; flex-direction: column; gap: 14px; }
+  .brand img { width: 92px; height: 92px; filter: drop-shadow(0 10px 22px rgba(0, 10, 40, 0.45)); }
+  .brand h1 { margin: 0; color: #fff; font-size: 30px; line-height: 1.08; font-weight: 780; letter-spacing: -0.025em; }
+  .brand p { margin: 6px 0 0; color: var(--sky); font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+</style>
+</head>
+<body>
+  <div class="tile">
+    <div class="bg-grid"></div>
+    <div class="code">{<br>&nbsp;&nbsp;<span class="k">"Name"</span> : <span class="s">"Northwind"</span>,<br>&nbsp;&nbsp;<span class="k">"Stage"</span> : <span class="s">"Negotiation"</span>,<br>&nbsp;&nbsp;<span class="k">"Amount"</span> : <span class="n">240000</span><br>}</div>
+    <div class="brand">
+      <img src="../icon/icon.svg" alt="">
+      <div>
+        <h1>Debug Log<br>Beautifier</h1>
+        <p>for Salesforce</p>
+      </div>
+    </div>
+  </div>
+  <script>window.addEventListener('load', () => { document.documentElement.dataset.ready = '1'; });</script>
+</body>
+</html>

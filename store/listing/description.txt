@@ -1,0 +1,71 @@
+Salesforce debug logs, made readable.
+
+Raw debug logs are thousands of lines of noise. Debug Log Beautifier pulls out what matters: your System.debug output as clean, highlighted JSON, errors and stack traces at the top, and governor limits as simple progress bars. It also manages trace flags and runs anonymous Apex, so you rarely need the Developer Console or Setup.
+
+Press Alt+Shift+D (Option+Shift+D on Mac) on any Salesforce tab to open the dashboard.
+
+
+READABLE LOGS
+
+• System.debug output formatted and syntax highlighted
+• Plain System.debug of records, lists, maps, sets and wrapper classes turned into JSON, no JSON.serialize needed
+• JSON.serializePretty output shown the way it should look
+• Errors first: fatal errors and exceptions with clean stack traces
+• Governor limits (SOQL, DML, CPU time, heap, callouts and more) as progress bars, managed package namespaces included
+• Search across log bodies, and search inside the raw log
+• Show only useful logs, logs with debug output, or logs with errors
+• Mark logs as read, auto refresh while you work
+
+
+MANAGE DEBUG LOGS WITHOUT SETUP
+
+• Turn on debug logging for yourself or any user (search by name or username)
+• Pick a debug level, or create a new one
+• Choose a duration from 15 minutes to 24 hours, or a custom start and end time
+• Extend, shorten or delete trace flags with one click
+• See how much of your org's debug log storage is used, and delete a user's logs in one click
+
+
+EXECUTE ANONYMOUS APEX
+
+• Write and run anonymous Apex from the dashboard
+• Save the snippets you use every day, then search, import and export them
+• Compile errors point to the exact line
+
+
+ONE CLICK FROM SALESFORCE
+
+• The popup shows your org, your access token and whether your logs are being recorded
+• Start or extend logging right from the popup
+• Back to Salesforce, Setup debug logs and Incognito Login buttons
+• Works on production, sandbox, scratch and Developer Edition orgs, including My Domain, Lightning and Setup domains
+• Dark and light themes
+
+
+GET STARTED
+
+1. Open your Salesforce org.
+2. Click the extension icon, then Generate, to log in with Salesforce (OAuth).
+3. Press Alt+Shift+D (Option+Shift+D on Mac) to open the dashboard.
+4. Use System.debug(...) as usual, or JSON.serializePretty(...). The optional Console class (Deploy Console Class button) gives you Console.log('Label', value).
+
+
+IF LOGIN IS BLOCKED
+
+Since September 2025 Salesforce can block apps that are not installed in your org (for example OAUTH_APPROVAL_ERROR_GENERIC). Ask your Salesforce admin to install the app (Setup > Connected Apps OAuth Usage > Install), or use your own External Client App: open OAuth setup in the dashboard and paste its consumer key.
+
+
+PRIVACY
+
+Everything runs in your browser. The extension talks only to your Salesforce org, with your own session or OAuth token. No analytics, no tracking, no external servers. Tokens stay in local extension storage, and you can revoke them at any time.
+
+Why it asks for these permissions:
+• Salesforce sites and cookies: call the Salesforce APIs of the org you are using
+• Storage: settings, saved snippets, cached logs and your access token
+• Identity: log in to Salesforce with OAuth (PKCE)
+• Scripting: read logs through an open Salesforce tab when needed
+• Alarms: act when a trace flag the extension turned on expires
+
+
+Questions or ideas? Email shshawon416@gmail.com
+Source code: https://github.com/shawon39/smart-debug-log

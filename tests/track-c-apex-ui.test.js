@@ -5,8 +5,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { loadScripts, dashboardBody, flush } = require('./track-c-dom');
 
-const APEX_FILES = ['js/icons.js', 'js/basic-utilities.js', 'js/apex-storage-service.js', 'js/apex-code-manager.js',
-  'js/apex-code-ui.js', 'js/apex-executor.js'];
+const APEX_FILES = ['js/core/icons.js', 'js/core/basic-utilities.js', 'js/apex/apex-storage-service.js', 'js/apex/apex-code-manager.js',
+  'js/apex/apex-code-ui.js', 'js/apex/apex-executor.js'];
 const ORG = '00D5g000004XyZaEAQ';
 const SNIPPETS = [
   { id: 'apex_A', name: 'Reset accounts', code: 'update accs;', orgId: ORG, timestamp: 1 },

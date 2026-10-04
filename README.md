@@ -49,7 +49,7 @@ Search for **“Salesforce Debug Log Beautifier”** in the Chrome Web Store and
 | `identity` | Perform the OAuth login flow (PKCE) |
 | `alarms` | Act when a trace flag that the extension turned on expires (see below) |
 
-See [PRIVACY.md](PRIVACY.md) for the full privacy policy and data‑handling details.
+See [PRIVACY.md](docs/PRIVACY.md) for the full privacy policy and data‑handling details.
 
 ## Trace flags the extension turns on
 
@@ -75,18 +75,30 @@ This project intentionally uses **no npm/build tooling** — it's plain ES6+ Jav
 A high‑level architecture overview (background/content/UI layers, message passing, the log‑processing pipeline) is documented in [CLAUDE.md](CLAUDE.md).
 
 ```
-background/   Service worker, session/OAuth/token management, API client
-content/      Content scripts injected into Salesforce pages
-js/           Log loading, rendering, parsing, syntax highlighting, Apex tools, dashboard
-css/          Theming (theme-variables.css) and component styles
-popup/        Toolbar popup UI
-dashboard.html  Main dashboard page
-manifest.json   Extension configuration
+manifest.json     Extension configuration
+dashboard.html    Main dashboard page
+background/       Service worker, session/OAuth/token management, API client
+content/          Content scripts injected into Salesforce pages
+js/
+  core/           Shared utilities, icons, error handling, Salesforce tab access
+  logs/           Log loading, caching, parsing, error extraction, rendering, raw view
+  apex/           Execute Anonymous: snippet storage, editor UI, executor
+  debug-manager/  Manage Debug Logs: trace flags, debug levels
+  dashboard/      Dashboard start-up, connection, monitoring, header actions
+  vendor/         highlight.js
+css/              Theming (theme-variables.css) and component styles
+popup/            Toolbar popup UI
+icons/            Extension icons (drawn from store/source/icon)
+tests/            Unit tests (node --test)
+docs/             Privacy policy and System.debug format notes
+store/            Chrome Web Store release kit: upload zip, screenshots, listing text
 ```
+
+**Releasing:** `node store/build-package.mjs` builds the upload zip with only the extension files. [store/README.md](store/README.md) lists the upload steps and the copy-paste listing text.
 
 ## Privacy & security
 
-Everything runs in your browser and talks **directly** to Salesforce using your own session/OAuth token. No data is sent to any third‑party server; there is no tracking or analytics. See [PRIVACY.md](PRIVACY.md).
+Everything runs in your browser and talks **directly** to Salesforce using your own session/OAuth token. No data is sent to any third‑party server; there is no tracking or analytics. See [PRIVACY.md](docs/PRIVACY.md).
 
 ## License
 

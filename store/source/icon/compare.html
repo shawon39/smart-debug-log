@@ -1,0 +1,18 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>Icon compare</title>
+<style>
+body{margin:0;font:13px -apple-system,sans-serif;background:#fff;color:#222;padding:16px}
+.row{display:flex;gap:28px;align-items:end;padding:14px;border-radius:10px;margin-bottom:10px}
+.dark{background:#202124;color:#ddd}.grey{background:#f1f3f4}
+figure{margin:0;text-align:center}img{image-rendering:pixelated;display:block;margin:0 auto 6px}
+h3{margin:6px 0}
+</style></head><body>
+<h3>icons/ at actual size, then 4x, on light and dark</h3>
+<script>
+const sets=[['icons','/icons/']];
+for (const bg of ['grey','dark']) for (const [label,dir] of sets){
+  const row=document.createElement('div');row.className='row '+bg;
+  row.innerHTML=`<b style="width:40px">${label}</b>`+[16,32,48,128].map(s=>`<figure><img src="${dir}icon-${s}.png" width="${s}" height="${s}">${s}</figure>`).join('')
+   +[16,32,48].map(s=>`<figure><img src="${dir}icon-${s}.png" width="${s*4}" height="${s*4}">${s}@4x</figure>`).join('');
+  document.body.appendChild(row);
+}
+document.documentElement.dataset.ready="1";</script></body></html>

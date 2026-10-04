@@ -7,9 +7,9 @@ const { loadScripts, dashboardBody, flush } = require('./track-c-dom');
 
 const NOW = Date.UTC(2026, 9, 3, 10, 0, 0);
 const ME = '005Hn00000AbCdE';
-const FILES = ['js/icons.js', 'js/basic-utilities.js', 'js/apex-storage-service.js', 'js/apex-code-manager.js', 'js/apex-code-ui.js',
-  'js/apex-executor.js', 'js/debug-level-creator.js', 'js/debug-log-manager-ui.js', 'js/debug-log-ui-api.js',
-  'js/debug-log-ui-traceflags.js', 'js/debug-log-ui-rendering.js', 'tests/track-c-log-list-stub.js', 'js/dashboard-init.js'];
+const FILES = ['js/core/icons.js', 'js/core/basic-utilities.js', 'js/apex/apex-storage-service.js', 'js/apex/apex-code-manager.js', 'js/apex/apex-code-ui.js',
+  'js/apex/apex-executor.js', 'js/debug-manager/debug-level-creator.js', 'js/debug-manager/debug-log-manager-ui.js', 'js/debug-manager/debug-log-ui-api.js',
+  'js/debug-manager/debug-log-ui-traceflags.js', 'js/debug-manager/debug-log-ui-rendering.js', 'tests/track-c-log-list-stub.js', 'js/dashboard/dashboard-init.js'];
 const iso = ms => new Date(ms).toISOString().replace('Z', '+0000');
 
 function setup({ ensure = { success: true, data: { existing: true } }, run = { compiled: true, success: true, line: -1, column: -1 }, runLogDelayLoads = 0, filter = 'Monitoring', userInfo } = {}) {

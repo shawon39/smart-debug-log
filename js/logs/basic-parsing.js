@@ -1,5 +1,5 @@
 // Basic Salesforce Object Parsing
-// This file contains the parser for the text System.debug prints for Apex values (toString(), see System.debug.md):
+// This file contains the parser for the text System.debug prints for Apex values (toString(), see docs/System.debug.md):
 // SObjects Type:{...}, classes Class:[...], system classes Ns.Type[...], lists (...), sets {...} and maps {key=value}.
 // Salesforce separates items with ", " (fields of system classes with ";"). Splitting is depth aware: separators
 // and the key "=" only count outside (), {} and [].

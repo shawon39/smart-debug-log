@@ -4,8 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert');
 const { loadScripts, dashboardBody } = require('./track-c-dom');
 
-const MANAGER_FILES = ['js/icons.js', 'js/basic-utilities.js', 'js/debug-level-creator.js', 'js/debug-log-manager-ui.js',
-  'js/debug-log-ui-api.js', 'js/debug-log-ui-traceflags.js', 'js/debug-log-ui-rendering.js'];
+const MANAGER_FILES = ['js/core/icons.js', 'js/core/basic-utilities.js', 'js/debug-manager/debug-level-creator.js', 'js/debug-manager/debug-log-manager-ui.js',
+  'js/debug-manager/debug-log-ui-api.js', 'js/debug-manager/debug-log-ui-traceflags.js', 'js/debug-manager/debug-log-ui-rendering.js'];
 
 function withTimeZone(tz, fn) {
   const previous = process.env.TZ;

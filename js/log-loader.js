@@ -1,12 +1,17 @@
 // Log Loading and API Operations
 // This file handles loading debug logs from various sources and managing log content
 
+// Incremental fetches look back this far before the last fetch: a log is saved when its transaction
+// ends, but StartTime is when it began, so a long transaction can appear after a later one was fetched
+const FETCH_OVERLAP_MS = 10 * 60 * 1000;
+const FETCH_PAGE_SIZE = 500;
+const MAX_INCREMENTAL_LOGS = 2000;
+
 class LogLoader {
   constructor() {
     this.batchSize = 3;
-    this.maxConcurrentChecks = 3;
-    this.checkTimeout = 5000;
     this.MAX_CACHED_LOGS = 1000; // Prevent unlimited growth
+    this.cacheGeneration = 0; // Changes on clearCache(); a load that started before does not write the cache
 
     // Cleanup old cache entries on initialization
     setTimeout(() => this.cleanupOldCaches(), 1000);
@@ -19,25 +24,22 @@ class LogLoader {
     return currentSession?.organizationId || currentSession?.orgId || sfHost;
   }
 
-  _getLastFetchTimeKey() {
+  _getLastFetchTimeKey(logType = this._getLogTypeFilter()) {
     const orgId = this._getOrgId();
-    const logType = this._getLogTypeFilter();
     return orgId ? `lastFetchTime_${orgId}_${logType}` : null;
   }
 
-  _getCachedLogsKey() {
+  _getCachedLogsKey(logType = this._getLogTypeFilter()) {
     const orgId = this._getOrgId();
-    const logType = this._getLogTypeFilter();
     return orgId ? `cachedLogs_${orgId}_${logType}` : null;
   }
 
   /**
-   * Loads debug logs using smart caching with timestamp-based incremental updates
-   * @param {number} offset - Number of logs to skip (for pagination - used with cached data)
-   * @param {boolean} checkForMore - Whether to check if more logs exist 
-   * @returns {Promise<Array|Object>} Array of debug logs, or object with {logs, hasMore} if checkForMore is true
+   * Loads debug logs using smart caching with timestamp-based incremental updates.
+   * Throws when the logs cannot be loaded (no session, no token, API error); zero logs is not an error.
+   * @returns {Promise<Object>} { logs } - all logs of the current log type, newest first
    */
-  async loadDebugLogs(offset = 0, checkForMore = false) {
+  async loadDebugLogs() {
     if (!currentSession || !sfHost) {
       const targetHost = getHostFromUrl();
       await checkConnectionStatus(targetHost);
@@ -46,62 +48,48 @@ class LogLoader {
       }
     }
 
-    // For pagination (offset > 0), use cached data only
-    if (offset > 0) {
-      return this._getFromCache(offset, checkForMore);
-    }
+    // The log type and cache in use when this load started (the filter can change while it runs)
+    const logType = this._getLogTypeFilter();
+    const generation = this.cacheGeneration;
 
-    // For initial load (offset = 0), prefer incremental update using last fetch time
-    const cachedLogs = this._getCachedLogs();
-    const lastFetchTime = this._getLastFetchTime();
+    // Prefer incremental update using last fetch time
+    const cachedLogs = this._getCachedLogs(logType);
+    const lastFetchTime = this._getLastFetchTime(logType);
 
     let allLogs = [];
     let freshestLogsForTimestamp = [];
 
     if (cachedLogs && cachedLogs.length > 0 && lastFetchTime) {
-      // Incremental: fetch only logs newer than last fetch
-      const newLogs = await this._fetchNewLogs(new Date(lastFetchTime));
-      const safeNewLogs = Array.isArray(newLogs) ? newLogs : [];
-      allLogs = this._mergeNewLogs(safeNewLogs, cachedLogs);
-      freshestLogsForTimestamp = safeNewLogs;
+      // Incremental: fetch logs since the last fetch (with an overlap window)
+      const newLogs = await this._fetchNewLogs(new Date(lastFetchTime), logType);
+      allLogs = this._mergeNewLogs(newLogs, cachedLogs);
+      freshestLogsForTimestamp = newLogs;
     } else {
       // Bootstrap cache: get recent first, then all if needed
-      const recentLogs = await this._fetchRecentLogs(100);
-      if (!recentLogs || recentLogs.length === 0) {
-        throw new Error('No logs found from any source');
-      }
+      const recentLogs = await this._fetchRecentLogs(100, logType);
       if (recentLogs.length < 100) {
         allLogs = recentLogs;
       } else {
         if (cachedLogs && cachedLogs.length > 0) {
           allLogs = this._mergeNewLogs(recentLogs, cachedLogs);
         } else {
-          const allLogsFromServer = await this._fetchAllLogs();
+          const allLogsFromServer = await this._fetchAllLogs(logType).catch(() => null);
           allLogs = allLogsFromServer || recentLogs;
         }
       }
       freshestLogsForTimestamp = recentLogs.slice(0, 50);
     }
 
-    // Update cache with all logs
-    this._updateCache(allLogs.slice(0, this.MAX_CACHED_LOGS), freshestLogsForTimestamp);
+    // Update cache with all logs (unless the cache was cleared while this load ran)
+    if (generation === this.cacheGeneration) {
+      this._updateCache(allLogs.slice(0, this.MAX_CACHED_LOGS), freshestLogsForTimestamp, logType);
+    }
 
-    // For initial load, we don't need to paginate here since log-display.js handles it
-    // Just return a success indicator that logs are cached
-    return { logs: allLogs, hasMore: false, cached: true };
+    return { logs: allLogs.slice(0, this.MAX_CACHED_LOGS) };
   }
 
   /**
-   * Loads more debug logs for pagination (uses cached data)
-   * @param {number} offset - Number of logs to skip
-   * @returns {Promise<Array>} Array of additional debug logs
-   */
-  async loadMoreDebugLogs(offset) {
-    return await this._getFromCache(offset, false);
-  }
-
-  /**
-   * Public method to get cached logs (used by pagination)
+   * Public method to get cached logs
    */
   getCachedLogs() {
     return this._getCachedLogs();
@@ -116,6 +104,7 @@ class LogLoader {
 
     if (cacheKey) localStorage.removeItem(cacheKey);
     if (timeKey) localStorage.removeItem(timeKey);
+    this.cacheGeneration++;
   }
 
   /**
@@ -140,7 +129,7 @@ class LogLoader {
         });
       }
 
-      // Remove expired logs (>24h) from every org cache
+      // Remove expired logs from every org cache (Monitoring logs live 7 days, System logs 24 hours)
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('cachedLogs_')) {
@@ -150,11 +139,10 @@ class LogLoader {
             const logs = JSON.parse(raw);
             if (!Array.isArray(logs)) continue;
             const now = Date.now();
-            const twentyFourHoursMs = 24 * 60 * 60 * 1000;
             const freshLogs = logs.filter(log => {
               try {
                 const t = new Date(log.StartTime).getTime();
-                return isFinite(t) && (now - t) <= twentyFourHoursMs;
+                return isFinite(t) && (now - t) <= getLogRetentionMs(log);
               } catch (_) {
                 return true; // keep if unsure
               }
@@ -183,8 +171,8 @@ class LogLoader {
   /**
    * Cache management helper methods
    */
-  _getCachedLogs() {
-    const cacheKey = this._getCachedLogsKey();
+  _getCachedLogs(logType) {
+    const cacheKey = this._getCachedLogsKey(logType);
     if (!cacheKey) return null;
 
     try {
@@ -195,8 +183,8 @@ class LogLoader {
     }
   }
 
-  _getLastFetchTime() {
-    const timeKey = this._getLastFetchTimeKey();
+  _getLastFetchTime(logType) {
+    const timeKey = this._getLastFetchTimeKey(logType);
     if (!timeKey) return null;
 
     try {
@@ -207,9 +195,9 @@ class LogLoader {
     }
   }
 
-  _updateCache(allLogs, newLogs) {
-    const cacheKey = this._getCachedLogsKey();
-    const timeKey = this._getLastFetchTimeKey();
+  _updateCache(allLogs, newLogs, logType) {
+    const cacheKey = this._getCachedLogsKey(logType);
+    const timeKey = this._getLastFetchTimeKey(logType);
 
     if (!cacheKey || !timeKey) return;
 
@@ -220,34 +208,51 @@ class LogLoader {
       // Store cached logs
       localStorage.setItem(cacheKey, JSON.stringify(logsToCache));
 
-      // Store latest fetch time (from newest log)
+      // Store latest fetch time (from newest log), never moving it back
       if (newLogs && newLogs.length > 0) {
         // Ensure we persist a raw string so _getLastFetchTime can return it directly
         const latestLog = newLogs[0]; // Logs are ordered by StartTime DESC
-        localStorage.setItem(timeKey, latestLog.StartTime);
+        const previous = localStorage.getItem(timeKey);
+        if (!previous || new Date(latestLog.StartTime) > new Date(previous)) {
+          localStorage.setItem(timeKey, latestLog.StartTime);
+        }
       }
     } catch (error) {
       // Storage failed, continue without caching
     }
   }
 
-  async _fetchNewLogs(lastFetchTime) {
-    if (!lastFetchTime) return null;
-
+  // Logs since lastFetchTime (minus the overlap window), newest first. Pages past FETCH_PAGE_SIZE
+  // with an upper StartTime bound, up to MAX_INCREMENTAL_LOGS; duplicates are removed by Id.
+  async _fetchNewLogs(lastFetchTime, logType) {
     // Format timestamp for SOQL query (Salesforce format)
-    const isoString = lastFetchTime.toISOString();
-    const logType = this._getLogTypeFilter();
-    const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
-                   FROM ApexLog 
-                   WHERE StartTime >= ${isoString} AND Location = '${logType}'
-                   ORDER BY StartTime DESC
-                   LIMIT 500`;
+    const isoString = new Date(lastFetchTime.getTime() - FETCH_OVERLAP_MS).toISOString();
+    const logs = [];
+    const seenIds = new Set();
+    let upperBound = '';
 
-    return await this._executeQuery(query);
+    while (logs.length < MAX_INCREMENTAL_LOGS) {
+      const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
+                   FROM ApexLog 
+                   WHERE StartTime >= ${isoString}${upperBound} AND Location = '${logType}'
+                   ORDER BY StartTime DESC
+                   LIMIT ${FETCH_PAGE_SIZE}`;
+      const page = await this._executeQuery(query);
+      const unseen = page.filter(log => !seenIds.has(log.Id));
+      unseen.forEach(log => {
+        seenIds.add(log.Id);
+        logs.push(log);
+      });
+
+      // Stop when the page was not full, or it only had logs we already have (many logs with one StartTime)
+      if (page.length < FETCH_PAGE_SIZE || unseen.length === 0) break;
+      upperBound = ` AND StartTime <= ${new Date(page[page.length - 1].StartTime).toISOString()}`;
+    }
+
+    return logs.slice(0, MAX_INCREMENTAL_LOGS);
   }
 
-  async _fetchAllLogs() {
-    const logType = this._getLogTypeFilter();
+  async _fetchAllLogs(logType) {
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
                    WHERE Location = '${logType}'
@@ -257,8 +262,7 @@ class LogLoader {
     return await this._executeQuery(query);
   }
 
-  async _fetchRecentLogs(limit = 50) {
-    const logType = this._getLogTypeFilter();
+  async _fetchRecentLogs(limit, logType) {
     const query = `SELECT Id, LogUserId, StartTime, LogLength, Application, Operation, DurationMilliseconds, Location 
                    FROM ApexLog 
                    WHERE Location = '${logType}'
@@ -275,45 +279,21 @@ class LogLoader {
     const existingIds = new Set(cachedLogs.map(log => log.Id));
     const uniqueNewLogs = newLogs.filter(log => !existingIds.has(log.Id));
 
-    // Merge: new logs first, then cached logs
-    return [...uniqueNewLogs, ...cachedLogs];
-  }
-
-  _paginateResults(allLogs, offset, checkForMore) {
-    const limit = offset === 0 ? parseInt(elements.logLimit?.value || 25) : 10;
-
-    if (checkForMore && offset === 0) {
-      const hasMore = allLogs.length > limit;
-      const logs = allLogs.slice(0, limit);
-      return { logs, hasMore };
-    }
-
-    return allLogs.slice(offset, offset + limit);
-  }
-
-  _getFromCache(offset, checkForMore) {
-    const cachedLogs = this._getCachedLogs();
-    if (!cachedLogs) {
-      return checkForMore ? { logs: [], hasMore: false } : [];
-    }
-
-    return this._paginateResults(cachedLogs, offset, checkForMore);
+    // Merge: new logs first, then cached logs; newest first (a late log can be older than cached ones)
+    return [...uniqueNewLogs, ...cachedLogs]
+      .sort((a, b) => new Date(b.StartTime) - new Date(a.StartTime));
   }
 
   async _executeQuery(query) {
-    // Try direct tab communication first
-    let result = await this._loadFromTabs(query);
-    if (result) return result;
-
-    // Try background service worker
-    result = await this._loadFromBackground(0, 999999); // Large limit for "fetch all"
-    if (result) return result;
-
-    // Try runtime message
-    result = await this._loadFromRuntime(query);
-    if (result) return result;
-
-    return null;
+    // The background service worker (OAuth token) first
+    try {
+      return await this._loadFromRuntime(query);
+    } catch (backgroundError) {
+      // Fallback: a logged-in tab of the same org
+      const records = await this._loadFromTabs(query);
+      if (records) return records;
+      throw backgroundError;
+    }
   }
 
   /**
@@ -324,13 +304,14 @@ class LogLoader {
    */
   async getLogContent(logId, targetHost = null) {
     try {
-      const sfHost = targetHost || getHostFromUrl();
+      // Dashboards opened without ?host= use the detected org (global sfHost)
+      const host = targetHost || getHostFromUrl() || sfHost;
       const response = await chrome.runtime.sendMessage({
         type: 'GET_LOG_CONTENT',
         logId: logId,
         orgId: currentSession.orgId,
-        targetHost: sfHost,
-        sfHost: sfHost // For org-aware token selection
+        targetHost: host,
+        sfHost: host // For org-aware token selection
       });
 
       if (!response.success) {
@@ -339,7 +320,8 @@ class LogLoader {
         throw error;
       }
 
-      return response.data.content || response.data;
+      // An empty log body is an empty string
+      return response.data?.content ?? '';
     } catch (error) {
       if (error.message.includes('chrome.runtime.sendMessage')) {
         const chromeError = errorHandler.handleChromeError(error, 'sendMessage');
@@ -369,27 +351,19 @@ class LogLoader {
       const batchPromises = batch.map(async (log) => {
         try {
           const content = await this.getLogContent(log.Id);
-          const hasDebugMsgs = hasDebugMessages(content);
-          const hasFatalErrorMsgs = hasFatalErrors(content);
-          const hasExceptionMsgs = hasExceptions(content);
+          // One parse gives all three icons
+          const parsed = parseDebugLogContent(content);
 
-          logCache.setDebugStatus(log.Id, hasDebugMsgs);
-          logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
-          logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
+          logCache.setDebugStatus(log.Id, parsed.debugMessages.length > 0);
+          logCache.setErrorStatus(log.Id, parsed.errors.hasFatalErrors);
+          logCache.setExceptionStatus(log.Id, parsed.errors.hasExceptions);
 
           // Update UI immediately for this specific log
           if (updateCallback) {
             updateCallback(log.Id);
           }
         } catch (error) {
-          // If there's an error, assume no debug messages
-          logCache.setDebugStatus(log.Id, false);
-          logCache.setErrorStatus(log.Id, false);
-          logCache.setExceptionStatus(log.Id, false);
-
-          if (updateCallback) {
-            updateCallback(log.Id);
-          }
+          // Status unknown: nothing is cached, so the next load checks this log again
         }
       });
 
@@ -404,54 +378,14 @@ class LogLoader {
   }
 
   /**
-   * Checks debug status for a limited number of logs (legacy method)
-   * @param {Array} logs - Array of log objects
-   */
-  async checkDebugStatusLimited(logs) {
-    const uncachedLogs = logCache.getUncachedLogs(logs);
-
-    if (uncachedLogs.length === 0) {
-      return;
-    }
-
-    const logsToCheck = uncachedLogs.slice(0, this.maxConcurrentChecks);
-
-    const checkPromises = logsToCheck.map(async (log) => {
-      try {
-        const content = await this.getLogContent(log.Id);
-        const hasDebugMsgs = hasDebugMessages(content);
-        const hasFatalErrorMsgs = hasFatalErrors(content);
-        const hasExceptionMsgs = hasExceptions(content);
-
-        logCache.setDebugStatus(log.Id, hasDebugMsgs);
-        logCache.setErrorStatus(log.Id, hasFatalErrorMsgs);
-        logCache.setExceptionStatus(log.Id, hasExceptionMsgs);
-      } catch (error) {
-        logCache.setDebugStatus(log.Id, false);
-        logCache.setErrorStatus(log.Id, false);
-        logCache.setExceptionStatus(log.Id, false);
-      }
-    });
-
-    try {
-      await Promise.race([
-        Promise.all(checkPromises),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), this.checkTimeout))
-      ]);
-    } catch (error) {
-      // Some checks failed or timed out, but that's okay
-    }
-  }
-
-  /**
-   * Loads logs from direct tab communication
+   * Loads logs from direct tab communication (only tabs of the dashboard's org)
    * @private
    * @param {string} query - SOQL query
    * @returns {Promise<Array|null>} Logs or null if failed
    */
   async _loadFromTabs(query) {
     try {
-      const targetHost = getHostFromUrl();
+      const targetHost = getHostFromUrl() || sfHost;
       const sessionData = {
         sessionId: currentSession.key || currentSession.sessionId,
         instanceUrl: null // Will be set by tab manager
@@ -465,54 +399,23 @@ class LogLoader {
   }
 
   /**
-   * Loads logs from background service worker
-   * @private
-   * @param {number} offset - Number of logs to skip (for pagination)
-   * @param {number} limit - Number of logs to fetch
-   * @returns {Promise<Array|null>} Logs or null if failed
-   */
-  async _loadFromBackground(offset = 0, limit = 10) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_RECENT_LOGS',
-        orgId: currentSession.orgId,
-        limit: limit,
-        offset: offset
-      });
-
-      if (response.success && response.data && response.data.length > 0) {
-        return response.data;
-      }
-    } catch (error) {
-      // Failed
-    }
-
-    return null;
-  }
-
-  /**
-   * Loads logs using runtime tooling query
+   * Loads logs using runtime tooling query (background service worker, OAuth token)
    * @private
    * @param {string} query - SOQL query
-   * @returns {Promise<Array|null>} Logs or null if failed
+   * @returns {Promise<Array>} Logs; throws with the reason (e.g. NO_OAUTH_TOKEN or the API error) if failed
    */
   async _loadFromRuntime(query) {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'EXECUTE_TOOLING_QUERY',
-        query: query,
-        session: currentSession,
-        sfHost: getHostFromUrl() // For org-aware token selection
-      });
+    const response = await chrome.runtime.sendMessage({
+      type: 'EXECUTE_TOOLING_QUERY',
+      query: query,
+      session: currentSession,
+      sfHost: getHostFromUrl() || sfHost // For org-aware token selection (dashboards without ?host= use the detected org)
+    });
 
-      if (response.success && response.data && response.data.records) {
-        return response.data.records;
-      }
-    } catch (error) {
-      // Failed
+    if (response && response.success && response.data && Array.isArray(response.data.records)) {
+      return response.data.records;
     }
-
-    return null;
+    throw new Error(response?.error || response?.message || 'Could not load debug logs.');
   }
 }
 

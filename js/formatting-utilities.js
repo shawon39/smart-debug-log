@@ -1,28 +1,26 @@
 // Formatting Utilities
 // This file contains functions for JSON highlighting, governor limits formatting, and main object extraction
 
+// Debug messages longer than this are not structure-parsed (they are shown as escaped text)
+const MAX_STRUCTURED_MESSAGE_LENGTH = 50000;
+
+// One pass over escaped JSON: a key string, a ": value" pair, or any other string (read whole,
+// so a ":" or digits inside a string are never highlighted)
+const JSON_KEY_VALUE_TOKEN = /("(?:[^"\\]|\\.)*")(?=\s*:)|:\s*("(?:[^"\\]|\\.)*"|\d+\.?\d*|true\b|false\b|null\b)|"(?:[^"\\]|\\.)*"/g;
+
 // Simple JSON key highlighting only
 function highlightJsonKeys(jsonString) {
   try {
-    let highlighted = escapeHtml(jsonString);
-
-    // Highlight JSON keys only - property names in quotes followed by colon
-    // Pattern 1: Standard &quot; format followed by colon
-    highlighted = highlighted.replace(/&quot;([^&"]*?)&quot;(\s*):/g, '<span class="json-key">&quot;$1&quot;</span>$2:');
-    // Pattern 2: In case quotes aren't escaped as &quot;
-    highlighted = highlighted.replace(/"([^"]*?)"(\s*):/g, '<span class="json-key">"$1"</span>$2:');
-
-    // Highlight string values
-    highlighted = highlighted.replace(/:\s*&quot;([^&"]*?)&quot;/g, ': <span class="json-string">&quot;$1&quot;</span>');
-    highlighted = highlighted.replace(/:\s*"([^"]*?)"/g, ': <span class="json-string">"$1"</span>');
-
-    // Highlight numbers
-    highlighted = highlighted.replace(/:\s*(\d+\.?\d*)/g, ': <span class="json-number">$1</span>');
-
-    // Highlight booleans and null
-    highlighted = highlighted.replace(/:\s*(true|false|null)\b/g, ': <span class="json-boolean">$1</span>');
-
-    return highlighted;
+    return escapeHtml(jsonString).replace(JSON_KEY_VALUE_TOKEN, (token, key, value) => {
+      if (key) {
+        return `<span class="json-key">${key}</span>`;
+      }
+      if (value === undefined) {
+        return token;
+      }
+      const type = value.startsWith('"') ? 'json-string' : /^\d/.test(value) ? 'json-number' : 'json-boolean';
+      return `: <span class="${type}">${value}</span>`;
+    });
   } catch (error) {
     return escapeHtml(jsonString);
   }
@@ -34,31 +32,37 @@ function formatGovernorLimits(limitsText) {
       return limitsText;
     }
 
-    // Parse "LIMIT_USAGE_FOR_NS|ns|" headers and "Label: used out of max" rows
-    let namespace = '';
-    const rows = [];
+    // Parse "LIMIT_USAGE_FOR_NS|ns|" headers and "Label: used out of max" rows, grouped by namespace
+    const groups = [];
+    let current = null;
     limitsText.split('\n').forEach(line => {
       const ns = line.match(/LIMIT_USAGE_FOR_NS\|([^|]+)\|/);
       if (ns) {
-        namespace = ns[1];
+        current = { namespace: ns[1], rows: [] };
+        groups.push(current);
         return;
       }
       const m = line.match(/^\s*([A-Za-z][A-Za-z ]*?):\s*(\d+)\s+out of\s+(\d+)/);
       if (m) {
+        if (!current) {
+          current = { namespace: '', rows: [] };
+          groups.push(current);
+        }
         const label = m[1].replace(/^(Number of|Maximum)\s+/i, '');
-        rows.push({ label: label.charAt(0).toUpperCase() + label.slice(1), used: Number(m[2]), max: Number(m[3]) });
+        current.rows.push({ label: label.charAt(0).toUpperCase() + label.slice(1), used: Number(m[2]), max: Number(m[3]) });
       }
     });
 
     // Unknown format: show the text as-is rather than nothing
-    if (rows.length === 0) {
+    if (!groups.some(group => group.rows.length > 0)) {
       return `<pre class="limits-raw">${escapeHtml(limitsText)}</pre>`;
     }
 
-    const rowsHtml = rows.map(({ label, used, max }) => {
-      const pct = max > 0 ? Math.min(100, (used / max) * 100) : 0;
-      const level = pct >= 80 ? 'danger' : pct >= 50 ? 'warn' : 'ok';
-      return `
+    return groups.filter(group => group.rows.length > 0).map(({ namespace, rows }) => {
+      const rowsHtml = rows.map(({ label, used, max }) => {
+        const pct = max > 0 ? Math.min(100, (used / max) * 100) : 0;
+        const level = pct >= 80 ? 'danger' : pct >= 50 ? 'warn' : 'ok';
+        return `
         <div class="limit-row level-${level}${used === 0 ? ' is-zero' : ''}">
           <div class="limit-row-head">
             <span class="limit-name">${escapeHtml(label)}</span>
@@ -66,26 +70,68 @@ function formatGovernorLimits(limitsText) {
           </div>
           <div class="limit-bar"><span style="width: ${pct.toFixed(1)}%"></span></div>
         </div>`;
-    }).join('');
+      }).join('');
 
-    const nsHtml = namespace ? `<div class="limits-ns">Governor limits <span>${escapeHtml(namespace)}</span></div>` : '';
-    return `${nsHtml}<div class="limits-list">${rowsHtml}</div>`;
+      const nsHtml = namespace ? `<div class="limits-ns">Governor limits <span>${escapeHtml(namespace)}</span></div>` : '';
+      return `${nsHtml}<div class="limits-list">${rowsHtml}</div>`;
+    }).join('');
   } catch (error) {
     return `<pre class="limits-raw">${escapeHtml(limitsText)}</pre>`;
   }
 }
 
+// Start/end of the rightmost top-level (...) group that holds Salesforce objects, or null (one linear scan)
+function findLastSObjectListGroup(text) {
+  const paired = pairedBrackets(text);
+  let depth = 0;
+  let groupStart = -1;
+  let last = null;
+  for (let i = 0; i < text.length; i++) {
+    if (!paired[i]) continue;
+    const char = text[i];
+    if (char === '(' || char === '{' || char === '[') {
+      if (depth === 0) groupStart = char === '(' ? i : -1;
+      depth++;
+    } else {
+      depth--;
+      if (depth === 0 && groupStart !== -1 && char === ')' && hasTypedBodyWithEquals(text.slice(groupStart, i + 1), '{', '}')) {
+        last = { start: groupStart, end: i + 1 };
+      }
+    }
+  }
+  return last;
+}
+
+// Same result as /^([^<stop>]*?)(\w+:<open>.*<close>)$/s ("Some text Account:{...}"), in linear time:
+// the object starts at the word before the first stop character, which must be "<word>:<open>"
+function matchTypedObjectTail(text, open, close, stopChars) {
+  if (!text.endsWith(close)) return null;
+  let first = 0;
+  while (first < text.length && !stopChars.includes(text[first])) first++;
+  if (first < 2 || text[first] !== open || text[first - 1] !== ':' || !/\w/.test(text[first - 2])) return null;
+  let start = first - 2;
+  while (start > 0 && /\w/.test(text[start - 1])) start--;
+  return [text, text.slice(0, start), text.slice(start)];
+}
+
 function extractAndParseSalesforceObjects(text) {
   if (!text) return escapeHtml(text);
 
-  // Decode HTML entities first for better processing
-  let decodedText = decodeHtmlEntities(text);
+  // The caller has already decoded HTML entities (once)
+  let decodedText = text;
 
   // First, try to clean Salesforce API responses (JSON with attributes/metadata)
   try {
     const cleanedResponse = cleanSalesforceResponse(decodedText);
-    if (cleanedResponse !== decodedText) {
-      const highlightedJson = highlightJsonKeys(cleanedResponse);
+    if (cleanedResponse && cleanedResponse.json !== decodedText) {
+      // Keep the text around the JSON, e.g. "Response:" in "Response: {...}"
+      let highlightedJson = highlightJsonKeys(cleanedResponse.json);
+      if (cleanedResponse.prefix) {
+        highlightedJson = `<span class="content-prefix">${escapeHtml(cleanedResponse.prefix)}</span>\n${highlightedJson}`;
+      }
+      if (cleanedResponse.suffix) {
+        highlightedJson = `${highlightedJson}\n<span class="content-prefix">${escapeHtml(cleanedResponse.suffix)}</span>`;
+      }
       return highlightedJson;
     }
   } catch (error) {
@@ -93,7 +139,7 @@ function extractAndParseSalesforceObjects(text) {
   }
 
   // Check for multi-line Salesforce object pattern: ObjectName:\n"[...]"
-  const multiLineMatch = decodedText.match(/^(\w+):\s*[\r\n]+\s*"(\[.*\])"$/s);
+  const multiLineMatch = decodedText.match(/^(\w+):[^\S\r\n]*[\r\n]\s*"(\[.*\])"$/s);
   if (multiLineMatch) {
     const [, objectName, content] = multiLineMatch;
 
@@ -120,41 +166,31 @@ function extractAndParseSalesforceObjects(text) {
   let prefix = '';
 
   // First, try to find the rightmost parentheses group containing Salesforce objects
-  const parenMatches = [];
-  let parenRegex = /\([^)]*\w+:\{[^}]*=[^}]*\}[^)]*\)/g;
-  let match;
-
-  while ((match = parenRegex.exec(decodedText)) !== null) {
-    parenMatches.push({
-      content: match[0],
-      start: match.index,
-      end: match.index + match[0].length
-    });
-  }
+  const lastParenGroup = findLastSObjectListGroup(decodedText);
 
   // If we found parentheses groups with Salesforce objects, use the rightmost one
-  if (parenMatches.length > 0) {
-    const lastParenMatch = parenMatches[parenMatches.length - 1];
-    prefix = decodedText.substring(0, lastParenMatch.start).trim();
-    objectPart = lastParenMatch.content;
+  if (lastParenGroup) {
+    prefix = decodedText.substring(0, lastParenGroup.start).trim();
+    objectPart = decodedText.substring(lastParenGroup.start, lastParenGroup.end);
   } else {
     // Fallback to original pattern matching
     // Look for common patterns where object data starts
+    // (patterns that can only match a text with a given last character are skipped otherwise)
     const patterns = [
       // Pattern: "Full Account → Account:{Id=001..., Name=...}"
       /^([^→]*→\s*)(\w+:\{.*\})$/s,
       // Pattern: "Some text:(Account:{...}, Contact:{...})"
-      /^([^(]*?)(\([^)]*\w+:\{.*\))$/s,
+      decodedText.endsWith(')') ? /^([^(]*?)(\([^)]*\w:\{.*\))$/s : null,
       // Pattern: "Some text Account:{...}"
-      /^([^{]*?)(\w+:\{.*\})$/s,
+      (t) => matchTypedObjectTail(t, '{', '}', '{'),
       // Pattern: "Some text Account:[...]"
-      /^([^{[\]]*?)(\w+:\[.*\])$/s,
+      (t) => matchTypedObjectTail(t, '[', ']', '{[]'),
       // Pattern: "Some text {"key":"value",...}"
       /^([^{[\]]*?)([\{\[].*[\}\]])$/s,
       // Pattern: Multi-line JSON from JSON.serializePretty
       /^([^{[\]]*?)([\{\[][\s\S]*[\}\]])$/,
       // Pattern: Quoted content "[key=value, ...]"
-      /^([^"]*)("?\[.*\]"?)$/s,
+      /\]"?$/.test(decodedText) ? /^([^"]*)("?\[.*\]"?)$/s : null,
       // Pattern: Direct object/array (no prefix)
       /^()([\{\[].*[\}\]])$/s,
       // Pattern: Direct Salesforce object (no prefix)
@@ -162,7 +198,8 @@ function extractAndParseSalesforceObjects(text) {
     ];
 
     for (const pattern of patterns) {
-      const match = decodedText.match(pattern);
+      if (!pattern) continue;
+      const match = typeof pattern === 'function' ? pattern(decodedText) : decodedText.match(pattern);
       if (match) {
         prefix = match[1];
         objectPart = match[2];

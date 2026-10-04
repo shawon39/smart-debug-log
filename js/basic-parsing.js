@@ -1,5 +1,11 @@
 // Basic Salesforce Object Parsing
-// This file contains basic parsing functions for Salesforce object notation
+// This file contains the parser for Salesforce toString() notation (see System.debug.md):
+// SObjects Type:{...}, custom classes Class:[...], lists (...), sets {...} and maps {key=value}.
+// Splitting is depth aware: commas and the key "=" only count outside (), {} and [].
+// Quotes are not delimiters: toString() does not quote strings, so O'Brien is just text.
+
+// Deeper nesting than this is shown as text
+const TOSTRING_MAX_DEPTH = 50;
 
 // Main Salesforce object parsing function
 function parseSalesforceObjectNotation(text) {
@@ -14,9 +20,9 @@ function parseSalesforceObjectNotation(text) {
       return parseStructure(wrapsMatch[1]);
     }
     
-    // Pattern 2: Simple wrapper (WrapperType:[...])
+    // Pattern 2: One wrapper in parentheses (WrapperType:[...]); its fields are listed under the type name
     const wrapperMatch = trimmedText.match(/^\((\w+):\[(.+)\]\)$/);
-    if (wrapperMatch) {
+    if (wrapperMatch && findClosingBracket(trimmedText, wrapperMatch[1].length + 2) === trimmedText.length - 2) {
       const [, wrapperType, content] = wrapperMatch;
       return {
         [wrapperType]: parseStructure(`[${content}]`)
@@ -27,16 +33,7 @@ function parseSalesforceObjectNotation(text) {
     const complexObjectMatch = trimmedText.match(/^(\w+):\[(.+)\]$/);
     if (complexObjectMatch) {
       const [, objectType, content] = complexObjectMatch;
-      
-      // Check if this contains nested custom wrappers
-      if (hasNestedWrappers(content)) {
-        // Return raw content for nested wrappers
-        return trimmedText;
-      }
-      
-      // Simple wrapper without nesting - parse normally
-      const parsed = parseComplexContent(content);
-      return { _apexType: objectType, ...parsed };
+      return { _apexType: objectType, ...parseEntries(content, 1, true) };
     }
     
     // Check for truncated custom class at top level
@@ -49,15 +46,14 @@ function parseSalesforceObjectNotation(text) {
     // Pattern 4: Multiple objects in parentheses (Object:{...}, Object:{...})
     if (trimmedText.startsWith('(') && trimmedText.endsWith(')')) {
       const content = trimmedText.slice(1, -1);
-      return parseMultipleObjects(content);
+      return parseElements(content, 1);
     }
         
     // Pattern 5: SObject Object:{...}
     const objectMatch = trimmedText.match(/^(\w+):\{(.+)\}$/);
     if (objectMatch) {
       const [, objectType, content] = objectMatch;
-      const parsed = parseKeyValuePairs(content);
-      return { _apexType: objectType, ...parsed };
+      return { _apexType: objectType, ...parseEntries(content, 1, true) };
     }
     
     // Check for truncated SObject at top level
@@ -67,26 +63,9 @@ function parseSalesforceObjectNotation(text) {
       return trimmedText;
     }
     
-    // Pattern 6: Raw curly brace content - could be Set or Map
+    // Pattern 6: Raw curly brace content - Map {key=val, ...} (has = at depth 0) or Set {1, 2, 3}
     if (trimmedText.startsWith('{') && trimmedText.endsWith('}')) {
-      const content = trimmedText.slice(1, -1);
-      
-      // Check if there's an = at depth 0 to distinguish Set from Map
-      // Sets: {1, 2, 3} - no = at depth 0
-      // Maps: {key=val, key2=val2} - has = at depth 0
-      if (hasEqualsAtDepthZero(content)) {
-        // This is a Map
-        if (content.includes(':{')) {
-          // Map with Salesforce objects as values
-          return parseMapContent(content);
-        } else {
-          // Regular key=value pairs
-          return parseKeyValuePairs(content);
-        }
-      } else {
-        // This is a Set - parse elements as array
-        return parseMultipleObjects(content);
-      }
+      return parseBraces(trimmedText.slice(1, -1), 1);
     }
     
     // If no pattern matches, return as string
@@ -99,135 +78,122 @@ function parseSalesforceObjectNotation(text) {
 
 function parseStructure(content) {
   try {
-    // Handle array-like structures [item1, item2, ...]
-    if (content.startsWith('[') && content.endsWith(']')) {
-      const innerContent = content.slice(1, -1);
-      return parseMultipleObjects(innerContent);
-    }
-    
-    // Handle parentheses (item1, item2, ...)
-    if (content.startsWith('(') && content.endsWith(')')) {
-      const innerContent = content.slice(1, -1);
-      return parseMultipleObjects(innerContent);
+    // Handle array-like structures [item1, item2, ...] or parentheses (item1, item2, ...)
+    if ((content.startsWith('[') && content.endsWith(']')) ||
+        (content.startsWith('(') && content.endsWith(')'))) {
+      return parseElements(content.slice(1, -1), 1);
     }
     
     // Handle single object
-    return parseMultipleObjects(content);
+    return parseElements(content, 1);
   } catch (error) {
     return content;
   }
 }
 
-function parseMultipleObjects(content) {
-  const objects = [];
-  let currentObject = '';
-  let braceCount = 0;
-  let parenCount = 0;
-  let bracketCount = 0;
-  let inString = false;
-  let escapeNext = false;
-  
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    
-    // Handle string escaping
-    if (escapeNext) {
-      escapeNext = false;
-      currentObject += char;
-      continue;
+// Marks the brackets that belong to a pair. An opener that is never closed (e.g. "Sad :(" in a text value)
+// and a closer without an opener are plain text, so they do not change the depth.
+function pairedBrackets(text) {
+  const paired = new Uint8Array(text.length);
+  const openers = [];
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (char === '(' || char === '{' || char === '[') {
+      openers.push(i);
+    } else if ((char === ')' || char === '}' || char === ']') && openers.length > 0) {
+      paired[openers.pop()] = 1;
+      paired[i] = 1;
     }
+  }
+  return paired;
+}
     
-    if (char === '\\') {
-      escapeNext = true;
-      currentObject += char;
-      continue;
+// Splits text on a separator character that is at depth 0 (outside brackets)
+function splitTopLevel(text, separator) {
+  const paired = pairedBrackets(text);
+  const parts = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    if (paired[i]) {
+      depth += (char === '(' || char === '{' || char === '[') ? 1 : -1;
+    } else if (char === separator && depth === 0) {
+      parts.push(text.slice(start, i));
+      start = i + 1;
     }
+  }
+  parts.push(text.slice(start));
+  return parts;
+}
     
-    if (char === '"' || char === "'") {
-      inString = !inString;
-      currentObject += char;
-      continue;
-    }
-    
-    // Only count brackets when not in a string
-    if (!inString) {
-      if (char === '{') braceCount++;
-      if (char === '}') braceCount--;
-      if (char === '(') parenCount++;
-      if (char === ')') parenCount--;
-      if (char === '[') bracketCount++;
-      if (char === ']') bracketCount--;
+// Index of the first separator character at depth 0, or -1
+function indexOfTopLevel(text, separator) {
+  const parts = splitTopLevel(text, separator);
+  return parts.length > 1 ? parts[0].length : -1;
+}
       
-      // Split on comma only when all brackets are balanced and not in string
-      if (char === ',' && braceCount === 0 && parenCount === 0 && bracketCount === 0) {
-        if (currentObject.trim()) {
-          objects.push(parseSingleObject(currentObject.trim()));
-        }
-        currentObject = '';
-        continue;
-      }
+// Index of the bracket that closes the one at openIndex, or -1
+function findClosingBracket(text, openIndex) {
+  let depth = 0;
+  for (let i = openIndex; i < text.length; i++) {
+    const char = text[i];
+    if (char === '(' || char === '{' || char === '[') depth++;
+    else if (char === ')' || char === '}' || char === ']') {
+      depth--;
+      if (depth === 0) return i;
     }
-    
-    currentObject += char;
   }
+  return -1;
+}
   
-  if (currentObject.trim()) {
-    objects.push(parseSingleObject(currentObject.trim()));
+// Converts number text only when nothing is lost: no leading zeros (02134), within the safe
+// integer range, and decimals that print back the same (trailing zeros aside)
+function parseSafeNumber(text) {
+  if (/^-?(0|[1-9]\d*)$/.test(text)) {
+    const number = Number(text);
+    return Number.isSafeInteger(number) ? number : undefined;
   }
+  if (/^-?(0|[1-9]\d*)\.\d+$/.test(text)) {
+    const number = Number(text);
+    return String(number) === text.replace(/\.?0+$/, '') ? number : undefined;
+  }
+  return undefined;
+}
   
+// Elements of a list or set: "a, b, c" -> parsed values (one element is returned on its own)
+function parseElements(content, depth) {
+  const objects = [];
+  for (const part of splitTopLevel(content, ',')) {
+    if (part.trim()) {
+      objects.push(parseSingleObject(part.trim(), depth));
+    }
+  }
   return objects.length === 1 ? objects[0] : objects;
 }
 
-function parseSingleObject(content) {
+function parseSingleObject(content, depth = 1) {
   // Handle primitives first (for lists like (47, 52, null))
   if (content === 'null') return null;
   if (content === 'true') return true;
   if (content === 'false') return false;
   
   // Handle numbers (including negative)
-  if (/^-?\d+$/.test(content)) {
-    return parseInt(content, 10);
-  }
-  if (/^-?\d+\.\d+$/.test(content)) {
-    return parseFloat(content);
-  }
-  
-  // Handle custom class pattern ClassName:[...]
-  const wrapperMatch = content.match(/^(\w+):\[(.+)\]$/);
-  if (wrapperMatch) {
-    const [, wrapperType, innerContent] = wrapperMatch;
+  const number = parseSafeNumber(content);
+  if (number !== undefined) return number;
     
-    // Check if this contains nested custom wrappers
-    if (hasNestedWrappers(innerContent)) {
-      // Return raw content for nested wrappers
-      return content;
-    }
-    
-    // Simple wrapper without nesting - parse normally
-    const parsed = parseKeyValuePairs(innerContent);
-    return { _apexType: wrapperType, ...parsed };
-  }
+  if (depth > TOSTRING_MAX_DEPTH) return content;
   
-  // Check for truncated custom class (starts with ClassName:[ but no closing ])
-  const truncatedWrapperMatch = content.match(/^(\w+):\[/);
-  if (truncatedWrapperMatch && !content.endsWith(']')) {
-    // Return raw string for any truncated custom class
-    return content;
-  }
+  // Handle SObject ObjectType:{...} and custom class ClassName:[...]
+  const typedObject = parseTypedObject(content, depth);
+  if (typedObject !== undefined) return typedObject;
   
-  // Handle SObject pattern ObjectType:{...}
-  const objectMatch = content.match(/^(\w+):\{(.+)\}$/);
-  if (objectMatch) {
-    const [, objectType, innerContent] = objectMatch;
-    const parsed = parseKeyValuePairs(innerContent);
-    return { _apexType: objectType, ...parsed };
+  // Nested list (...) or set/map {...}
+  if (content.startsWith('(') && content.endsWith(')')) {
+    return parseElements(content.slice(1, -1), depth + 1);
   }
-  
-  // Check for truncated SObject (starts with ObjectType:{ but no closing })
-  const truncatedObjectMatch = content.match(/^(\w+):\{/);
-  if (truncatedObjectMatch && !content.endsWith('}')) {
-    // Return raw string for truncated SObject
-    return content;
+  if (content.startsWith('{') && content.endsWith('}')) {
+    return parseBraces(content.slice(1, -1), depth + 1);
   }
   
   // Handle key=value assignments
@@ -235,127 +201,61 @@ function parseSingleObject(content) {
   if (assignmentMatch) {
     const [, key, value] = assignmentMatch;
     return {
-      [key]: parseValue(value)
+      [key]: parseValue(value, depth)
     };
   }
   
   return content;
 }
 
-function parseKeyValuePairs(content) {
-  const result = {};
-  
-  // Use improved parsing that identifies key=value patterns instead of splitting on commas
-  const pairs = extractKeyValuePairs(content);
-  
-  for (const pair of pairs) {
-    const parsed = parseKeyValuePair(pair);
-    Object.assign(result, parsed);
+// SObject ObjectType:{...} or custom class ClassName:[...]; undefined for anything else (including truncated ones)
+function parseTypedObject(content, depth) {
+  const match = content.match(/^(\w+):\{(.+)\}$/) || content.match(/^(\w+):\[(.+)\]$/);
+  if (!match) return undefined;
+  const [, objectType, innerContent] = match;
+  return { _apexType: objectType, ...parseEntries(innerContent, depth + 1, true) };
+}
+
+// Set or map body (without the braces): a map has "=" at depth 0
+function parseBraces(content, depth) {
+  if (indexOfTopLevel(content, '=') !== -1) {
+    return parseEntries(content, depth, false);
+  }
+  return parseElements(content, depth);
+}
+        
+// "key=value, key=value" -> object. Each entry splits on its first "=" at depth 0.
+// Field names (identifierKeys) are words; a part that is not "word=..." belongs to the previous value
+// (e.g. Name=Smith, John). Map keys can be any text, e.g. {first name=Bob} or {Account:{Name=Bob}=null}.
+function parseEntries(content, depth, identifierKeys) {
+  const rawValues = new Map();
+  let lastKey = null;
+        
+  for (const part of splitTopLevel(content, ',')) {
+    if (!part.trim()) continue;
+          
+    const equalIndex = indexOfTopLevel(part, '=');
+    const key = equalIndex === -1 ? '' : part.slice(0, equalIndex).trim();
+    const isEntry = key !== '' && (!identifierKeys || /^\w+$/.test(key));
+        
+    if (!isEntry && lastKey !== null) {
+      rawValues.set(lastKey, rawValues.get(lastKey) + ',' + part);
+    } else if (!isEntry) {
+      rawValues.set(part.trim(), null);
+    } else {
+      rawValues.set(key, part.slice(equalIndex + 1));
+      lastKey = key;
+    }
   }
   
+  const result = {};
+  rawValues.forEach((rawValue, key) => {
+    result[key] = rawValue === null ? null : parseValue(rawValue.trim(), depth);
+  });
   return result;
 }
 
-// Function to extract key=value pairs based on pattern matching
-function extractKeyValuePairs(content) {
-  const pairs = [];
-  
-  // Find all key=value positions in the content
-  const keyValuePositions = [];
-  const keyPattern = /\b(\w+)\s*=/g;
-  let match;
-  
-  while ((match = keyPattern.exec(content)) !== null) {
-    keyValuePositions.push({
-      keyStart: match.index,
-      keyEnd: match.index + match[1].length,
-      equalPos: keyPattern.lastIndex - 1,
-      key: match[1]
-    });
-  }
-  
-  if (keyValuePositions.length === 0) {
-    return [];
-  }
-  
-  // Extract key=value pairs based on positions
-  for (let i = 0; i < keyValuePositions.length; i++) {
-    const currentPos = keyValuePositions[i];
-    const nextPos = keyValuePositions[i + 1];
-    
-    let valueStart = currentPos.equalPos + 1;
-    let valueEnd = nextPos ? nextPos.keyStart : content.length;
-    
-    // If there's a next key, find the proper boundary by looking backwards from the next key
-    if (nextPos) {
-      // Look backwards from the next key to find where this value should end
-      let searchPos = nextPos.keyStart - 1;
-      let depth = 0;
-      let inString = false;
-      let escapeNext = false;
-      
-      // Find the last comma before the next key that's at depth 0
-      while (searchPos > valueStart) {
-        const char = content[searchPos];
-        
-        if (escapeNext) {
-          escapeNext = false;
-          searchPos--;
-          continue;
-        }
-        
-        if (char === '\\') {
-          escapeNext = true;
-          searchPos--;
-          continue;
-        }
-        
-        if (char === '"' || char === "'") {
-          inString = !inString;
-          searchPos--;
-          continue;
-        }
-        
-        if (!inString) {
-          if (char === '}' || char === ')' || char === ']') depth++;
-          if (char === '{' || char === '(' || char === '[') depth--;
-          
-          if (char === ',' && depth === 0) {
-            valueEnd = searchPos;
-            break;
-          }
-        }
-        
-        searchPos--;
-      }
-    }
-    
-    // Extract and clean the key=value pair
-    const key = currentPos.key;
-    const value = content.substring(valueStart, valueEnd).trim();
-    
-    // Remove trailing comma if present
-    const cleanValue = value.replace(/,\s*$/, '');
-    
-    pairs.push(`${key}=${cleanValue}`);
-  }
-  
-  return pairs;
-}
-
-function parseKeyValuePair(pair) {
-  const equalIndex = pair.indexOf('=');
-  if (equalIndex === -1) {
-    return { [pair]: null };
-  }
-  
-  const key = pair.substring(0, equalIndex).trim();
-  const value = pair.substring(equalIndex + 1).trim();
-    
-  return { [key]: parseValue(value) };
-}
-
-function parseValue(value) {
+function parseValue(value, depth = 1) {
   // Strip leading/trailing quotes if present
   let cleanValue = value;
   if ((cleanValue.startsWith('"') && cleanValue.endsWith('"')) ||
@@ -373,21 +273,23 @@ function parseValue(value) {
   if (cleanValue === 'false') return false;
   
   // Handle numbers (including negative)
-  if (/^-?\d+$/.test(cleanValue)) {
-    return parseInt(cleanValue, 10);
-  }
-  if (/^-?\d+\.\d+$/.test(cleanValue)) {
-    return parseFloat(cleanValue);
-  }
+  const number = parseSafeNumber(cleanValue);
+  if (number !== undefined) return number;
   
-  // Handle nested structures
-  if (cleanValue.startsWith('(') && cleanValue.endsWith(')')) {
-    return parseStructure(cleanValue);
-  }
+  if (depth <= TOSTRING_MAX_DEPTH) {
+    // Handle lists
+    if (cleanValue.startsWith('(') && cleanValue.endsWith(')')) {
+      return parseElements(cleanValue.slice(1, -1), depth + 1);
+    }
   
-  // Handle objects
-  if (cleanValue.includes(':{')) {
-    return parseSingleObject(cleanValue);
+    // Handle objects
+    const typedObject = parseTypedObject(cleanValue, depth);
+    if (typedObject !== undefined) return typedObject;
+
+    // Handle sets and maps (a JSON text value such as {"a":1} stays text)
+    if (cleanValue.startsWith('{') && cleanValue.endsWith('}') && !cleanValue.slice(1).trim().startsWith('"')) {
+      return parseBraces(cleanValue.slice(1, -1), depth + 1);
+    }
   }
   
   // Clean up datetime strings with extra spaces (00: 00: 00 -> 00:00:00)
@@ -396,137 +298,3 @@ function parseValue(value) {
   // Return as string
   return cleanValue;
 }
-
-// Function to parse map content like "key1=value1, key2=value2, ..."
-function parseMapContent(content) {
-  const result = {};
-  
-  // Use similar parsing logic as parseMultipleObjects but for key=value pairs
-  let currentPair = '';
-  let braceCount = 0;
-  let parenCount = 0;
-  let bracketCount = 0;
-  let inString = false;
-  let escapeNext = false;
-  
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    
-    // Handle string escaping
-    if (escapeNext) {
-      escapeNext = false;
-      currentPair += char;
-      continue;
-    }
-    
-    if (char === '\\') {
-      escapeNext = true;
-      currentPair += char;
-      continue;
-    }
-    
-    if (char === '"' || char === "'") {
-      inString = !inString;
-      currentPair += char;
-      continue;
-    }
-    
-    // Only count brackets when not in a string
-    if (!inString) {
-      if (char === '{') braceCount++;
-      if (char === '}') braceCount--;
-      if (char === '(') parenCount++;
-      if (char === ')') parenCount--;
-      if (char === '[') bracketCount++;
-      if (char === ']') bracketCount--;
-      
-      // Split on comma only when all brackets are balanced and not in string
-      if (char === ',' && braceCount === 0 && parenCount === 0 && bracketCount === 0) {
-        if (currentPair.trim()) {
-          const parsedPair = parseMapKeyValuePair(currentPair.trim());
-          Object.assign(result, parsedPair);
-        }
-        currentPair = '';
-        continue;
-      }
-    }
-    
-    currentPair += char;
-  }
-  
-  // Handle the last pair
-  if (currentPair.trim()) {
-    const parsedPair = parseMapKeyValuePair(currentPair.trim());
-    Object.assign(result, parsedPair);
-  }
-  
-  return result;
-}
-
-// Function to parse individual map key=value pairs
-function parseMapKeyValuePair(pair) {
-  const equalIndex = pair.indexOf('=');
-  if (equalIndex === -1) {
-    return { [pair]: null };
-  }
-  
-  const key = pair.substring(0, equalIndex).trim();
-  const value = pair.substring(equalIndex + 1).trim();
-  
-  // Parse the value - it might be a complex object like Account:{Id=..., Name=...}
-  let parsedValue;
-  if (value.includes(':{')) {
-    // This is a Salesforce object notation
-    parsedValue = parseSingleObject(value);
-  } else {
-    // Use the regular value parsing
-    parsedValue = parseValue(value);
-  }
-  
-  return { [key]: parsedValue };
-}
-
-// Helper function to check if content has = at depth 0
-// Used to distinguish Sets {1, 2, 3} from Maps {key=val}
-function hasEqualsAtDepthZero(content) {
-  let depth = 0;
-  let inString = false;
-  let escapeNext = false;
-  
-  for (let i = 0; i < content.length; i++) {
-    const char = content[i];
-    
-    if (escapeNext) {
-      escapeNext = false;
-      continue;
-    }
-    
-    if (char === '\\') {
-      escapeNext = true;
-      continue;
-    }
-    
-    if (char === '"' || char === "'") {
-      inString = !inString;
-      continue;
-    }
-    
-    if (!inString) {
-      if (char === '{' || char === '(' || char === '[') depth++;
-      if (char === '}' || char === ')' || char === ']') depth--;
-      
-      if (char === '=' && depth === 0) {
-        return true;
-      }
-    }
-  }
-  
-  return false;
-}
-
-// Helper function to detect nested custom wrappers
-// Returns true if content contains another ClassName:[ pattern
-function hasNestedWrappers(content) {
-  // Look for ClassName:[ pattern indicating a custom wrapper
-  return /\w+:\[/.test(content);
-} 

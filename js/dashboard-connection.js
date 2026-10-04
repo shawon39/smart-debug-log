@@ -167,12 +167,17 @@ function updateConnectionStatus(connected, statusText = '', session = null) {
 }
 
 // Refresh dashboard when window gains focus (handles both tab switching and window focus)
+// Focus events this soon after the last refresh (or after the page opened) are ignored
+const FOCUS_REFRESH_MIN_GAP_MS = 10000;
+let lastDashboardRefreshTime = Date.now();
+
 const refreshDashboard = async () => {
+  lastDashboardRefreshTime = Date.now();
   const targetHost = getHostFromUrl();
   await checkConnectionStatus(targetHost);
   if (currentSession && sfHost) {
-    // Incremental refresh to get latest logs without clearing cache
-    await loadDebugLogs();
+    // Incremental refresh to get latest logs without clearing cache; keeps the opened pages and selection
+    await loadDebugLogs({ keepPosition: true });
   }
   setTimeout(checkOAuthTokenStatus, 300);
 };
@@ -188,7 +193,7 @@ function getAutoRefreshState() {
 
 window.addEventListener('focus', () => {
   const autoRefreshEnabled = getAutoRefreshState();
-  if (autoRefreshEnabled) {
+  if (autoRefreshEnabled && Date.now() - lastDashboardRefreshTime >= FOCUS_REFRESH_MIN_GAP_MS) {
     setTimeout(refreshDashboard, 100);
   }
 });

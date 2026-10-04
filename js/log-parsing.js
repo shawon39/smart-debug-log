@@ -4,6 +4,13 @@
 // Global variables to track current error filters
 let currentErrorFilters = { showFatal: true, showException: false }; // Default to showing Fatal only
 let currentErrorData = null; // Store current error data for re-rendering
+let currentLogTruncated = false; // Whether the shown log was cut by Salesforce
+let lastParsedLog = null; // { content, result } of the last parsed log; the views re-use it
+
+// Banner for logs that Salesforce cut because they were too big
+function truncatedLogBannerHtml() {
+  return `<div class="log-truncated-banner">${Icons.svg('triangleAlert', 14)}<span>This log was cut by Salesforce. Errors and limits may be incomplete.</span></div>`;
+}
 
 function addLineNumbers(messageContent) {
   if (!messageContent || typeof messageContent !== 'string') {
@@ -25,6 +32,11 @@ function addLineNumbers(messageContent) {
 }
 
 function parseDebugLogContent(content) {
+  // The list icons, the debug view and the raw view all ask for the same log: parse it once
+  if (lastParsedLog && lastParsedLog.content === content) {
+    return lastParsedLog.result;
+  }
+
   try {
     const debugMessages = extractUserDebugBlocks(content);
 
@@ -33,8 +45,8 @@ function parseDebugLogContent(content) {
 
     // Extract the governor-limits section.
     // Anchor on the LAST CUMULATIVE_LIMIT_USAGE block (the final transaction's totals),
-    // collect each LIMIT_USAGE_FOR_NS namespace within it, and show the (default)
-    // namespace (falling back to the first namespace if there is no default).
+    // collect each LIMIT_USAGE_FOR_NS namespace within it, and show all of them,
+    // the (default) namespace first.
     const lines = content.split('\n');
     let limitsSection = '';
 
@@ -66,25 +78,32 @@ function parseDebugLogContent(content) {
         }
       }
 
-      // Prefer the (default) namespace; fall back to the first one present.
-      const chosen = sections.find(s => s.namespace === '(default)') || sections[0];
-      if (chosen) {
-        limitsSection = `LIMIT_USAGE_FOR_NS|${chosen.namespace}|\n` + chosen.details.join('\n');
-      }
+      // The (default) namespace first, then managed package namespaces in log order
+      const ordered = [
+        ...sections.filter(s => s.namespace === '(default)'),
+        ...sections.filter(s => s.namespace !== '(default)')
+      ];
+      limitsSection = ordered
+        .map(section => `LIMIT_USAGE_FOR_NS|${section.namespace}|\n` + section.details.join('\n'))
+        .join('\n');
     }
 
-    return {
+    const result = {
       debugMessages: debugMessages,
       errors: errorData,
-      limits: limitsSection.trim()
+      limits: limitsSection.trim(),
+      truncated: isTruncatedLog(content)
     };
+    lastParsedLog = { content, result };
+    return result;
   } catch (error) {
     // Fallback: show info via toast
-    showToast('Failed to copy. Log content is available in the view.', 5000);
+    showToast('Could not read this log. Try the raw view.', 5000);
     return {
       debugMessages: [],
-      errors: { hasErrors: false, errors: [], errorSummary: null },
-      limits: ''
+      errors: { hasErrors: false, hasFatalErrors: false, hasExceptions: false, errors: [] },
+      limits: '',
+      truncated: false
     };
   }
 }
@@ -115,18 +134,21 @@ function extractUserEmailFromLog(content) {
 
 function displayDebugContent(parsedContent) {
   const { debugContent, errorContent, limitsContent } = elements;
+  currentLogTruncated = !!parsedContent.truncated;
+  const truncatedBanner = currentLogTruncated ? truncatedLogBannerHtml() : '';
 
   // Display debug messages
   if (parsedContent.debugMessages && parsedContent.debugMessages.length > 0) {
     // Create individual blocks for each debug message
-    const messageBlocks = parsedContent.debugMessages.map((message, index) => {
+    const messageBlocks = parsedContent.debugMessages.map(({ level, message }, index) => {
       let formattedMessage = message;
 
-      // Decode HTML entities first
+      // Decode HTML entities first (the only decode: the formatters below take decoded text)
       formattedMessage = decodeHtmlEntities(formattedMessage);
 
       // Check if this looks like Salesforce object notation and try to format it
-      if (containsSalesforceObjects(formattedMessage)) {
+      // (very long messages are shown as text: structure parsing them would freeze the page)
+      if (formattedMessage.length <= MAX_STRUCTURED_MESSAGE_LENGTH && containsSalesforceObjects(formattedMessage)) {
         try {
           // Extract and parse the Salesforce object part
           const result = extractAndParseSalesforceObjects(formattedMessage);
@@ -143,11 +165,14 @@ function displayDebugContent(parsedContent) {
       // Add line numbers to the formatted message
       const messageWithLineNumbers = addLineNumbers(formattedMessage);
 
-      return `<div class="debug-message-block" data-message-index="${index}"><pre class="debug-message-pre">${messageWithLineNumbers}</pre></div>`;
+      // Show the logging level when it is not the default DEBUG (e.g. System.debug(LoggingLevel.ERROR, ...))
+      const levelTag = level !== 'DEBUG' ? `<span class="debug-level-tag level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level)}</span>` : '';
+
+      return `<div class="debug-message-block" data-message-index="${index}">${levelTag}<pre class="debug-message-pre">${messageWithLineNumbers}</pre></div>`;
     }).join('');
-    debugContent.innerHTML = messageBlocks;
+    debugContent.innerHTML = truncatedBanner + messageBlocks;
   } else {
-    debugContent.innerHTML = '<div class="info-message">No DEBUG messages found in this log.</div>';
+    debugContent.innerHTML = truncatedBanner + '<div class="info-message">No debug messages found in this log.</div>';
   }
 
   // Display error analysis
@@ -168,7 +193,7 @@ function displayDebugContent(parsedContent) {
     }
 
     const formattedErrors = formatErrorsForDisplay(parsedContent.errors, currentErrorFilters);
-    errorContent.innerHTML = formattedErrors;
+    errorContent.innerHTML = truncatedBanner + formattedErrors;
 
     // Wire up filter checkbox event listeners
     wireUpErrorFilterListeners();
@@ -225,7 +250,7 @@ function handleFilterCheckboxChange(event) {
     const errorContent = document.getElementById('errorContent');
     if (errorContent) {
       const formattedErrors = formatErrorsForDisplay(currentErrorData, currentErrorFilters);
-      errorContent.innerHTML = formattedErrors;
+      errorContent.innerHTML = (currentLogTruncated ? truncatedLogBannerHtml() : '') + formattedErrors;
 
       // Re-wire listeners after re-rendering
       wireUpErrorFilterListeners();

@@ -1,59 +1,56 @@
 // Tab Management
 // This file handles tab querying, prioritization, and content script injection
 
+// My Domain hosts of one org differ only in their suffix: acme.my.salesforce.com, acme.lightning.force.com,
+// acme.my.salesforce-setup.com and acme--c.vf.force.com (sandbox: acme--uat.sandbox.lightning.force.com,
+// acme--uat--c.sandbox.vf.force.com). Returns that common part ("acme", "acme--uat.sandbox"), or null.
+function getMyDomainOrgKey(host) {
+  const name = String(host || '').toLowerCase();
+  for (const suffix of ['.my.salesforce.com', '.lightning.force.com', '.my.salesforce-setup.com']) {
+    if (name.endsWith(suffix)) return name.slice(0, -suffix.length);
+  }
+  if (name.endsWith('.vf.force.com')) {
+    // The first label ends with "--<package>" (usually "--c"): acme--c -> acme
+    const prefix = name.slice(0, -'.vf.force.com'.length);
+    const dot = prefix.indexOf('.');
+    const firstLabel = dot === -1 ? prefix : prefix.slice(0, dot);
+    const cut = firstLabel.lastIndexOf('--');
+    return cut > 0 ? firstLabel.slice(0, cut) + prefix.slice(firstLabel.length) : null;
+  }
+  return null;
+}
+
+// True when host belongs to the same org as targetHost
+function isSameOrgHost(host, targetHost) {
+  if (!host || !targetHost) return false;
+  if (host.toLowerCase() === targetHost.toLowerCase()) return true;
+  const key = getMyDomainOrgKey(host);
+  return key !== null && key === getMyDomainOrgKey(targetHost);
+}
+
 class TabManager {
   constructor() {
     this.contentScriptFiles = [
       'content/api-handler.js',
-      'content/api-operations.js', 
-      'content/session-extraction.js'
+      'content/api-operations.js'
     ];
   }
 
   /**
-   * Gets ordered list of Salesforce tabs prioritized by target host and activity
-   * @param {string} targetHost - The preferred host to prioritize
+   * Gets the Salesforce tabs of the target host's org: tabs on the target host first, then the others
+   * by last use. Tabs of other orgs and extension pages are never used.
+   * @param {string} targetHost - The dashboard's org host
    * @returns {Promise<Array>} Ordered array of tabs
    */
   async getOrderedSalesforceTabs(targetHost = null) {
-    const salesforceTabs = await getSalesforceTabs();
-    const activeTabs = await chrome.tabs.query({ active: true, currentWindow: true });
-    const activeTab = activeTabs[0];
-    
-    const realSalesforceTabs = salesforceTabs.filter(tab => isRealSalesforceUrl(tab.url));
-    const extensionTabs = salesforceTabs.filter(tab => !isRealSalesforceUrl(tab.url));
-    
-    const orderedTabs = [];
-    
-    // Priority 1: Target host tabs
-    if (targetHost) {
-      const targetHostTabs = realSalesforceTabs.filter(tab => {
-        const tabUrl = new URL(tab.url);
-        return tabUrl.hostname === targetHost || tab.url.includes(targetHost);
-      });
-      orderedTabs.push(...targetHostTabs);
-    }
-    
-    // Priority 2: Active Salesforce tab (if not already included)
-    if (activeTab && isRealSalesforceUrl(activeTab.url) && !orderedTabs.find(tab => tab.id === activeTab.id)) {
-      orderedTabs.push(activeTab);
-    }
-    
-    // Priority 3: Other real Salesforce tabs (by last accessed)
-    const otherRealTabs = realSalesforceTabs
-      .filter(tab => !orderedTabs.find(existingTab => existingTab.id === tab.id))
-      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-    
-    orderedTabs.push(...otherRealTabs);
-    
-    // Priority 4: Extension tabs (by last accessed)
-    const otherExtensionTabs = extensionTabs
-      .filter(tab => !orderedTabs.find(existingTab => existingTab.id === tab.id))
-      .sort((a, b) => (b.lastAccessed || 0) - (a.lastAccessed || 0));
-    
-    orderedTabs.push(...otherExtensionTabs);
+    if (!targetHost) return [];
+    const tabs = await chrome.tabs.query({});
+    const hostOf = (tab) => new URL(tab.url).hostname.toLowerCase();
 
-    return orderedTabs;
+    return tabs
+      .filter(tab => isSalesforceUrl(tab.url) && isSameOrgHost(hostOf(tab), targetHost))
+      .sort((a, b) => (Number(hostOf(b) === targetHost.toLowerCase()) - Number(hostOf(a) === targetHost.toLowerCase())) ||
+        ((b.lastAccessed || 0) - (a.lastAccessed || 0)));
   }
 
   /**

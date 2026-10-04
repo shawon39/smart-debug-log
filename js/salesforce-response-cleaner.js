@@ -1,45 +1,49 @@
 // Salesforce Response Cleaner
 // This file contains utilities for cleaning Salesforce API responses
 
-// Default fields to remove from Salesforce responses
-const DEFAULT_FIELDS_TO_REMOVE = ['attributes', 'done'];
-
 // Main function to clean Salesforce API responses.
-function cleanSalesforceResponse(rawText, fieldsToRemove = DEFAULT_FIELDS_TO_REMOVE) {
+// Returns { prefix, json, suffix }: json is the JSON found in rawText, pretty-printed without SOQL metadata,
+// and prefix/suffix are the texts around it (e.g. "Response:"). Returns null when there is no JSON.
+function cleanSalesforceResponse(rawText) {
   try {
     if (!rawText || typeof rawText !== 'string') {
-      return rawText;
+      return null;
     }
 
     // Extract JSON from the text
-    const jsonData = extractJsonFromText(rawText);
-    if (!jsonData) {
-      return rawText;
+    const found = extractJsonFromText(rawText);
+    if (!found) {
+      return null;
     }
 
     // Clean by removing unwanted metadata fields
-    const cleanedData = removeUnwantedFields(jsonData, fieldsToRemove);
-    return JSON.stringify(cleanedData, null, 2);
+    return {
+      prefix: rawText.slice(0, found.start).trim(),
+      json: JSON.stringify(removeUnwantedFields(found.data), null, 2),
+      suffix: rawText.slice(found.end).trim()
+    };
   } catch (error) {
-    return rawText;
+    return null;
   }
 }
 
-// Removes unwanted metadata fields from a Salesforce API response.
-function removeUnwantedFields(data, fieldsToRemove = DEFAULT_FIELDS_TO_REMOVE) {
+// Removes Salesforce metadata only where Salesforce puts it, so user JSON keeps its own "done" or "attributes" keys:
+// "done" of a SOQL query result ({ totalSize, done, records }) and "attributes" ({ type, url }) of a record.
+function removeUnwantedFields(data) {
   if (Array.isArray(data)) {
-    return data.map(item => removeUnwantedFields(item, fieldsToRemove));
+    return data.map(item => removeUnwantedFields(item));
   } else if (data && typeof data === 'object') {
+    const isQueryResult = 'totalSize' in data && 'done' in data && 'records' in data;
     const cleaned = {};
     
     for (const [key, value] of Object.entries(data)) {
       // Skip unwanted metadata fields
-      if (fieldsToRemove.includes(key)) {
+      if ((key === 'done' && isQueryResult) || (key === 'attributes' && isRecordAttributes(value))) {
         continue;
       }
       
       // Recursively process nested objects and arrays
-      cleaned[key] = removeUnwantedFields(value, fieldsToRemove);
+      cleaned[key] = removeUnwantedFields(value);
     }
     
     return cleaned;
@@ -48,56 +52,58 @@ function removeUnwantedFields(data, fieldsToRemove = DEFAULT_FIELDS_TO_REMOVE) {
   return data;
 }
 
-// Extracts a JSON object from a raw text string.
+function isRecordAttributes(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value) &&
+    typeof value.type === 'string' && typeof value.url === 'string';
+}
+
+// Extracts JSON from a raw text string: the whole text, or else the last {...} / [...] block in it.
+// Returns { data, start, end } (end is exclusive) or null. Runs in linear time.
 function extractJsonFromText(text) {
   // First try direct parsing
   try {
-    return JSON.parse(text.trim());
+    const data = JSON.parse(text.trim());
+    const start = text.length - text.trimStart().length;
+    return { data, start, end: start + text.trim().length };
   } catch (e) {
-    // Continue with pattern matching
+    // Continue with the last JSON block
   }
 
-  // Find the last valid JSON structure in the text
-  const lines = text.split('\n');
-  
-  // Scan from the end to find the last complete JSON structure
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i];
+  const block = findLastJsonBlock(text);
+  if (!block) {
+    return null;
+  }
     
-    // Look for potential JSON start markers
-    if (line.trim().startsWith('[') || line.trim().startsWith('{')) {
-      // Try to parse from this point forward
-      const candidateJson = lines.slice(i).join('\n');
-      try {
-        const parsed = JSON.parse(candidateJson);
-        return parsed;
-      } catch (e) {
-        // Continue searching
-      }
-    }
+  try {
+    return { data: JSON.parse(text.slice(block.start, block.end)), start: block.start, end: block.end };
+  } catch (e) {
+    return null;
   }
+}
   
-  // Try regex patterns as fallback
-  const jsonPatterns = [
-    // Array pattern - last occurrence
-    /(\[[\s\S]*\])(?![\s\S]*[\[\{])/,
-    // Object pattern - last occurrence
-    /(\{[\s\S]*\})(?![\s\S]*[\[\{])/,
-    // More specific patterns for Salesforce responses
-    /(\[[\s\S]*"attributes"[\s\S]*\])/,
-    /(\{[\s\S]*"attributes"[\s\S]*\})/
-  ];
+// Finds the last top-level {...} or [...] block: from the last closing bracket back to its opening bracket.
+// Brackets inside JSON strings are skipped (a quote is escaped when an odd number of backslashes precede it).
+function findLastJsonBlock(text) {
+  const end = Math.max(text.lastIndexOf('}'), text.lastIndexOf(']'));
+  if (end === -1) {
+    return null;
+  }
 
-  for (const pattern of jsonPatterns) {
-    const match = text.match(pattern);
-    if (match) {
-      try {
-        return JSON.parse(match[1]);
-      } catch (e) {
-        continue;
+  let depth = 0;
+  let inString = false;
+  for (let i = end; i >= 0; i--) {
+    const char = text[i];
+    if (char === '"') {
+      let backslashes = 0;
+      while (i - backslashes - 1 >= 0 && text[i - backslashes - 1] === '\\') backslashes++;
+      if (backslashes % 2 === 0) inString = !inString;
+    } else if (!inString) {
+      if (char === '}' || char === ']') depth++;
+      else if (char === '{' || char === '[') {
+        depth--;
+        if (depth === 0) return { start: i, end: end + 1 };
       }
     }
   }
-
   return null;
 } 
